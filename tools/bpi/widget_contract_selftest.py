@@ -234,29 +234,6 @@ def check_implementation_contracts() -> None:
     require("interval_volume_btc" in dual, "High/Low renderer must use interval_volume_btc")
 
 
-def check_runtime_snapshots() -> None:
-    # Runtime/generated data is intentionally diagnostic-only here. The dedicated
-    # runtime healthcheck owns freshness and non-zero market assertions. A stale
-    # committed snapshot must not make the static widget integration contract fail.
-    latest = load_json("bitcoin/bpi/api/latest.json", required=False)
-    if latest:
-        gb = latest.get("global_bpi") if isinstance(latest.get("global_bpi"), dict) else {}
-        us = (latest.get("national_bpi") or {}).get("US") if isinstance(latest.get("national_bpi"), dict) else {}
-        if not number_gt_zero(gb.get("weighted_price_usd")):
-            warn("committed latest.json has no positive Global weighted BPI; runtime healthcheck should refresh it")
-        if not number_gt_zero(gb.get("unweighted_price_usd")):
-            warn("committed latest.json has no positive Global unweighted BPI; runtime healthcheck should refresh it")
-        if us and not number_gt_zero(us.get("weighted_price_usd")):
-            warn("committed latest.json US weighted BPI is not positive; runtime healthcheck should refresh it")
-        if us and not number_gt_zero(us.get("unweighted_price_usd")):
-            warn("committed latest.json US unweighted BPI is not positive; runtime healthcheck should refresh it")
-
-    trade = load_json("bitcoin/bpi/api/national_trade.json", required=False)
-    if trade:
-        countries = trade.get("countries") if isinstance(trade.get("countries"), list) else []
-        if len(countries) < 200:
-            warn(f"national_trade.json currently covers only {len(countries)} countries/territories; sovereign updater should expand coverage")
-
 
 def main() -> int:
     checks = (
@@ -264,7 +241,6 @@ def main() -> int:
         check_purchasing_power_contract,
         check_exchange_and_index_contract,
         check_implementation_contracts,
-        check_runtime_snapshots,
     )
     for check in checks:
         try:
