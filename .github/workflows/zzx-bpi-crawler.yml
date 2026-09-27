@@ -129,10 +129,15 @@ jobs:
           done
           exit 1
 
-      - name: Validate continuous BPI stack
+      - name: Validate continuous BPI core stack
         shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
+          trap 'rc=$?; printf "%s\n" "::error title=BPI core preflight failed::command=${BASH_COMMAND} exit=${rc}"; exit "${rc}"' ERR
+
+          # Keep the live-market collector independent from optional/front-end
+          # widget tests.  A missing or temporarily broken UI contract must not
+          # disable the 24/7 price/volume continuity tier.
           python3 -m py_compile \
             tools/bpi/collector.py \
             tools/bpi/history_store.py \
@@ -140,15 +145,40 @@ jobs:
             tools/bpi/index_sanity.py \
             tools/bpi/bpi_live_publish.py \
             tools/bpi/bpi_runtime_healthcheck.py \
-            tools/bpi/widget_contract_selftest.py
+            tools/bpi/workflow_contract_selftest.py
+
+          printf '%s\n' 'CHECK bpi_live_publish self-test'
           python3 tools/bpi/bpi_live_publish.py --self-test
+          printf '%s\n' 'CHECK runtime healthcheck self-test'
           python3 tools/bpi/bpi_runtime_healthcheck.py --self-test
+          printf '%s\n' 'CHECK continuity self-test'
           python3 tools/bpi/bpi_continuity_selftest.py
+          printf '%s\n' 'CHECK workflow contract self-test'
           python3 tools/bpi/workflow_contract_selftest.py
-          python3 tools/bpi/widget_contract_selftest.py
+          printf '%s\n' 'CHECK JSON contracts'
           python3 -m json.tool tools/bpi/collector-config.json >/dev/null
           python3 -m json.tool bitcoin/bpi/api/provider_urls.json >/dev/null
           python3 -m json.tool bitcoin/bpi/api/exchanges.json >/dev/null
+
+      - name: Validate Bitcoin widget integration contract
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          test_file='tools/bpi/widget_contract_selftest.py'
+          if [ ! -f "${test_file}" ]; then
+            printf '%s\n' '::warning title=BPI widget contract unavailable::tools/bpi/widget_contract_selftest.py is not present on this revision; live BPI collection will continue.'
+            exit 0
+          fi
+          if ! python3 -m py_compile "${test_file}"; then
+            printf '%s\n' '::warning title=BPI widget contract compile failure::Widget integration validation failed; live BPI collection will continue.'
+            exit 0
+          fi
+          if ! python3 "${test_file}"; then
+            printf '%s\n' '::warning title=BPI widget contract failure::Widget integration validation failed; live BPI collection will continue.'
+            exit 0
+          fi
+          printf '%s\n' 'BPI widget integration contract: PASS'
 
       - name: Enforce bounded live fallback contract
         shell: bash
