@@ -3,19 +3,18 @@
 
   const W=window;
   const D=document;
-  const ID="high-low-24h";
-  const REFRESH_MS=2500;
-  const MAX_POINTS=12000;
+  const ID="volume-24h";
+  const REFRESH_MS=15000;
+  const MAX_POINTS_AUTO=4096;
+  const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
     resolution:
-      "zzx.widget.high-low-24h.resolution.v2",
-    priceMode:
-      "zzx.widget.high-low-24h.price-mode.v2",
-    volumeMode:
-      "zzx.widget.high-low-24h.volume-mode.v2",
+      "zzx.widget.volume-24h.resolution.v2",
+    mode:
+      "zzx.widget.volume-24h.mode.v2",
     follow:
-      "zzx.widget.high-low-24h.follow-live.v2"
+      "zzx.widget.volume-24h.follow-live.v2"
   });
 
   const MODULES=Object.freeze([
@@ -23,17 +22,19 @@
       global:"ZZXHistoryClient",
       path:
         "/__partials/widgets/_shared/zzx-history-client.js",
-      version:5
+      version:6
     },
     {
-      global:"ZZXHighLow24HModel",
+      global:"ZZXChartEngine",
+      path:
+        "/__partials/widgets/_shared/zzx-chart-engine.js",
+      version:4
+    },
+    {
+      global:"ZZXVolume24HModel",
       path:"js/model.js",
-      version:2
-    },
-    {
-      global:"ZZXHighLow24HChart",
-      path:"js/dual-chart.js",
-      version:3
+      version:2,
+      local:true
     }
   ]);
 
@@ -43,6 +44,14 @@
         selector
       )||
       null
+    );
+  }
+
+  function active(root){
+    return !!(
+      root?.isConnected &&
+      D.visibilityState!=="hidden" &&
+      !root.closest?.("[hidden]")
     );
   }
 
@@ -73,20 +82,23 @@
 
   function safeGet(key){
     try{
-      return W.localStorage
-        .getItem(key);
+      return W.localStorage.getItem(
+        key
+      );
     }catch(_){
       return null;
     }
   }
 
-  function safeSet(key,value){
+  function safeSet(
+    key,
+    value
+  ){
     try{
-      W.localStorage
-        .setItem(
-          key,
-          String(value)
-        );
+      W.localStorage.setItem(
+        key,
+        String(value)
+      );
     }catch(_){}
   }
 
@@ -96,14 +108,16 @@
       : path;
   }
 
-  function moduleVersion(name){
+  function moduleVersion(
+    globalName
+  ){
     return Number(
-      W[name]?.__version||
+      W[globalName]?.__version||
       0
     );
   }
 
-  function moduleURL(
+  function versionedURL(
     path,
     version,
     base
@@ -123,7 +137,7 @@
         );
 
       url.searchParams.set(
-        "hl24dep",
+        "volume24dep",
         String(version)
       );
 
@@ -132,12 +146,14 @@
       return (
         `${raw}`+
         `${raw.includes("?")?"&":"?"}`+
-        `hl24dep=${encodeURIComponent(version)}`
+        `volume24dep=${encodeURIComponent(version)}`
       );
     }
   }
 
-  async function ensureModules(core){
+  async function ensureModules(
+    core
+  ){
     const base=
       core?.widgetBase
         ? String(
@@ -146,7 +162,7 @@
             /\/+$/g,
             ""
           )
-        : "/__partials/widgets/high-low-24h";
+        : "/__partials/widgets/volume-24h";
 
     for(const spec of MODULES){
       if(
@@ -158,7 +174,7 @@
       }
 
       const src=
-        moduleURL(
+        versionedURL(
           spec.path,
           spec.version,
           base
@@ -208,7 +224,8 @@
 
           script.src=src;
           script.defer=true;
-          script.dataset.hl24Dependency=
+
+          script.dataset.volume24Dependency=
             spec.global;
 
           script.addEventListener(
@@ -258,23 +275,20 @@
 
     try{
       if(W.ZZXAPI?.jsonStrict){
-        return await W.ZZXAPI
-          .jsonStrict(
-            target,
-            {
-              cacheBust:true,
-              timeoutMs:6000,
-              retries:1
-            }
-          );
+        return await W.ZZXAPI.jsonStrict(
+          target,
+          {
+            cacheBust:true,
+            timeoutMs:6000,
+            retries:1
+          }
+        );
       }
 
       const response=
         await fetch(
           target,
-          {
-            cache:"no-store"
-          }
+          {cache:"no-store"}
         );
 
       if(!response.ok){
@@ -290,7 +304,62 @@
     }
   }
 
-  function usd(value){
+  function btc(value){
+    const number=
+      finite(value);
+
+    if(
+      !Number.isFinite(number)
+    ){
+      return "—";
+    }
+
+    return (
+      number.toLocaleString(
+        undefined,
+        {
+          maximumFractionDigits:
+            Math.abs(number)>=1000
+              ? 2
+              : 4
+        }
+      )+
+      " BTC"
+    );
+  }
+
+  function signedBtc(value){
+    const number=
+      finite(value);
+
+    if(!Number.isFinite(number)){
+      return "—";
+    }
+
+    return (
+      `${number>=0?"+":""}`+
+      `${number.toLocaleString(
+        undefined,
+        {
+          maximumFractionDigits:2
+        }
+      )} BTC`
+    );
+  }
+
+  function pct(value){
+    const number=
+      finite(value);
+
+    return Number.isFinite(number)
+      ? (
+          `${number>=0?"+":""}`+
+          `${number.toFixed(2)}%`
+        )
+      : "—";
+  }
+
+  function money(value){
     const number=
       finite(value);
 
@@ -306,76 +375,13 @@
       : "—";
   }
 
-  function btc(value){
-    const number=
-      finite(value);
-
-    return Number.isFinite(number)
-      ? (
-          number.toLocaleString(
-            undefined,
-            {
-              maximumFractionDigits:
-                Math.abs(number)>=1000
-                  ? 2
-                  : 4
-            }
-          )+
-          " BTC"
-        )
-      : "—";
-  }
-
-  function pct(value){
-    const number=
-      finite(value);
-
-    return Number.isFinite(number)
-      ? (
-          `${number>=0?"+":""}`+
-          `${number.toFixed(2)}%`
-        )
-      : "—";
-  }
-
-  function signedUsd(value){
-    const number=
-      finite(value);
-
-    return Number.isFinite(number)
-      ? (
-          `${number>=0?"+":""}`+
-          `${usd(Math.abs(number))}`
-            .replace(
-              /^\$/,
-              "$"
-            )
-        )
-      : "—";
-  }
-
-  function signedBtc(value){
-    const number=
-      finite(value);
-
-    return Number.isFinite(number)
-      ? (
-          `${number>=0?"+":""}`+
-          `${number.toLocaleString(
-            undefined,
-            {
-              maximumFractionDigits:2
-            }
-          )} BTC`
-        )
-      : "—";
-  }
-
   function duration(ms){
     const number=
       finite(ms);
 
-    if(!Number.isFinite(number)){
+    if(
+      !Number.isFinite(number)
+    ){
       return "—";
     }
 
@@ -418,164 +424,270 @@
     );
   }
 
-  function controls(root){
+  function controlState(root){
     return {
       resolution:
         q(
           root,
-          "[data-hl24-resolution]"
+          "[data-volume24-resolution]"
         )?.value||
         "auto",
-      priceMode:
+      mode:
         q(
           root,
-          "[data-hl24-price-mode]"
+          "[data-volume24-mode]"
         )?.value||
-        "area",
-      volumeMode:
-        q(
-          root,
-          "[data-hl24-volume-mode]"
-        )?.value||
-        "interval-bars",
+        "rolling-line",
       follow:
         q(
           root,
-          "[data-hl24-follow]"
+          "[data-volume24-follow]"
         )?.checked!==false
     };
   }
 
-  function applyStored(root){
+  function applyStoredControls(
+    root
+  ){
     const resolution=
       q(
         root,
-        "[data-hl24-resolution]"
+        "[data-volume24-resolution]"
       );
 
-    const priceMode=
+    const mode=
       q(
         root,
-        "[data-hl24-price-mode]"
-      );
-
-    const volumeMode=
-      q(
-        root,
-        "[data-hl24-volume-mode]"
+        "[data-volume24-mode]"
       );
 
     const follow=
       q(
         root,
-        "[data-hl24-follow]"
+        "[data-volume24-follow]"
       );
 
-    for(
-      const [
-        element,
-        value
-      ]
-      of [
-        [
-          resolution,
-          safeGet(
-            STORE.resolution
-          )
-        ],
-        [
-          priceMode,
-          safeGet(
-            STORE.priceMode
-          )
-        ],
-        [
-          volumeMode,
-          safeGet(
-            STORE.volumeMode
-          )
-        ]
-      ]
-    ){
-      if(
-        element &&
-        value &&
-        [...element.options].some(
-          option=>
-            option.value===value
-        )
-      ){
-        element.value=value;
-      }
-    }
-
-    const storedFollow=
+    const savedResolution=
       safeGet(
-        STORE.follow
+        STORE.resolution
+      );
+
+    const savedMode=
+      safeGet(
+        STORE.mode
       );
 
     if(
+      resolution &&
+      savedResolution &&
+      [...resolution.options].some(
+        option=>
+          option.value===
+          savedResolution
+      )
+    ){
+      resolution.value=
+        savedResolution;
+    }
+
+    if(
+      mode &&
+      savedMode &&
+      [...mode.options].some(
+        option=>
+          option.value===
+          savedMode
+      )
+    ){
+      mode.value=
+        savedMode;
+    }
+
+    if(
       follow &&
-      storedFollow!=null
+      safeGet(
+        STORE.follow
+      )!=null
     ){
       follow.checked=
-        storedFollow!=="false";
+        safeGet(
+          STORE.follow
+        )!=="false";
     }
   }
 
   function saveControls(root){
-    const value=
-      controls(root);
+    const controls=
+      controlState(root);
 
     safeSet(
       STORE.resolution,
-      value.resolution
+      controls.resolution
     );
 
     safeSet(
-      STORE.priceMode,
-      value.priceMode
-    );
-
-    safeSet(
-      STORE.volumeMode,
-      value.volumeMode
+      STORE.mode,
+      controls.mode
     );
 
     safeSet(
       STORE.follow,
-      value.follow
+      controls.follow
         ? "true"
         : "false"
     );
 
-    return value;
+    return controls;
+  }
+
+  function renderStats(
+    root,
+    stats
+  ){
+    set(
+      root,
+      "[data-volume24-current]",
+      btc(stats.current)
+    );
+
+    set(
+      root,
+      "[data-volume24-open]",
+      btc(stats.open)
+    );
+
+    set(
+      root,
+      "[data-volume24-high]",
+      btc(stats.high)
+    );
+
+    set(
+      root,
+      "[data-volume24-low]",
+      btc(stats.low)
+    );
+
+    set(
+      root,
+      "[data-volume24-range]",
+      Number.isFinite(
+        stats.range
+      )
+        ? (
+            `${btc(stats.range)} · `+
+            `${Math.abs(
+              stats.rangePct
+            ).toFixed(2)}%`
+          )
+        : "—"
+    );
+
+    set(
+      root,
+      "[data-volume24-average]",
+      btc(stats.average)
+    );
+
+    set(
+      root,
+      "[data-volume24-median]",
+      btc(stats.median)
+    );
+
+    const change=
+      q(
+        root,
+        "[data-volume24-change]"
+      );
+
+    if(change){
+      change.textContent=
+        Number.isFinite(
+          stats.change
+        )
+          ? (
+              `${signedBtc(stats.change)} · `+
+              `${pct(stats.changePct)}`
+            )
+          : "—";
+
+      change.dataset.tone=
+        stats.change>0
+          ? "up"
+          : stats.change<0
+            ? "down"
+            : "flat";
+    }
+
+    set(
+      root,
+      "[data-volume24-points]",
+      `${stats.points.toLocaleString()} points`
+    );
+
+    set(
+      root,
+      "[data-volume24-coverage]",
+      `${stats.coveragePct.toFixed(1)}% of 24h covered`
+    );
+
+    set(
+      root,
+      "[data-volume24-cadence]",
+      `median cadence ${duration(stats.medianIntervalMs)} · `+
+      `max gap ${duration(stats.largestGapMs)}`
+    );
+
+    set(
+      root,
+      "[data-volume24-age]",
+      `last point ${duration(stats.ageMs)} ago`
+    );
+  }
+
+  function renderLegend(
+    root,
+    controls
+  ){
+    const line=
+      q(
+        root,
+        "[data-volume24-line-legend]"
+      );
+
+    if(line){
+      line.hidden=
+        controls.mode!==
+        "interval-bars+rolling";
+    }
   }
 
   async function historyFor(
     descriptor,
-    control
+    controls
   ){
     const query=
       async source=>
-        await W.ZZXHistoryClient
-          .series({
-            source,
-            timeframe:"24h",
-            resolution:
-              control.resolution,
-            maxPoints:
-              MAX_POINTS
-          });
+        await W.ZZXHistoryClient.series({
+          source,
+          timeframe:"24h",
+          resolution:
+            controls.resolution,
+          maxPoints:
+            controls.resolution==="auto"
+              ? MAX_POINTS_AUTO
+              : MAX_POINTS_DETAIL
+        });
 
-    let result=
+    let primary=
       await query(
         descriptor.id
       );
 
     if(
       (
-        result.points?.length||
+        primary.points?.length||
         0
       )<2 &&
       descriptor.compatibility &&
@@ -593,11 +705,11 @@
           0
         )>
         (
-          result.points?.length||
+          primary.points?.length||
           0
         )
       ){
-        result={
+        primary={
           ...fallback,
           compatibilitySource:
             descriptor.compatibility
@@ -605,295 +717,11 @@
       }
     }
 
-    return result;
-  }
-
-  function tone(element,value){
-    if(!element)return;
-
-    element.dataset.tone=
-      value>0
-        ? "up"
-        : value<0
-          ? "down"
-          : "flat";
-  }
-
-  function renderStats(root,stats){
-    set(
-      root,
-      "[data-hl24-price-current]",
-      usd(
-        stats.priceCurrent
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-price-high]",
-      usd(
-        stats.priceHigh24
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-price-low]",
-      usd(
-        stats.priceLow24
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-price-range]",
-      Number.isFinite(
-        stats.priceRange
-      )
-        ? (
-            `${usd(stats.priceRange)} · `+
-            `${stats.priceRangePct.toFixed(2)}%`
-          )
-        : "—"
-    );
-
-    set(
-      root,
-      "[data-hl24-price-position]",
-      Number.isFinite(
-        stats.pricePositionPct
-      )
-        ? (
-            `${stats.pricePositionPct.toFixed(1)}% from low`
-          )
-        : "—"
-    );
-
-    const priceChange=
-      q(
-        root,
-        "[data-hl24-price-change]"
-      );
-
-    if(priceChange){
-      priceChange.textContent=
-        Number.isFinite(
-          stats.priceChange
-        )
-          ? (
-              `${stats.priceChange>=0?"+":""}`+
-              `${usd(Math.abs(stats.priceChange))} · `+
-              `${pct(stats.priceChangePct)}`
-            )
-          : "—";
-
-      tone(
-        priceChange,
-        stats.priceChange
-      );
-    }
-
-    set(
-      root,
-      "[data-hl24-price-range-state]",
-      Number.isFinite(
-        stats.priceHigh24
-      ) &&
-      Number.isFinite(
-        stats.priceLow24
-      )
-        ? (
-            `${usd(stats.priceLow24)} → `+
-            `${usd(stats.priceHigh24)}`
-          )
-        : "24h range unavailable"
-    );
-
-    set(
-      root,
-      "[data-hl24-volume-current]",
-      btc(
-        stats.volumeCurrent
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-volume-high]",
-      btc(
-        stats.volumeHigh
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-volume-low]",
-      btc(
-        stats.volumeLow
-      )
-    );
-
-    set(
-      root,
-      "[data-hl24-volume-range]",
-      Number.isFinite(
-        stats.volumeRange
-      )
-        ? (
-            `${btc(stats.volumeRange)} · `+
-            `${stats.volumeRangePct.toFixed(2)}%`
-          )
-        : "—"
-    );
-
-    const volumeChange=
-      q(
-        root,
-        "[data-hl24-volume-change]"
-      );
-
-    if(volumeChange){
-      volumeChange.textContent=
-        Number.isFinite(
-          stats.volumeChange
-        )
-          ? (
-              `${signedBtc(stats.volumeChange)} · `+
-              `${pct(stats.volumeChangePct)}`
-            )
-          : "—";
-
-      tone(
-        volumeChange,
-        stats.volumeChange
-      );
-    }
-
-    set(
-      root,
-      "[data-hl24-volume-average]",
-      Number.isFinite(
-        stats.volumeAverage
-      )
-        ? (
-            `${btc(stats.volumeAverage)} / `+
-            `${btc(stats.volumeMedian)}`
-          )
-        : "—"
-    );
-
-    set(
-      root,
-      "[data-hl24-volume-range-state]",
-      Number.isFinite(
-        stats.volumeHigh
-      ) &&
-      Number.isFinite(
-        stats.volumeLow
-      )
-        ? (
-            `${btc(stats.volumeLow)} → `+
-            `${btc(stats.volumeHigh)}`
-          )
-        : "24h observed range unavailable"
-    );
-
-    set(
-      root,
-      "[data-hl24-points]",
-      `${stats.points.toLocaleString()} points`
-    );
-
-    set(
-      root,
-      "[data-hl24-coverage]",
-      `${stats.coveragePct.toFixed(1)}% of 24h covered`
-    );
-
-    set(
-      root,
-      "[data-hl24-cadence]",
-      `median cadence ${duration(stats.medianIntervalMs)} · `+
-      `max gap ${duration(stats.largestGapMs)}`
-    );
-
-    set(
-      root,
-      "[data-hl24-age]",
-      `last point ${duration(stats.ageMs)} ago`
-    );
-  }
-
-  function rangeCoverage(points){
-    const rows=
-      Array.isArray(points)
-        ? points
-        : [];
-
-    if(!rows.length){
-      return {
-        count:0,
-        total:0,
-        pct:0
-      };
-    }
-
-    const count=
-      rows.filter(
-        row=>
-          Number.isFinite(
-            finite(
-              row.high_24h
-            )
-          ) &&
-          Number.isFinite(
-            finite(
-              row.low_24h
-            )
-          )
-      ).length;
-
-    return {
-      count,
-      total:rows.length,
-      pct:
-        count/
-        rows.length*
-        100
-    };
-  }
-
-  function renderLegend(
-    root,
-    control
-  ){
-    const candle=
-      q(
-        root,
-        "[data-hl24-volume-candle-legend]"
-      );
-
-    const line=
-      q(
-        root,
-        "[data-hl24-volume-line-legend]"
-      );
-
-    if(candle){
-      candle.hidden=
-        control.volumeMode===
-        "line";
-    }
-
-    if(line){
-      line.hidden=
-        control.volumeMode===
-        "candles";
-    }
+    return primary;
   }
 
   function tooltipRows(point){
-    const time=
+    const date=
       Number.isFinite(
         finite(point?.t)
       )
@@ -902,47 +730,44 @@
           ).toLocaleString()
         : "time —";
 
+    const open=
+      finite(point?.open);
+
+    const high=
+      finite(point?.high);
+
+    const low=
+      finite(point?.low);
+
+    const close=
+      finite(
+        point?.close ??
+        point?.volume_24h_btc
+      );
+
+    const delta=
+      Number.isFinite(open) &&
+      Number.isFinite(close)
+        ? close-open
+        : NaN;
+
+    const deltaPct=
+      Number.isFinite(delta) &&
+      open>0
+        ? delta/open*100
+        : NaN;
+
     const price=
       finite(
-        point?.price
-      );
-
-    const high24=
-      finite(
-        point?.high_24h
-      );
-
-    const low24=
-      finite(
-        point?.low_24h
-      );
-
-    const volumeOpen=
-      finite(
-        point?.volume_open_24h_btc
-      );
-
-    const volumeHigh=
-      finite(
-        point?.volume_high_24h_btc
-      );
-
-    const volumeLow=
-      finite(
-        point?.volume_low_24h_btc
-      );
-
-    const volumeClose=
-      finite(
-        point?.volume_close_24h_btc
+        point?.source_price_usd
       );
 
     return [
-      time,
-      `price ${usd(price)}`,
-      `price 24h H ${usd(high24)} · L ${usd(low24)}`,
-      `rolling volume O ${btc(volumeOpen)} · H ${btc(volumeHigh)}`,
-      `rolling volume L ${btc(volumeLow)} · C ${btc(volumeClose)}`
+      date,
+      `24h volume close ${btc(close)}`,
+      `O ${btc(open)} · H ${btc(high)} · L ${btc(low)} · C ${btc(close)}`,
+      `bucket Δ ${signedBtc(delta)} · ${pct(deltaPct)}`,
+      `contemporaneous BTC price ${money(price)}`
     ];
   }
 
@@ -954,7 +779,7 @@
     const empty=
       q(
         root,
-        "[data-hl24-empty]"
+        "[data-volume24-empty]"
       );
 
     if(!empty)return;
@@ -965,7 +790,7 @@
     if(detail){
       set(
         root,
-        "[data-hl24-empty-detail]",
+        "[data-volume24-empty-detail]",
         detail
       );
     }
@@ -991,20 +816,21 @@
     state.busy=true;
 
     try{
-      const control=
-        controls(root);
+      const controls=
+        controlState(root);
 
       const latest=
         await json(
           "/bitcoin/bpi/api/latest.json",
           {optional:true}
         );
+      state.latest=latest||state.latest||{};
 
       const selection=
         currentSelection();
 
       const descriptor=
-        W.ZZXHighLow24HModel
+        W.ZZXVolume24HModel
           .sourceDescriptor(
             selection,
             latest||{}
@@ -1017,50 +843,67 @@
       state.sourceId=
         descriptor.id;
 
+      state.descriptor=
+        descriptor;
+
       set(
         root,
-        "[data-hl24-source]",
+        "[data-volume24-source]",
         descriptor.label
       );
 
       set(
         root,
-        "[data-hl24-eyebrow]",
-        `${descriptor.label} · price H/L + rolling-volume H/L`
+        "[data-volume24-eyebrow]",
+        `${descriptor.label} · `+
+        `${controls.mode==="rolling-line"?"rolling 24h BTC volume":"actual interval BTC volume"}`
       );
 
       const data=
         await historyFor(
           descriptor,
-          control
+          controls
         );
 
+      const merged=
+        W.ZZXVolume24HModel
+          .mergeLive(
+            data.points||[],
+            selection
+          );
+
       const points=
-        W.ZZXHighLow24HModel
+        W.ZZXVolume24HModel
           .normalize(
-            W.ZZXHighLow24HModel
-              .mergeLive(
-                data.points||[],
-                selection
-              )
+            merged
           );
 
       const stats=
-        W.ZZXHighLow24HModel
-          .stats(points);
+        W.ZZXVolume24HModel
+          .stats(
+            points
+          );
 
       const recipe=
-        W.ZZXHighLow24HModel
+        W.ZZXVolume24HModel
           .recipe({
-            priceMode:
-              control.priceMode,
-            volumeMode:
-              control.volumeMode
+            mode:
+              controls.mode,
+            stats
           });
 
-      state.points=points;
-      state.stats=stats;
-      state.recipe=recipe;
+      state.points=
+        points;
+
+      state.stats=
+        stats;
+
+      state.recipe=
+        recipe;
+
+      state.transport=
+        data.transport||
+        "history";
 
       renderStats(
         root,
@@ -1069,17 +912,7 @@
 
       renderLegend(
         root,
-        control
-      );
-
-      const coverage=
-        rangeCoverage(points);
-
-      set(
-        root,
-        "[data-hl24-range-coverage]",
-        `price H/L ${coverage.count}/${coverage.total} · `+
-        `${coverage.pct.toFixed(1)}%`
+        controls
       );
 
       const mustReset=
@@ -1093,7 +926,7 @@
           preserveView:
             !mustReset,
           followRight:
-            control.follow
+            controls.follow
         }
       );
 
@@ -1109,10 +942,10 @@
         !enough,
         points.length===1
           ? (
-              `Live ${descriptor.label} data is available, but the 24h history has not accumulated a second point yet.`
+              `Live ${descriptor.label} volume is available, but the 24h collector has not accumulated a second volume point yet.`
             )
           : (
-              `No ${descriptor.label} high/low history is available yet.`
+              `No ${descriptor.label} rolling-volume history is available yet. The chart will populate as collector/browser-live history accumulates.`
             )
       );
 
@@ -1120,7 +953,7 @@
         data.compatibilitySource
           ? (
               ` · compatibility `+
-              data.compatibilitySource
+              `${data.compatibilitySource}`
             )
           : "";
 
@@ -1129,17 +962,17 @@
         "[data-mini-status]",
         enough
           ? (
-              `live · ${points.length.toLocaleString()} points · `+
-              `${data.resolution||control.resolution}`
+              `live · ${stats.points.toLocaleString()} points · `+
+              `${data.resolution||controls.resolution}`
             )
           : (
-              `waiting for ${descriptor.label} history`
+              `waiting for ${descriptor.label} volume history`
             )
       );
 
       set(
         root,
-        "[data-hl24-transport]",
+        "[data-volume24-transport]",
         `${data.transport||"history"}${compatibility}`
       );
 
@@ -1152,13 +985,11 @@
       if(canvas){
         canvas.setAttribute(
           "aria-label",
-          `${descriptor.label} 24 hour dual axis chart. `+
-          `Price ${usd(stats.priceCurrent)}, `+
-          `price high ${usd(stats.priceHigh24)}, `+
-          `price low ${usd(stats.priceLow24)}, `+
-          `volume ${btc(stats.volumeCurrent)}, `+
-          `volume high ${btc(stats.volumeHigh)}, `+
-          `volume low ${btc(stats.volumeLow)}.`
+          `${descriptor.label} rolling 24 hour BTC-volume chart. `+
+          `Current ${btc(stats.current)}, `+
+          `high ${btc(stats.high)}, `+
+          `low ${btc(stats.low)}, `+
+          `change ${pct(stats.changePct)}.`
         );
       }
     }catch(error){
@@ -1170,7 +1001,7 @@
 
       set(
         root,
-        "[data-hl24-transport]",
+        "[data-volume24-transport]",
         "transport error"
       );
 
@@ -1209,9 +1040,40 @@
     }
   }
 
+  function applyLive(root,state,selection){
+    if(!active(root)||state.busy||!state.points?.length)return;
+
+    const controls=controlState(root);
+    const descriptor=W.ZZXVolume24HModel.sourceDescriptor(
+      selection,
+      state.latest||{}
+    );
+    if(descriptor.id!==state.sourceId)return false;
+
+    const points=W.ZZXVolume24HModel.normalize(
+      W.ZZXVolume24HModel.mergeLive(state.points,selection)
+    ).slice(-MAX_POINTS_DETAIL);
+    const stats=W.ZZXVolume24HModel.stats(points);
+    const recipe=W.ZZXVolume24HModel.recipe({
+      mode:controls.mode,
+      stats
+    });
+
+    state.points=points;
+    state.stats=stats;
+    state.recipe=recipe;
+    renderStats(root,stats);
+    renderLegend(root,controls);
+    state.chart.setData(points,recipe,{
+      preserveView:true,
+      followRight:controls.follow
+    });
+    return true;
+  }
+
   function destroyPrevious(root){
     const previous=
-      root.__zzx_high_low_24h;
+      root.__zzx_volume_24h;
 
     if(!previous)return;
 
@@ -1221,7 +1083,9 @@
       );
     }
 
-    if(previous.debounceTimer){
+    if(
+      previous.debounceTimer
+    ){
       W.clearTimeout(
         previous.debounceTimer
       );
@@ -1277,15 +1141,17 @@
 
       if(!canvas){
         throw new Error(
-          "high-low-24h canvas unavailable"
+          "volume-24h canvas unavailable"
         );
       }
 
-      applyStored(root);
+      applyStoredControls(
+        root
+      );
 
       const state={
         chart:
-          new W.ZZXHighLow24HChart.Chart(
+          new W.ZZXChartEngine.Chart(
             canvas,
             tooltip,
             {
@@ -1299,13 +1165,15 @@
         timer:null,
         debounceTimer:null,
         sourceId:null,
+        descriptor:null,
         points:[],
         stats:null,
         recipe:null,
+        transport:null,
         abortController
       };
 
-      root.__zzx_high_low_24h=
+      root.__zzx_volume_24h=
         state;
 
       const scheduleRefresh=(
@@ -1323,9 +1191,7 @@
             ()=>refresh(
               root,
               state,
-              {
-                resetView
-              }
+              {resetView}
             ),
             delay
           );
@@ -1336,8 +1202,7 @@
         "[data-mini-reset]"
       )?.addEventListener(
         "click",
-        ()=>state.chart
-          .resetZoom(),
+        ()=>state.chart.resetZoom(),
         options
       );
 
@@ -1360,10 +1225,9 @@
         "click",
         async()=>{
           try{
-            await state.chart
-              .exportPNG(
-                `zzx-${state.sourceId||"bpi"}-high-low-24h.png`
-              );
+            await state.chart.exportPNG(
+              `zzx-${state.sourceId||"bpi"}-volume-24h.png`
+            );
           }catch(error){
             set(
               root,
@@ -1378,10 +1242,9 @@
       for(
         const selector
         of [
-          "[data-hl24-resolution]",
-          "[data-hl24-price-mode]",
-          "[data-hl24-volume-mode]",
-          "[data-hl24-follow]"
+          "[data-volume24-resolution]",
+          "[data-volume24-mode]",
+          "[data-volume24-follow]"
         ]
       ){
         q(
@@ -1392,50 +1255,46 @@
           ()=>{
             saveControls(root);
 
+            const modeChanged=
+              selector.includes(
+                "mode"
+              );
+
             scheduleRefresh(
               0,
-              selector!==
-                "[data-hl24-follow]"
+              modeChanged
             );
           },
           options
         );
       }
 
+      W.addEventListener(
+        "zzx:bpi-selection",
+        event=>{
+          if(!applyLive(root,state,event.detail)){
+            scheduleRefresh(40,true);
+          }
+        },
+        options
+      );
+
       for(
         const eventName
         of [
-          "zzx:bpi-selection",
           "zzx:bpi-country",
           "zzx:bpi-weighting"
         ]
       ){
         W.addEventListener(
           eventName,
-          ()=>scheduleRefresh(
-            40,
-            true
-          ),
+          ()=>scheduleRefresh(40,true),
           options
         );
       }
 
-      for(
-        const eventName
-        of [
-          "zzx:live-bpi",
-          "zzx:bpi:update"
-        ]
-      ){
-        W.addEventListener(
-          eventName,
-          ()=>scheduleRefresh(
-            80,
-            false
-          ),
-          options
-        );
-      }
+      // Live ticker events update the current point through bpi-selection.
+      // Full 24h history is fetched only on source/control changes or timer.
 
       await refresh(
         root,
@@ -1455,10 +1314,12 @@
           return;
         }
 
-        await refresh(
-          root,
-          state
-        );
+        if(active(root)){
+          await refresh(
+            root,
+            state
+          );
+        }
 
         state.timer=
           W.setTimeout(
@@ -1498,18 +1359,16 @@
   }else if(
     W.ZZXWidgetsCore?.onMount
   ){
-    W.ZZXWidgetsCore
-      .onMount(
-        ID,
-        boot
-      );
+    W.ZZXWidgetsCore.onMount(
+      ID,
+      boot
+    );
   }else if(
     W.ZZXWidgets?.register
   ){
-    W.ZZXWidgets
-      .register(
-        ID,
-        boot
-      );
+    W.ZZXWidgets.register(
+      ID,
+      boot
+    );
   }
 })();
