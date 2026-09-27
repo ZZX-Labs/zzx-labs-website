@@ -34,10 +34,15 @@ def main() -> int:
     cfg=json.loads(CONFIG.read_text(encoding='utf-8'))
 
     require('- cron: "*/5 * * * *"' in wf, 'five-minute BPI fallback schedule missing')
-    require('default: "480"' in wf, 'overlapping BPI capture default missing')
+    require('default: "330"' in wf, 'bounded overlapping BPI capture default missing')
     require('default: "2500"' in wf, '2.5-second GitHub fallback default missing')
+    require('timeout-minutes: 20' in wf, 'hosted fallback job safety timeout missing')
+    require('BPI_COLLECTOR_GRACE_SECONDS: "90"' in wf, 'collector hard-stop grace window missing')
+    require('BPI_PUBLISH_HARD_LIMIT_SECONDS: "180"' in wf, 'publisher hard-stop window missing')
+    require('timeout \\' in wf and '--kill-after=20s' in wf, 'collector wall-clock guard missing')
+    require('--kill-after=10s' in wf, 'publisher wall-clock guard missing')
     require('--cycle-ms "${BPI_POLL_CYCLE_MS}"' in wf, 'GitHub fallback cycle override missing')
-    require('2500 <= value <= 5000' in wf, 'GitHub fallback 2.5-5 second guard missing')
+    require('2500 <= cycle <= 5000' in wf, 'GitHub fallback 2.5-5 second guard missing')
     require('bpi_live_publish.py' in wf, 'race-safe live publisher missing from workflow')
     require('concurrency:' not in wf, 'workflow-level serialization would destroy overlap continuity')
 
@@ -54,6 +59,9 @@ def main() -> int:
     require('self.provider_due[key] = now + interval_ms / 1000.0' in collector, 'fixed-rate provider scheduling missing')
     require('ThreadPoolExecutor' in collector and 'discover_provider' in collector, 'concurrent provider discovery missing')
     require('weighted_average' in collector, 'BitAvg-compatible weighted_average publication missing')
+    require('static_history_flush_ms' in collector and 'flush_static_history' in collector, 'throttled static history flush missing')
+    require('compact=True' in collector, 'compact static history serialization missing')
+    require('history-live.json' not in publisher.split('DEFAULT_FILES =',1)[1].split(')',1)[0], 'high-frequency publisher must not commit history-live.json')
     require('merge_history' in publisher and 'newest_payload' in publisher, 'live publication merge guards missing')
     require('Restart=always' in service and 'StartLimitIntervalSec=0' in service, 'resident BPI restart-forever contract missing')
     require('ZZX_BPI_CYCLE_MS=2500' in service, 'resident service cycle contract missing')
@@ -65,6 +73,7 @@ def main() -> int:
     require(int(cfg.get('exchange_cycle_ms') or 0)==2500, 'collector-config exchange_cycle_ms must be 2500')
     require(2500 <= int(cfg.get('exchange_cycle_ms')) <= 5000, 'collector-config cycle outside 2.5-5 seconds')
     require(float(cfg.get('request_timeout_seconds') or 99) <= 4.5, 'collector request timeout is too long for live cadence')
+    require(int(cfg.get('static_history_flush_ms') or 0) >= 60000, 'static history must not flush faster than once per minute')
     require(int(cfg.get('max_workers') or 0) >= 46, 'collector worker pool too small for current live market fanout')
 
     providers=provider_data.get('providers') or {}
