@@ -238,11 +238,36 @@ jobs:
               json.loads(p.read_text(encoding='utf-8'))
 
           latest=json.loads((api/'latest.json').read_text(encoding='utf-8'))
-          price=latest.get('price_usd') or latest.get('bpi_usd') or latest.get('global_bpi_usd')
-          try: price=float(price)
-          except Exception: price=float('nan')
-          if not math.isfinite(price) or price <= 0:
-              raise SystemExit(f'live BPI price is invalid: {price!r}')
+
+          def positive(value, label):
+              try:
+                  value=float(value)
+              except Exception:
+                  value=float('nan')
+              if not math.isfinite(value) or value <= 0:
+                  raise SystemExit(f'{label} is invalid: {value!r}')
+              return value
+
+          bpi=latest.get('bpi') if isinstance(latest.get('bpi'),dict) else {}
+          global_bpi=latest.get('global_bpi') if isinstance(latest.get('global_bpi'),dict) else {}
+
+          local_weighted=positive(
+              bpi.get('weighted_price_usd') or latest.get('price_usd') or latest.get('bpi_usd'),
+              'local weighted BPI',
+          )
+          local_unweighted=positive(
+              bpi.get('unweighted_price_usd') or latest.get('unweighted_bpi_usd'),
+              'local unweighted BPI',
+          )
+          global_weighted=positive(
+              global_bpi.get('weighted_price_usd') or latest.get('global_bpi_usd'),
+              'Global weighted BPI',
+          )
+          global_unweighted=positive(
+              global_bpi.get('unweighted_price_usd') or latest.get('global_bpi_unweighted_usd'),
+              'Global unweighted BPI',
+          )
+          price=local_weighted
 
           markets=json.loads((api/'markets.json').read_text(encoding='utf-8')).get('markets') or []
           good=[m for m in markets if isinstance(m,dict) and m.get('price_usd') is not None and m.get('volume_24h_btc') is not None]
@@ -261,7 +286,15 @@ jobs:
           if age > 120:
               raise SystemExit(f'latest BPI state is stale at validation: age={age:.1f}s')
 
-          print('live BPI validation:', 'markets=',len(good),'cycles=',status.get('cycles'),'price_usd=',price)
+          print(
+              'live BPI validation:',
+              'markets=',len(good),
+              'cycles=',status.get('cycles'),
+              'local_weighted=',local_weighted,
+              'local_unweighted=',local_unweighted,
+              'global_weighted=',global_weighted,
+              'global_unweighted=',global_unweighted,
+          )
           PY
 
       - name: Publish monotonic live BPI checkpoint
