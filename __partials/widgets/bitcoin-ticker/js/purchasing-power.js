@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPurchasingPower?.__version>=1)return;
+  if(W.ZZXBitcoinTickerPurchasingPower?.__version>=2)return;
 
   const C=()=>W.ZZXBitcoinTickerConstants;
   const cache={catalog:null,pages:null,prices:null,at:0};
@@ -49,7 +49,12 @@
           data?.source||
           "local reference feed"
         ),
-        updatedAt:row.updated_at||data?.updated_at||null
+        updatedAt:row.updated_at||data?.updated_at||null,
+        referenceGeography:String(row.reference_geography||data?.reference_geography||"US"),
+        referenceCurrency:String(row.reference_currency||data?.reference_currency||"USD"),
+        derived:row.derived===true,
+        derivedFrom:row.derived_from||null,
+        derivedFactor:Number(row.derived_factor)||null
       });
     }
 
@@ -200,16 +205,24 @@
 
       detail.textContent=
         `1 ${item.unit} = ${fmtUsd(ref.usd)} = `+
-        `${fmt(best?.value,4)} ${best?.label||"BTC"}`;
+        `${fmt(best?.value,4)} ${best?.label||"BTC"}`+
+        `${ref.derived?" · exact unit derivation":""}`;
 
+      const basis=item.reference_basis?` · ${item.reference_basis}`:"";
       card.title=
-        `${item.name} reference · ${ref.source}`+
+        `${item.name} · ${ref.referenceGeography||"US"} ${ref.referenceCurrency||"USD"} reference · ${ref.source}`+
+        `${ref.derived&&ref.derivedFrom?` · derived from ${ref.derivedFrom}`:""}`+
+        basis+
         (ref.updatedAt?` · ${ref.updatedAt}`:"");
     }else{
       qty.textContent="—";
 
       detail.textContent=
-        `${item.unit} · reference unavailable`;
+        `${item.unit} · U.S. USD equivalent · reference unavailable`;
+
+      if(item.reference_basis){
+        card.title=`${item.name} · ${item.reference_basis}`;
+      }
     }
 
     card.append(name,qty,detail);
@@ -359,7 +372,16 @@
 
     grid.replaceChildren();
 
+    let groupKey=null;
     for(const item of filtered){
+      const nextGroup=String(item.group||"General");
+      if(nextGroup!==groupKey){
+        groupKey=nextGroup;
+        const heading=D.createElement("div");
+        heading.className="bitcoin-ticker__reference-group";
+        heading.textContent=nextGroup;
+        grid.appendChild(heading);
+      }
       grid.appendChild(
         renderCard(
           item,
@@ -386,7 +408,7 @@
     set(
       root,
       "[data-reference-page-status]",
-      `${page.label} · ${filtered.length}/${pageItems.length} items`
+      `${page.label} · ${filtered.length}/${pageItems.length} items · U.S. USD equivalent`
     );
     set(
       root,
@@ -399,8 +421,8 @@
       root,
       "[data-commodity-source]",
       pricedOnPage
-        ? `${pricedOnPage} priced references on this page · missing values are not guessed`
-        : "reference prices unavailable for this page"
+        ? `${pricedOnPage} priced U.S. references on this page · missing values are not guessed`
+        : "U.S. reference prices unavailable for this page"
     );
 
     set(
@@ -414,11 +436,13 @@
     renderPageNav(root,state,data,btcUsd);
   }
 
-  function navigation(){
-    const registry=W.ZZXBitcoinTickerPurchasingPowerRegistry;
-    const pages=registry?.list?.()||[];
+  function navigation(sourcePages){
+    const pages=(Array.isArray(sourcePages)&&sourcePages.length
+      ? sourcePages
+      : cache.pages||[]
+    ).slice().sort((a,b)=>Number(a.order||0)-Number(b.order||0));
     return [
-      {id:"reference-markets",label:"Purchasing Power",panel:"references",referencePage:pages[0]?.id||"tobacco"},
+      {id:"reference-markets",label:"Conversions",panel:"references",referencePage:pages[0]?.id||"tobacco"},
       ...pages.map(page=>({
         id:`ref-${page.id}`,
         label:page.label,
@@ -458,7 +482,7 @@
   }
 
   const api=Object.freeze({
-    __version:1,
+    __version:2,
     load,render,populatePages,setPage,navigation,mount,update
   });
   W.ZZXBitcoinTickerPurchasingPower=api;
