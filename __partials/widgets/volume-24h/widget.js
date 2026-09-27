@@ -27,12 +27,12 @@
       global:"ZZXChartEngine",
       path:
         "/__partials/widgets/_shared/zzx-chart-engine.js",
-      version:12
+      version:4
     },
     {
       global:"ZZXVolume24HModel",
       path:"js/model.js",
-      version:3,
+      version:2,
       local:true
     }
   ]);
@@ -428,7 +428,7 @@
           root,
           "[data-volume24-mode]"
         )?.value||
-        "interval-bars+rolling",
+        "rolling-line",
       follow:
         q(
           root,
@@ -751,17 +751,11 @@
         point?.source_price_usd
       );
 
-    const interval=
-      finite(
-        point?.interval_volume_btc
-      );
-
     return [
       date,
-      `interval BTC traded ${btc(interval)}`,
-      `rolling 24h volume ${btc(close)}`,
-      `rolling O ${btc(open)} · H ${btc(high)} · L ${btc(low)} · C ${btc(close)}`,
-      `rolling Δ ${signedBtc(delta)} · ${pct(deltaPct)}`,
+      `24h volume close ${btc(close)}`,
+      `O ${btc(open)} · H ${btc(high)} · L ${btc(low)} · C ${btc(close)}`,
+      `bucket Δ ${signedBtc(delta)} · ${pct(deltaPct)}`,
       `contemporaneous BTC price ${money(price)}`
     ];
   }
