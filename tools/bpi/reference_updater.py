@@ -37,6 +37,58 @@ def parse_stooq(text: str) -> float:
     return positive(row[6] if len(row)>=7 else None)
 
 
+
+def apply_catalog_derivations(root: Path, refs: dict[str, Any]) -> None:
+    """Derive exact unit-price equivalents declared by the catalog.
+
+    This never invents a market value.  A derived row exists only when a
+    verified base reference is present and the catalog explicitly declares the
+    multiplicative unit conversion.  Multiple passes permit a short derivation
+    chain while cycle protection is implicit because existing rows are never
+    overwritten.
+    """
+    catalog=load_json(
+        root/"__partials/widgets/bitcoin-ticker/reference-catalog.json",
+        {},
+    )
+    items=catalog.get("items") or []
+    by_id={
+        str(row.get("id")): row
+        for row in items
+        if isinstance(row,dict) and row.get("id")
+    }
+
+    for _pass in range(8):
+        added=0
+        for item_id,row in by_id.items():
+            if item_id in refs:
+                continue
+            base_id=str(row.get("derived_from") or "")
+            if not base_id or base_id not in refs:
+                continue
+            factor=positive(row.get("derived_factor"))
+            if not math.isfinite(factor):
+                continue
+            base=refs.get(base_id)
+            if not isinstance(base,dict):
+                continue
+            base_usd=positive(base.get("usd"))
+            if not math.isfinite(base_usd):
+                continue
+            refs[item_id]={
+                "usd": base_usd*factor,
+                "source": str(base.get("source") or "reference feed"),
+                "updated_at": base.get("updated_at") or utcnow(),
+                "reference_geography": "US",
+                "reference_currency": "USD",
+                "derived": True,
+                "derived_from": base_id,
+                "derived_factor": factor,
+            }
+            added+=1
+        if not added:
+            break
+
 def update_commodities(root: Path, client: HttpClient) -> None:
     api=root/"bitcoin/bpi/api"
     cfg=load_json(api/"commodity_source_urls.json",{})
@@ -90,7 +142,22 @@ def update_commodities(root: Path, client: HttpClient) -> None:
     })
 
     overrides=load_json(api/"reference_overrides.json",{}).get("prices",{})
-    refs=dict(prices)
+
+    # Carry forward last-known-good references through transient public-source
+    # failures.  Row timestamps remain the source timestamps, so stale data is
+    # visible rather than being silently presented as fresh.
+    previous=load_json(api/"reference_prices.json",{}).get("prices",{})
+    refs={}
+    if isinstance(previous,dict):
+        for item,row in previous.items():
+            if not isinstance(row,dict):
+                continue
+            usd=positive(row.get("usd"))
+            if math.isfinite(usd):
+                refs[str(item)]=dict(row)
+
+    # Fresh public values always supersede carried-forward rows.
+    refs.update(prices)
     for item,row in overrides.items():
         if not isinstance(row,dict):
             continue
@@ -99,11 +166,17 @@ def update_commodities(root: Path, client: HttpClient) -> None:
             refs[item]={
                 "usd":usd,
                 "source":str(row.get("source") or "local curated reference"),
-                "updated_at":row.get("updated_at") or utcnow()
+                "updated_at":row.get("updated_at") or utcnow(),
+                "reference_geography":"US",
+                "reference_currency":"USD",
             }
 
+    apply_catalog_derivations(root,refs)
+
     atomic_json(api/"reference_prices.json",{
-        "schema":"zzx-bitcoin-ticker-reference-prices-v1",
+        "schema":"zzx-bitcoin-ticker-reference-prices-v2",
+        "reference_geography":"US",
+        "reference_currency":"USD",
         "updated_at":utcnow(),
         "prices":refs
     })
