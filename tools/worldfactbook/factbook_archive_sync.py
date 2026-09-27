@@ -403,7 +403,7 @@ def detect_edition_year(requested_year: int, *values: object) -> int:
     for value in values:
         for match in re.findall(r"\b((?:19|20)\d{2})\b", str(value or "")):
             year = int(match)
-            if 1962 <= year <= 2025 and abs(year - requested_year) <= 2:
+            if 1962 <= year <= 2027 and abs(year - requested_year) <= 2:
                 candidates.append(year)
     return candidates[0] if candidates else requested_year
 
@@ -1042,7 +1042,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--widget-output", type=Path)
     parser.add_argument("--cache-dir", type=Path, default=Path(".cache/worldfactbook-v2"))
     parser.add_argument("--start-year", type=int, default=1962)
-    parser.add_argument("--end-year", type=int, default=2025)
+    parser.add_argument("--end-year", type=int, default=2027)
     parser.add_argument("--max-ia-items", type=int, default=6)
     parser.add_argument("--min-records-per-edition", type=int, default=20)
     parser.add_argument("--workers", type=int, default=6)
