@@ -1,11 +1,14 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXHistoryClient?.__version>=5)return;
+  if(W.ZZXHistoryClient?.__version>=6)return;
 
   const dynamicBase="/bitcoin/bpi/history";
   const staticLive="/bitcoin/bpi/api/history-live.json";
   let dynamicRetryAt=0;
+  const SERIES_CACHE_TTL_MS=5000;
+  const seriesCache=new Map();
+  const seriesInflight=new Map();
   const url=p=>W.ZZXAPI?.url?W.ZZXAPI.url(p):p;
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
 
@@ -119,7 +122,7 @@
     return {source,resolution:"raw-fallback",points:points.slice(-maxPoints),from:start,to:end,transport:"static-emergency-fallback"};
   }
 
-  async function series({source="global-bpi",market="",timeframe="24h",resolution="auto",maxPoints=5000,from=null,to=null}={}){
+  async function seriesUncached({source="global-bpi",market="",timeframe="24h",resolution="auto",maxPoints=5000,from=null,to=null}={}){
     const now=Date.now();
     const span=spanMs(timeframe);
     let start=from;
@@ -138,6 +141,38 @@
     return await staticSeries({source,start,end,maxPoints});
   }
 
+  async function series(options={}){
+    const normalized={
+      source:options.source??"global-bpi",
+      market:options.market??"",
+      timeframe:options.timeframe??"24h",
+      resolution:options.resolution??"auto",
+      maxPoints:Number(options.maxPoints??5000),
+      from:options.from??null,
+      to:options.to??null
+    };
+
+    // Charts often request the same 24h source at the same time.  Coalesce
+    // those requests and briefly reuse the parsed result instead of fetching
+    // and reparsing the same multi-thousand-point payload per widget.
+    const key=JSON.stringify(normalized);
+    const cached=seriesCache.get(key);
+    if(cached&&Date.now()-cached.at<SERIES_CACHE_TTL_MS){
+      return cached.value;
+    }
+    if(seriesInflight.has(key))return await seriesInflight.get(key);
+
+    const task=seriesUncached(normalized)
+      .then(value=>{
+        seriesCache.set(key,{at:Date.now(),value});
+        return value;
+      })
+      .finally(()=>seriesInflight.delete(key));
+
+    seriesInflight.set(key,task);
+    return await task;
+  }
+
   async function sources(){
     const values=new Map([
       ["bpi",{source:"bpi",scope:"native",weighted:true}],
@@ -152,5 +187,5 @@
     return {sources:[...values.values()]};
   }
 
-  W.ZZXHistoryClient=Object.freeze({__version:5,series,sources,spanMs});
+  W.ZZXHistoryClient=Object.freeze({__version:6,series,sources,spanMs});
 })();
