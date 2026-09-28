@@ -642,8 +642,14 @@ def write_portal(
         labels = [str(s.get("edition_label") or "").strip() for s in year_sources if str(s.get("edition_label") or "").strip()]
         edition_label = labels[0] if labels and len(set(labels)) == 1 else str(year)
         coverage_row = (coverage or {}).get(year, {})
-        status = "available" if year_rows or year_media else "missing"
-        availability_reason = str(coverage_row.get("status") or ("available" if status == "available" else "not-yet-ingested"))
+        audit_path = root / "country-archive" / "editions" / f"{year}.json"
+        try:
+            audited = json.loads(audit_path.read_text(encoding="utf-8")) if audit_path.is_file() else {}
+        except (OSError, ValueError):
+            audited = {}
+        status = "complete" if audited.get("status") == "complete" else (
+            "partial" if year_rows or year_media else "missing")
+        availability_reason = str(coverage_row.get("status") or ("source-backed-awaiting-review" if status == "partial" else "not-yet-ingested"))
         manifest = {
             "schema": "zzx-worldfactbook-edition-v1", "edition_year": year,
             "edition_label": edition_label,
@@ -777,7 +783,7 @@ def main() -> int:
         if args.mode == "incremental" and existing.is_file():
             try:
                 e = json.loads(existing.read_text(encoding="utf-8"))
-                edition_ready = e.get("status") == "available" and int(e.get("chunks") or 0) > 0
+                edition_ready = e.get("status") in {"available", "partial", "complete"} and int(e.get("chunks") or 0) > 0
                 media_ready = False
                 if media_existing.is_file():
                     m = json.loads(media_existing.read_text(encoding="utf-8"))
@@ -1053,7 +1059,7 @@ def main() -> int:
         "media_schema":media_index.get("schema"),"failures":failures,
         "discovery_counts":discovery_counts,
         "processed_editions":[processed_editions[y] for y in sorted(processed_editions)],
-        "available_editions":sum(1 for e in index["editions"] if e["status"]=="available"),
+        "available_editions":sum(1 for e in index["editions"] if e["status"] in {"partial","complete"}),
         "missing_editions":[e["year"] for e in index["editions"] if e["status"]!="available"],
         "sql_shards":len(shard_manifest.get("files") or []),
         "media_sql_shards":len(media_shard_manifest.get("files") or []),
