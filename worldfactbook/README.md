@@ -1,5 +1,15 @@
 # ZZX-WorldFactbook
 
+## Country globe and reviewed book editions
+
+The globe at `/worldfactbook/` uses WebGPU on the browser's selected local GPU and a Canvas 2D fallback when WebGPU is unavailable. It requests the high-performance adapter as a hint, which may use NVIDIA, AMD, Intel, Qualcomm or another compatible GPU; browsers and operating systems ultimately select the device. WebGPU requires HTTPS or a secure local context. Rotation defaults to one revolution every 20 seconds, is adjustable from 15 to 30 seconds, pauses during dragging, and offers a pause button. Reduced-motion preferences start with rotation paused. Approximate place markers, the 1962–2027 edition slider and the stable country profile layout remain available in both renderers. Map and tactical views use low-resolution OpenStreetMap overview tiles; topo uses OpenTopoMap overview tiles; satellite uses NASA GIBS Blue Marble. Provider labels remain visible and a reference grid appears when textures fail. The tactical view adds a grid and color treatment to the OSM texture; it does not claim to show military information. The edition slider changes book data, not the present-day tile basemap. Keyboard users can select a location from the adjacent control.
+
+Import the supplied book batches with `python tools/worldfactbook/local_ingest.py --db /path/to/staging.sqlite --output worldfactbook import /path/to/decade.zip`, then export with `python tools/worldfactbook/local_ingest.py --db /path/to/staging.sqlite --output worldfactbook export`. This tool includes its own country registry at `tools/worldfactbook/data/factbook-countries.json`. Complete documentation and review-file format are in `tools/worldfactbook/LOCAL-ARCHIVE.md`.
+
+The browser reads `api/country-archive/index.json` and only the selected country's selected edition part files. Compressed MariaDB import files live in `db/countries/<code>/<year>/part-NNNN.sql.gz`. The ZIP/PDF/EPUB originals and the SQLite staging database are not needed on GitHub Pages. Each year remains `partial` until a reviewer verifies the exact source, counts, OCR, image labeling, and rights and signs the matching extraction digest; `tools/worldfactbook/verify_country_archive.py` validates the shard hashes and syncs the legacy portal index.
+
+GitHub Pages also limits the **entire published site** to 1 GB. This checkout's pre-existing assets already exceed that limit; size-bounded country shards alone cannot solve the site-wide budget. Review or move existing large assets before deploying all historical data. Do not present an indexed text fragment as a complete edition.
+
 `/worldfactbook/` is the public landing portal for the ZZX-WorldFactbook project family.
 
 The page now follows the same structural model used by `/bitcoin/bitnodes/`:
