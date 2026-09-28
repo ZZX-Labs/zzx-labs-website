@@ -120,13 +120,22 @@
         <label><input type="radio" name="wfb-layer" value="satellite"> Satellite</label>
         <label><input type="radio" name="wfb-layer" value="tactical"> Tactical</label>
       </fieldset>
+      <div class="wfb-rotation-controls">
+        <label class="wfb-year-control"><span>Full revolution: <output data-wfb-rotation-value>20 s</output></span>
+          <input type="range" min="15" max="30" step="1" value="20" data-wfb-rotation-seconds aria-label="Seconds per globe revolution">
+          <span class="wfb-year-limits"><span>15 s</span><span>30 s</span></span>
+        </label>
+        <button type="button" data-wfb-rotation-toggle aria-pressed="true">Pause rotation</button>
+        <span data-wfb-globe-renderer role="status">Renderer: loading</span>
+        <span data-wfb-boundary-status role="status">Boundaries: loading</span>
+      </div>
     </div>
     <div class="wfb-globe-layout">
       <div class="wfb-globe-surface">
-        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a place marker"></canvas>
+        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a region or a place marker"></canvas>
         <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
-        <p class="wfb-globe-instructions">Drag to rotate · select a marker · press the arrow keys to move through years</p>
-        <p class="wfb-globe-attribution" data-wfb-globe-attribution>Map data © OpenStreetMap contributors</p>
+        <p class="wfb-globe-instructions">Drag to rotate · click a boundary or marker · choose an edition</p>
+        <p class="wfb-globe-attribution" data-wfb-globe-attribution>Reference geography: Natural Earth</p>
       </div>
       <article class="wfb-country-panel" aria-live="polite">
         <div class="wfb-country-panel-head"><p class="wfb-kicker">Edition profile</p><h3 data-wfb-country-heading>Select a location</h3>
