@@ -42,8 +42,11 @@ def verify(repo):
     world = Path(repo) / "worldfactbook"
     root = world / "boundaries"
     manifest = load_json(root / "manifest.json")
-    archive = json.loads((world / "api/country-archive/index.json").read_text(encoding="utf-8"))
-    known = {row["code"] for row in archive["countries"]}
+    # The reference geometry was built with the packaged location catalogue.
+    # Country-year exports are separate and may still be pending publication.
+    registry = json.loads((Path(repo) / "tools/worldfactbook/data/factbook-countries.json")
+                          .read_text(encoding="utf-8"))
+    known = {row["country"] for row in registry["countries"]}
     if manifest.get("schema") != 1 or manifest.get("reference") != "reference/index.json":
         raise ValueError("Invalid reference boundary manifest")
     if not isinstance(manifest.get("editions"), dict):
