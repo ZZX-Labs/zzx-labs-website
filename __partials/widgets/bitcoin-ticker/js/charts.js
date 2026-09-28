@@ -137,10 +137,9 @@
         source,timeframe,resolution,maxPoints:6000
       });
 
-      state.points=Array.isArray(data.points)?data.points.slice():[];
-      state.recipe=recipe;
       state.source=source;
-      state.chart.setData(state.points,recipe,{preserveView:true,followRight:true});
+      state.recipe=recipe;
+      state.chart.setData(data.points||[],recipe);
 
       if(status){
         status.textContent=`${data.points?.length||0} points · ${data.resolution||resolution} · ${recipe.label} · ${data.transport||"history"}`;
@@ -154,11 +153,61 @@
       }
     }catch(error){
       if(status)status.textContent=`history error: ${String(error?.message||error)}`;
-      state.points=[];
       state.chart.setData([],state.recipes[0]);
     }finally{
       state.busy=false;
       if(button)button.disabled=false;
+    }
+  }
+
+  function sourceForSelection(detail){
+    if(!detail||typeof detail!=="object")return null;
+    if(detail.sourceType==="exchange")return detail.exchangeId||null;
+    return detail.sourceId||detail.sourceType||null;
+  }
+
+  function appendLiveSelection(root,state,detail){
+    const panel=root.querySelector('[data-panel="charts"]');
+    if(!panel||panel.hidden||D.visibilityState==="hidden")return;
+
+    const selected=root.querySelector("[data-chart-source]")?.value||state.source||"bpi";
+    const incoming=sourceForSelection(detail);
+    if(!incoming||incoming!==selected)return;
+
+    const price=Number(detail.priceUsd);
+    if(!(Number.isFinite(price)&&price>0))return;
+
+    const volume=Number(detail.volumeBtc);
+    const t=Date.now();
+    if(t-Number(state.lastLiveAt||0)<500)return;
+    state.lastLiveAt=t;
+
+    const recipe=recipeFor(
+      state,
+      root.querySelector("[data-chart-recipe]")?.value
+    );
+
+    state.chart.append({
+      t,
+      open:price,
+      high:price,
+      low:price,
+      close:price,
+      price,
+      volume_24h_btc:Number.isFinite(volume)?volume:null,
+      high_24h:Number.isFinite(Number(detail.highUsd))?Number(detail.highUsd):null,
+      low_24h:Number.isFinite(Number(detail.lowUsd))?Number(detail.lowUsd):null
+    },recipe,{maxPoints:6000,followRight:true});
+
+    const status=root.querySelector("[data-chart-status]");
+    if(status){
+      status.textContent=`${state.chart.points?.length||0} points · live edge · ${recipe.label}`;
+    }
+
+    const range=root.querySelector("[data-chart-range]");
+    if(range&&state.chart.points?.length){
+      const points=state.chart.points;
+      range.textContent=`${new Date(points[0].t).toLocaleString()} → ${new Date(points[points.length-1].t).toLocaleString()}`;
     }
   }
 
@@ -181,9 +230,9 @@
       chart:new W.ZZXChartEngine.Chart(canvas,tooltip),
       busy:false,
       refreshTimer:null,
-      points:[],
+      source:null,
       recipe:null,
-      source:null
+      lastLiveAt:0
     };
     root.__zzxTickerChartState=state;
 
@@ -201,19 +250,13 @@
 
     W.addEventListener("zzx:bpi-selection",async event=>{
       await populateSources(root);
-      const sel=event?.detail||{};
-      const selected=root.querySelector("[data-chart-source]")?.value||"global-bpi";
-      const sourceMatches=(selected==="global-bpi"&&sel.sourceType==="global-bpi") || (selected==="bpi"&&sel.sourceType==="bpi") || (sel.sourceType==="exchange"&&selected===sel.exchangeId);
-      if(!sourceMatches||!state.recipe)return;
-      const price=Number(sel.priceUsd),volume=Number(sel.volumeBtc),t=new Date(sel.timestamp||Date.now()).getTime();
-      if(!Number.isFinite(price)||!Number.isFinite(t))return;
-      const point={t,open:price,high:price,low:price,close:price,price,high_24h:Number(sel.highUsd),low_24h:Number(sel.lowUsd),volume_24h_btc:Number.isFinite(volume)?volume:null};
-      const rows=(state.points||[]).filter(p=>Number(p?.t)!==t);
-      rows.push(point);
-      rows.sort((a,b)=>Number(a.t)-Number(b.t));
-      const cutoff=Date.now()-W.ZZXHistoryClient.spanMs(root.querySelector("[data-chart-timeframe]")?.value||"24h");
-      state.points=rows.filter(p=>Number(p.t)>=cutoff).slice(-6000);
-      state.chart.setData(state.points,state.recipe,{preserveView:true,followRight:true});
+      appendLiveSelection(root,state,event?.detail);
+    });
+
+    W.addEventListener("zzx:bitcoin-ticker-panel",event=>{
+      if(event?.detail?.root!==root||event?.detail?.panel!=="charts"||event?.detail?.open!==true)return;
+      requestAnimationFrame(()=>state.chart.resize?.());
+      refresh(root,state);
     });
 
     // Keep Chart Lab responsive without refetching a full multi-thousand-point
