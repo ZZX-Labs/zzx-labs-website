@@ -2,7 +2,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXMempoolLive?.__version>=3)return;
+  if(W.ZZXMempoolLive?.__version>=4)return;
 
   const EVENT="zzx:mempool-live:update";
   const state={
@@ -105,6 +105,12 @@
   }
 
   async function price(){
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=finite(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)&&selected>0){
+      return {value:selected,source:text(canonical?.label)||"BitAvg"};
+    }
+
     try{
       const data=await json("/bitcoin/bpi/api/latest.json",{local:true});
       const value=finite(data?.price_usd??data?.bpi_usd??data?.vwap_usd??data?.price);
@@ -363,7 +369,7 @@
   }
 
   W.ZZXMempoolLive=Object.freeze({
-    __version:3,
+    __version:4,
     EVENT,
     apiBases,
     wsUrls,
