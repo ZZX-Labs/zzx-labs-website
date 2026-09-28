@@ -490,8 +490,10 @@
     status(root,state.result.stale?"cached":"live",state.result.stale?"warn":"ok");
   }
 
+  function active(root){return !!(root?.isConnected && D.visibilityState!=="hidden" && !root.closest?.("[hidden]") && root.closest?.(".btc-slot")?.getAttribute("data-ticker-visible")!=="false" && W.ZZXHUD?.read?.().mode!=="hidden" && W.ZZXHUD?.read?.().mode!=="ticker-only");}
+
   async function refresh(root,state){
-    if(state.busy||!root.isConnected)return;
+    if(!active(root)||state.busy)return;
     state.busy=true;
     status(root,"refreshing","warn");
 
@@ -562,6 +564,8 @@
         }
       });
 
+      W.addEventListener("zzx:live-bpi",()=>refresh(root,state));
+
       W.addEventListener(
         "zzx:bpi-weighting",
         event=>{
@@ -604,7 +608,7 @@
 
       async function loop(){
         if(!root.isConnected)return;
-        await refresh(root,state);
+        if(active(root))await refresh(root,state);
         state.timer=W.setTimeout(loop,W.ZZXBitAvgConstants.refreshMs);
       }
       state.timer=W.setTimeout(loop,W.ZZXBitAvgConstants.refreshMs);
