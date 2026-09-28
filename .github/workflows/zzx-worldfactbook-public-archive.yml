@@ -1,0 +1,54 @@
+name: Verify World Factbook public archive
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worldfactbook/api/country-archive/**'
+      - 'worldfactbook/manual/reviews/**'
+      - 'tools/worldfactbook/verify_public_archive.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zzx-worldfactbook-country-archive
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main with native Git
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --force --no-tags origin main
+          git checkout --force -B main origin/main
+          git clean -fdx
+
+      - name: Verify public JSON and signed source reviews
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/worldfactbook/verify_public_archive.py --repo . --update-portal
+
+      - name: Commit status changes only after verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "zzx-worldfactbook-bot"
+          git config user.email "zzx-worldfactbook-bot@users.noreply.github.com"
+          git add worldfactbook/api/portal-index.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update reviewed Factbook edition coverage"
+            git push origin HEAD:main
+          fi
