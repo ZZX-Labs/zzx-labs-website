@@ -1,32 +1,29 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerExchanges?.__version>=2)return;
+  if(W.ZZXBitcoinTickerExchanges?.__version>=4)return;
 
   function safeGet(key){try{return W.localStorage.getItem(key)}catch(_){return null}}
 
   function populateSources(root,config){
     const select=root?.querySelector?.("[data-source-select]");
     if(!select)return;
-    const wanted=safeGet(W.ZZXBitcoinTickerConstants.storage.source)||"bpi";
 
+    const mode=W.ZZXPrice?.mode?.()||W.ZZXBitcoinTickerSelection?.weightingMode?.()||"off";
     select.replaceChildren();
-    for(const [value,label] of [["bpi","BPI"],["global-bpi","Global BPI"]]){
-      const o=D.createElement("option");o.value=value;o.textContent=label;select.appendChild(o);
+
+    for(const [value,label] of [
+      ["off","Unweighted"],
+      ["bpi","BPI Weighted"],
+      ["global-bpi","Global BPI Weighted"]
+    ]){
+      const option=D.createElement("option");
+      option.value=value;
+      option.textContent=label;
+      select.appendChild(option);
     }
 
-    const liveRows=config?.latest?.exchanges||{};
-    for(const [id,row] of W.ZZXBitcoinTickerSelection.exchangeMap(config||{})){
-      const live=liveRows[id];
-      const price=Number(live?.price_usd);
-      if(!(Number.isFinite(price)&&price>0))continue;
-      const o=D.createElement("option");
-      o.value=`exchange:${id}`;
-      o.textContent=`Exchange · ${row.label}`;
-      select.appendChild(o);
-    }
-
-    select.value=[...select.options].some(o=>o.value===wanted)?wanted:"bpi";
+    select.value=[...select.options].some(option=>option.value===mode)?mode:"off";
   }
 
   function render(root,state){
@@ -99,6 +96,6 @@
   function mount(root,state){render(root,state)}
 
   W.ZZXBitcoinTickerExchanges=Object.freeze({
-    __version:2,populateSources,render,update,mount
+    __version:4,populateSources,render,update,mount
   });
 })();
