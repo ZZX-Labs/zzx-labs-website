@@ -1,10 +1,10 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerConstants?.__version>=12)return;
+  if(W.ZZXBitcoinTickerConstants?.__version>=13)return;
 
   W.ZZXBitcoinTickerConstants=Object.freeze({
-    __version:12,
+    __version:13,
     refreshMs:2500,
     auxiliaryRefreshMs:30*1000,
     liveFreshMs:15*1000,
@@ -40,6 +40,7 @@
       usDebt:"/bitcoin/bpi/api/us_debt.json",
       referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
     }),
+    sharedPricePath:"/__partials/widgets/_shared/zzx-price.js",
     sharedFxPath:"/__partials/widgets/_shared/zzx-fx.js",
     sharedChainPath:"/__partials/widgets/_shared/zzx-chain.js",
     sharedLiveBpiPath:"/__partials/widgets/_shared/zzx-live-bpi.js"
