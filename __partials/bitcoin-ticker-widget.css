@@ -96,6 +96,12 @@
   box-sizing: border-box;
 }
 
+/* Widget Module switches collapse presentation only.  The mounted widget and
+   its provider state remain alive behind the slot. */
+.btc-slot[data-ticker-visible="false"] {
+  display: none !important;
+}
+
 /* Prevent empty/disabled slots from leaving holes while the core mounts. */
 .btc-slot:empty,
 .btc-slot[data-widget-enabled="0"] {
