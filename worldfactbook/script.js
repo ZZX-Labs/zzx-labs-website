@@ -8,6 +8,8 @@
     "js/navigation.js",
     "js/archive.js",
     "js/timeline.js",
+    "js/globe-renderer.js",
+    "js/globe.js",
     "js/status.js",
     "js/leaders.js",
     "js/daily-fact.js",
