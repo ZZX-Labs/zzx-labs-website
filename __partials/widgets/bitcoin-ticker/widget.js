@@ -84,19 +84,19 @@
       : "/__partials/widgets/bitcoin-ticker";
 
     const modules=[
-      ["ZZXBitcoinTickerConstants","js/constants.js",12],
-      ["ZZXBitcoinTickerDeps","js/deps.js",9],
+      ["ZZXBitcoinTickerConstants","js/constants.js",13],
+      ["ZZXBitcoinTickerDeps","js/deps.js",10],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
-      ["ZZXBitcoinTickerSelection","js/selection.js",10],
+      ["ZZXBitcoinTickerSelection","js/selection.js",12],
       ["ZZXBitcoinTickerUnits","js/units.js",7],
       ["ZZXBitcoinTickerExchangeRates","js/exchange-rates.js",1],
-      ["ZZXBitcoinTickerExchanges","js/exchanges.js",2],
+      ["ZZXBitcoinTickerExchanges","js/exchanges.js",4],
       ["ZZXBitcoinTickerPurchasingPower","js/purchasing-power.js",2],
       ["ZZXBitcoinTickerNationalDebts","js/national-debts.js",1],
       ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",2],
       ["ZZXBitcoinTickerNationalTrade","js/national-trade.js",1],
       ["ZZXBitcoinTickerPanels","js/panels.js",9],
-      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",3],
+      ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",7],
       ["ZZXBitcoinTickerCharts","js/charts.js",2]
     ];
 
@@ -321,7 +321,7 @@
       config.latest=state.lastGoodLatest;
     }
 
-    const sourceId=q(root,"[data-source-select]")?.value||"bpi";
+    const sourceId=W.ZZXPrice?.mode?.()||W.ZZXBitcoinTickerSelection.weightingMode();
     const currency=q(root,"[data-currency-select]")?.value||"USD";
 
     const quote=W.ZZXBitcoinTickerSelection.resolve(config,sourceId);
@@ -382,7 +382,11 @@
       weightingMode:quote.weightingMode||"off",
       weightingApplied:!!quote.weightingApplied,
       weightedPriceUsd:quote.weightedPriceUsd,
-      unweightedPriceUsd:quote.unweightedPriceUsd
+      unweightedPriceUsd:quote.unweightedPriceUsd,
+      rawPriceUsd:quote.rawPriceUsd,
+      bpiWeightedPriceUsd:quote.bpiWeightedPriceUsd,
+      globalBpiWeightedPriceUsd:quote.globalBpiWeightedPriceUsd,
+      priceSet:quote.priceSet
     });
 
     state.selection=selection;
@@ -472,7 +476,12 @@
         refresh(root,state,false);
       });
 
-      W.addEventListener("zzx:bpi-weighting",()=>refresh(root,state,false));
+      W.addEventListener("zzx:bpi-weighting",()=>{
+        W.ZZXBitcoinTickerExchanges.populateSources(root,state.config||{});
+        refresh(root,state,false);
+      });
+
+      W.addEventListener("zzx:canonical-bitcoin-price",()=>refresh(root,state,false));
 
       W.addEventListener("zzx:bitcoin-ticker-panel",event=>{
         if(event?.detail?.root!==root||event?.detail?.open!==true)return;
@@ -480,8 +489,22 @@
       });
 
       q(root,"[data-source-select]")?.addEventListener("change",event=>{
-        safeSet(W.ZZXBitcoinTickerConstants.storage.source,event.currentTarget.value);
-        refresh(root,state,true);
+        const mode=String(event.currentTarget.value||"off");
+        safeSet(W.ZZXBitcoinTickerConstants.storage.source,mode);
+        if(W.ZZXBPIWeightingController?.setMode){
+          W.ZZXBPIWeightingController.setMode(mode,"bitcoin-ticker");
+        }else{
+          try{W.localStorage.setItem("zzx.bpi.weighting.mode.v2",mode)}catch(_){}
+          W.ZZXBPIWeighting=Object.freeze({
+            mode,
+            enabled:mode!=="off",
+            target:mode==="off"?null:mode,
+            source:"bitcoin-ticker",
+            updated_at:new Date().toISOString()
+          });
+          try{W.dispatchEvent(new CustomEvent("zzx:bpi-weighting",{detail:W.ZZXBPIWeighting}))}catch(_){}
+        }
+        refresh(root,state,false);
       });
 
       q(root,"[data-currency-select]")?.addEventListener("change",event=>{
