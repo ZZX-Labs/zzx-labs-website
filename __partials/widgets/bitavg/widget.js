@@ -89,7 +89,7 @@
       ["ZZXBPIWeightingController","js/weighting.js",1],
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
-      ["ZZXBitAvgModel","js/model.js",10],
+      ["ZZXBitAvgModel","js/model.js",11],
       ["ZZXBitAvgProvider","js/provider.js",9],
       ["ZZXBitAvgPublisher","js/publisher.js",9]
     ];
