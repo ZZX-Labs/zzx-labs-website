@@ -6,7 +6,10 @@ on:
     paths:
       - 'worldfactbook/api/country-archive/**'
       - 'worldfactbook/manual/reviews/**'
+      - 'worldfactbook/boundaries/**'
+      - 'worldfactbook/js/globe*.js'
       - 'tools/worldfactbook/verify_public_archive.py'
+      - 'tools/worldfactbook/verify_globe_assets.py'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +43,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/worldfactbook/verify_public_archive.py --repo . --update-portal
+
+      - name: Verify local globe imagery and clickable map units
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/worldfactbook/verify_globe_assets.py --repo .
 
       - name: Commit status changes only after verification
         shell: bash
