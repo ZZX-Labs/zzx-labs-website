@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgModel?.__version>=10)return;
+  if(W.ZZXBitAvgModel?.__version>=11)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const text=v=>String(v??"").trim();
@@ -716,7 +716,7 @@
     };
   }
 
-  function build({latest,markets,exchangeRates,currencies,exchangeConfig}){
+  function build({latest,markets,exchangeRates,currencies,exchangeConfig,indexPolicy}){
     const fiats=W.ZZXBitAvgFX.fiatCodes(currencies);
     const rates=W.ZZXBitAvgFX.ratesPerUsd(exchangeRates);
 
@@ -886,7 +886,7 @@
       accepted.length;
 
     const nativeRegion=String(
-      bundle?.indexPolicy?.default_country ||
+      indexPolicy?.default_country ||
       latest?.native_region ||
       "US"
     ).toUpperCase();
@@ -1164,5 +1164,5 @@
     };
   }
 
-  W.ZZXBitAvgModel=Object.freeze({__version:10,build,sanityGate});
+  W.ZZXBitAvgModel=Object.freeze({__version:11,build,sanityGate});
 })();
