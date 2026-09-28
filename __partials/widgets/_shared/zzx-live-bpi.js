@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXLiveBPI?.__version>=10)return;
+  if(W.ZZXLiveBPI?.__version>=11)return;
 
   const CYCLE_MS=2500;
   const LOCAL_LIVE_MAX_AGE_MS=15_000;
@@ -710,24 +710,49 @@
     }catch(_){}
   }
 
+  function deriveCountryCurrencies(providers){
+    const regions={US:"USD"};
+
+    for(const cfg of Object.values(providers?.providers||{})){
+      const region=String(cfg?.region||"").trim().toUpperCase();
+      const quote=String(cfg?.quote||"").trim().toUpperCase();
+      if(!/^[A-Z]{2}$/.test(region)||!/^[A-Z]{3,5}$/.test(quote))continue;
+      if(!regions[region])regions[region]=quote;
+    }
+
+    return {
+      schema:"zzx-bpi-country-currencies-derived-v1",
+      default_country:"US",
+      regions
+    };
+  }
+
   async function loadConfig(force=false){
     const now=Date.now();
     if(!force&&state.config&&now-state.configAt<CONFIG_TTL_MS)return state.config;
-    const [
-      providers,
-      exchanges,
-      countryCurrencies
-    ]=await Promise.all([
+
+    const [providers,exchanges]=await Promise.all([
       fetchJSON(
         "/bitcoin/bpi/api/provider_urls.json"
       ),
       fetchJSON(
         "/bitcoin/bpi/api/exchanges.json"
-      ),
-      fetchJSON(
-        "/bitcoin/bpi/api/bpi_country_currencies.json"
       )
     ]);
+
+    let countryCurrencies=null;
+    try{
+      countryCurrencies=await fetchJSON(
+        "/bitcoin/bpi/api/bpi_country_currencies.json"
+      );
+    }catch(error){
+      state.health.set("country-currency-map",{
+        ok:false,
+        optional:true,
+        error:String(error?.message||error),
+        updated_at:new Date().toISOString()
+      });
+    }
 
     state.config={
       providers:
@@ -735,10 +760,7 @@
       exchanges:
         exchanges||{},
       countryCurrencies:
-        countryCurrencies||{
-          default_country:"US",
-          regions:{US:"USD"}
-        }
+        countryCurrencies||deriveCountryCurrencies(providers)
     };
     state.configAt=now;
     return state.config;
@@ -848,7 +870,14 @@
   async function start(){
     if(state.running)return state.snapshot;
     state.running=true;
-    await cycle();
+
+    try{
+      await cycle();
+    }catch(error){
+      state.running=false;
+      throw error;
+    }
+
     state.timer=W.setInterval(()=>{if(state.running)cycle().catch(()=>{})},CYCLE_MS);
     return state.snapshot;
   }
@@ -863,5 +892,5 @@
   function health(){return Object.fromEntries(state.health)}
   function markets(){return [...state.markets.values()].map(row=>({...row}))}
 
-  W.ZZXLiveBPI=Object.freeze({__version:10,start,stop,cycle,snapshot,history,health,markets,sanity,indexCalc});
+  W.ZZXLiveBPI=Object.freeze({__version:11,start,stop,cycle,snapshot,history,health,markets,sanity,indexCalc});
 })();
