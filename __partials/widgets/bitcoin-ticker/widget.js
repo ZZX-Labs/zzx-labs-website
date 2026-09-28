@@ -84,7 +84,7 @@
       : "/__partials/widgets/bitcoin-ticker";
 
     const modules=[
-      ["ZZXBitcoinTickerConstants","js/constants.js",11],
+      ["ZZXBitcoinTickerConstants","js/constants.js",12],
       ["ZZXBitcoinTickerDeps","js/deps.js",8],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerSelection","js/selection.js",10],
@@ -292,9 +292,9 @@
 
     state.selection=selection;
 
-    await W.ZZXBitcoinTickerPurchasingPower.update(
-      root,state,quote.priceUsd,force
-    );
+    if(force || !state.slowPanelsAt || now-state.slowPanelsAt>=60000){
+      await W.ZZXBitcoinTickerPurchasingPower.update(root,state,quote.priceUsd,force);
+    }
 
     if(
       force ||
@@ -318,15 +318,12 @@
     const height=state.chainHeight;
     const issued=state.issuedSats;
 
-    await W.ZZXBitcoinTickerNationalDebts.update(
-      root,state,height,issued,force
-    );
-
-    await W.ZZXBitcoinTickerNationalBalances.update(
-      root,state,height,issued,force
-    );
-
-    W.ZZXBitcoinTickerNationalTrade?.render?.(root,state);
+    if(force || !state.slowPanelsAt || now-state.slowPanelsAt>=60000){
+      await W.ZZXBitcoinTickerNationalDebts.update(root,state,height,issued,force);
+      await W.ZZXBitcoinTickerNationalBalances.update(root,state,height,issued,force);
+      W.ZZXBitcoinTickerNationalTrade?.render?.(root,state);
+      state.slowPanelsAt=now;
+    }
 
     state.chainHeight=height;
     state.issuedSats=issued;
@@ -373,7 +370,7 @@
       config:null,configAt:0,references:null,debts:null,balances:null,
       chainHeight:NaN,issuedSats:null,chainAt:0,
       lastGoodLatest:null,lastGoodLatestAt:0,lastStaticLatestFetchAt:0,
-      selection:null,busy:false,queued:false,timer:null,referenceType:null
+      selection:null,busy:false,queued:false,timer:null,referenceType:null,slowPanelsAt:0
     };
     root.__zzxBitcoinTickerState=state;
 
