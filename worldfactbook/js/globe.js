@@ -8,16 +8,13 @@
   const state = { catalogue:null, points:[], country:"", year:2004, yaw:0.2,
     layer:"map", renderer:null, candidates:[], version:0, available:new Set(),
     imageCache:new Map(), lastTexture:null, rotationSeconds:20, playing:true,
-    dragging:false, lastFrame:0 };
+    dragging:false, lastFrame:0, boundaryManifest:null, boundaries:null,
+    boundaryVersion:0, lookup:null, selectedRings:[], shapeVersion:0 };
   const sources = {
-    map: {title:"Map data © OpenStreetMap contributors", link:"https://www.openstreetmap.org/copyright", projection:"mercator",
-      tile:(x,y)=>`https://tile.openstreetmap.org/1/${x}/${y}.png`},
-    topo: {title:"Map data © OpenStreetMap contributors · relief © OpenTopoMap / SRTM",link:"https://opentopomap.org/about", projection:"mercator",
-      tile:(x,y)=>`https://a.tile.opentopomap.org/1/${x}/${y}.png`},
-    satellite: {title:"NASA GIBS Blue Marble satellite mosaic",link:"https://nasa-gibs.github.io/gibs-api-docs/",projection:"geographic",
-      image:"https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=BlueMarble_NextGeneration&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH=1024&HEIGHT=512&FORMAT=image/jpeg"},
-    tactical: {title:"Tactical grid over map data © OpenStreetMap contributors",link:"https://www.openstreetmap.org/copyright",projection:"mercator",
-      tile:(x,y)=>`https://tile.openstreetmap.org/1/${x}/${y}.png`}
+    map: {title:"Reference map · Natural Earth",link:"https://www.naturalearthdata.com/"},
+    topo: {title:"Natural Earth shaded relief and map units",link:"https://www.naturalearthdata.com/"},
+    satellite: {title:"NASA Blue Marble (2002 composite)",link:"https://science.nasa.gov/earth/earth-observatory/the-blue-marble-true-color-global-imagery-at-1km-resolution/"},
+    tactical: {title:"Reference map and geographic grid · Natural Earth",link:"https://www.naturalearthdata.com/"}
   };
   function fallbackTexture(){
     const c=document.createElement("canvas");c.width=1024;c.height=512;
@@ -38,21 +35,23 @@
     });
     state.imageCache.set(url,promise);return promise;
   }
-  async function layerTexture(layer){
-    const config=sources[layer];
-    if(config.image) return loadImage(config.image);
-    const images=await Promise.all([0,1].flatMap(y=>[0,1].map(x=>loadImage(config.tile(x,y)))));
-    const c=document.createElement("canvas");c.width=512;c.height=512;
-    const ctx=c.getContext("2d");images.forEach((img,i)=>ctx.drawImage(img,(i%2)*256,Math.floor(i/2)*256,256,256));
-    return c;
+  function texturePath(layer){
+    const dated=state.boundaries?.kind==="historical";
+    const dir=dated&&["map","topo","tactical"].includes(layer)?
+      `boundaries/editions/${state.year}/` : "boundaries/reference/";
+    const name=layer==="satellite"?"satellite.png":layer==="topo"?"topo.png":"map.png";
+    return `${dir}${name}`;
   }
+  function layerTexture(layer){return loadImage(new URL(texturePath(layer),root).href);}
   async function setLayer(layer){
+    if(!sources[layer])return;
     state.layer=layer;
     const credit=$("[data-wfb-globe-attribution]");
     credit.replaceChildren();
     const link=document.createElement("a");link.href=sources[layer].link;
     link.rel="noopener noreferrer";link.target="_blank";link.textContent=sources[layer].title;
     credit.append(link);
+    if(layer==="satellite")credit.append(" · 2002 imagery; the edition year applies to data and borders");
     const token=++state.version;
     try{
       const image=await layerTexture(layer);
@@ -61,7 +60,7 @@
     }catch(error){
       if(token!==state.version) return;
       upload(fallbackTexture());
-      credit.append(" · imagery unavailable; showing reference grid");
+      credit.append(" · local layer missing; showing reference grid");
     }
     draw();
   }
@@ -79,6 +78,104 @@
     state.renderer=window.WFBGlobeRenderer.createCPU($("[data-wfb-globe-canvas]"));
     state.renderer.setTexture(state.lastTexture||fallbackTexture());
     showRenderer();draw();
+  }
+  function boundaryStatus(text){
+    const node=$("[data-wfb-boundary-status]");if(node)node.textContent=text;
+  }
+  async function loadBoundaries(year){
+    const generation=++state.boundaryVersion;
+    const catalog=state.boundaryManifest;
+    if(!catalog)return;
+    const selected=catalog.editions?.[String(year)]||catalog.reference;
+    if(!selected)return;
+    try{
+      const index=await getJSON(`boundaries/${selected}`);
+      const base=selected.slice(0,selected.lastIndexOf("/")+1);
+      const source=await loadImage(new URL(`boundaries/${base}${index.lookup}`,root).href);
+      const c=document.createElement("canvas");c.width=source.naturalWidth;c.height=source.naturalHeight;
+      const ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(source,0,0);
+      const bytes=ctx.getImageData(0,0,c.width,c.height).data;
+      if(generation!==state.boundaryVersion)return;
+      state.lookup={width:c.width,height:c.height,bytes,
+        features:new Map(index.features.map(feature=>[feature.id,feature]))};
+      state.boundaries={...index,base};
+      for(const feature of index.features){
+        if(state.points.some(point=>point.code===feature.code))continue;
+        state.points.push({code:feature.code,name:feature.name,
+          lat:feature.lat,lon:feature.lon,units:feature.label});
+        const select=$("[data-wfb-globe-country]");
+        if(![...select.options].some(option=>option.value===feature.code)){
+          const option=document.createElement("option");option.value=feature.code;
+          option.textContent=`${feature.name} [${feature.code}] · map unit`;select.append(option);
+        }
+      }
+      boundaryStatus(index.kind==="historical"?
+        `Boundaries: ${year} source geometry (${index.status})`:
+        `Boundaries: present-day reference · ${year} historical geometry unavailable`);
+      loadSelectedShape();setLayer(state.layer);draw();
+    }catch(error){
+      if(generation!==state.boundaryVersion)return;
+      console.warn("Local boundary layer unavailable",error);
+      state.lookup=null;state.boundaries=null;state.selectedRings=[];
+      boundaryStatus("Boundaries unavailable; use location markers or the selector");
+      setLayer(state.layer);draw();
+    }
+  }
+  async function loadSelectedShape(){
+    const token=++state.shapeVersion,code=state.country;
+    state.selectedRings=[];
+    const entry=state.boundaries?.features?.find(feature=>feature.code===code);
+    if(!entry?.parts?.length){draw();return;}
+    try{
+      const shards=await Promise.all(entry.parts.map(name=>
+        getJSON(`boundaries/${state.boundaries.base}${name}`)));
+      if(token!==state.shapeVersion)return;
+      const polygons=new Map();
+      for(const shard of shards)for(const [poly,ring,start,coords] of shard.rings){
+        if(!polygons.has(poly))polygons.set(poly,new Map());
+        const rings=polygons.get(poly);
+        if(!rings.has(ring))rings.set(ring,[]);
+        rings.get(ring).push([start,coords]);
+      }
+      state.selectedRings=[];
+      for(const rings of polygons.values())for(const parts of rings.values()){
+        state.selectedRings.push(parts.sort((a,b)=>a[0]-b[0]).flatMap(part=>part[1]));
+      }
+      draw();
+    }catch(error){if(token===state.shapeVersion)console.warn("Selected outline unavailable",error);}
+  }
+  function regionAt(x,y,width,height){
+    const lookup=state.lookup;if(!lookup)return null;
+    const radius=Math.min(width,height)*.4;
+    const nx=(x-width/2)/radius,ny=(height/2-y)/radius;
+    const distance=nx*nx+ny*ny;
+    if(distance>1)return null;
+    const longitude=Math.atan2(nx,Math.sqrt(Math.max(0,1-distance)))+state.yaw;
+    const latitude=Math.asin(Math.max(-1,Math.min(1,ny)));
+    const u=((longitude/(2*Math.PI)+.5)%1+1)%1;
+    const v=Math.min(1-Number.EPSILON,Math.max(0,.5-latitude/Math.PI));
+    const offset=(Math.floor(v*lookup.height)*lookup.width+Math.floor(u*lookup.width))*4;
+    const id=lookup.bytes[offset]+256*lookup.bytes[offset+1]+65536*lookup.bytes[offset+2];
+    return lookup.features.get(id)||null;
+  }
+  function drawOutline(ctx,width,height){
+    if(!state.selectedRings.length)return;
+    ctx.save();ctx.strokeStyle="#e6a42b";ctx.lineWidth=1.8;
+    ctx.shadowColor="#0c1814";ctx.shadowBlur=2;
+    for(const ring of state.selectedRings){
+      let before=null;
+      ctx.beginPath();
+      for(const [lon,lat] of ring){
+        const p=project({lon,lat},width,height);
+        if(!p){before=null;continue;}
+        if(before&&Math.hypot(p.x-before.x,p.y-before.y)<width*.18){
+          ctx.lineTo(p.x,p.y);
+        }else ctx.moveTo(p.x,p.y);
+        before=p;
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
   function project(point,width,height){
     if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))return null;
@@ -98,10 +195,10 @@
     const ratio=Math.min(window.devicePixelRatio||1,2);
     const w=Math.round(width*ratio),h=Math.round(height*ratio);
     if(canvas.width!==w||canvas.height!==h){canvas.width=marker.width=w;canvas.height=marker.height=h;}
-    try{state.renderer?.draw(w,h,state.yaw,
-      sources[state.layer].projection==="mercator",state.layer==="tactical");}
+    try{state.renderer?.draw(w,h,state.yaw,false,state.layer==="tactical");}
     catch(error){console.warn("Globe GPU rendering failed",error);cpuFallback();}
     const ctx=marker.getContext("2d");ctx.clearRect(0,0,w,h);ctx.scale(ratio,ratio);
+    drawOutline(ctx,width,height);
     state.candidates=[];
     for(const point of state.points){
       const p=project(point,width,height);if(!p)continue;
@@ -124,7 +221,7 @@
     state.country=code;$("[data-wfb-globe-country]").value=code;
     const point=state.points.find(x=>x.code===code);
     if(point&&Number.isFinite(point.lon))state.yaw=point.lon*Math.PI/180;
-    draw();loadProfile();
+    loadSelectedShape();draw();loadProfile();
   }
   let request=0;
   async function loadIndiaTrade(panel,year,requestId){
@@ -251,6 +348,11 @@
   function setYear(year){
     state.year=Number(year);$("[data-wfb-globe-year]").textContent=year;
     $("[data-wfb-globe-slider]").value=year;
+    state.available=new Set((state.catalogue?.countries||[])
+      .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code));
+    boundaryStatus(`Boundaries: loading geometry for ${year}…`);
+    loadBoundaries(state.year);
+    draw();
     loadProfile();
   }
   function connect(canvas){
@@ -262,7 +364,14 @@
       canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener("pointermove",event=>{
-      if(!down)return;
+      if(!down){
+        const bounds=canvas.getBoundingClientRect();
+        const x=event.clientX-bounds.left,y=event.clientY-bounds.top;
+        const near=state.candidates.find(point=>Math.hypot(x-point.x,y-point.y)<10);
+        const unit=near||regionAt(x,y,bounds.width,bounds.height);
+        canvas.title=unit?`${unit.label||unit.name} · click to read ${state.year}`:"Drag to rotate Earth";
+        return;
+      }
       const dx=event.clientX-down.x;
       if(Math.abs(dx)+Math.abs(event.clientY-down.y)>5)down.moved=true;
       if(down.moved){state.yaw=down.yaw-dx*.007;draw();}
@@ -272,7 +381,11 @@
       if(!down.moved){
         const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
         const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
-        if(near&&near.d<13)choose(near.code);
+        if(near&&near.d<14)choose(near.code);
+        else{
+          const region=regionAt(x,y,rect.width,rect.height);
+          if(region)choose(region.code);
+        }
       }
       down=null;
       state.dragging=false;
@@ -280,7 +393,7 @@
     canvas.addEventListener("pointercancel",()=>{down=null;state.dragging=false;});
   }
   function frame(now){
-    const dt=state.lastFrame?Math.min(.05,Math.max(0,(now-state.lastFrame)/1000)):0;
+    const dt=state.lastFrame?Math.max(0,(now-state.lastFrame)/1000):0;
     state.lastFrame=now;
     if(!document.hidden&&state.playing&&!state.dragging){
       state.yaw=(state.yaw+2*Math.PI*dt/state.rotationSeconds)%(2*Math.PI);
@@ -344,7 +457,10 @@
     if(window.ResizeObserver)new ResizeObserver(draw).observe(canvas.parentElement);
     else window.addEventListener("resize",draw);
     document.addEventListener("visibilitychange",()=>{state.lastFrame=0;if(!document.hidden)draw();});
-    upload(fallbackTexture());draw();setLayer("map");
+    upload(fallbackTexture());draw();
+    try{state.boundaryManifest=await getJSON("boundaries/manifest.json");}
+    catch(error){boundaryStatus("Local boundaries not installed; use the location selector");}
+    setYear(state.year);
     choose(state.catalogue?.countries?.find(x=>x.code==="IN")?.code||"");
     requestAnimationFrame(frame);
   }
