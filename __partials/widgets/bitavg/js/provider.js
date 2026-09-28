@@ -1,11 +1,14 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitAvgProvider?.__version>=9)return;
+  if(W.ZZXBitAvgProvider?.__version>=10)return;
 
 
   async function browserLive(){
-    try{await W.ZZXLiveBPI?.start?.();}catch(_){}
+    // BitAvg never starts the shared live feed. It consumes an already-running
+    // fresh snapshot when one exists, otherwise its own local API is used.
+    // This keeps optional shared-feed configuration failures from taking BitAvg
+    // offline or generating unrelated API requests during BitAvg boot.
     const snap=W.ZZXLiveBPI?.snapshot?.();
     const stamp=snap?.observed_at??snap?.updated_at;
     const age=stamp?Date.now()-new Date(stamp).getTime():Infinity;
@@ -83,5 +86,5 @@
     }
   }
 
-  W.ZZXBitAvgProvider=Object.freeze({__version:9,load});
+  W.ZZXBitAvgProvider=Object.freeze({__version:10,load});
 })();
