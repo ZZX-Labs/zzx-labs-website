@@ -6,6 +6,7 @@
   W.ZZXBitcoinTickerConstants=Object.freeze({
     __version:12,
     refreshMs:2500,
+    auxiliaryRefreshMs:30*1000,
     liveFreshMs:15*1000,
     latestFallbackTtlMs:5*1000,
     chainRefreshMs:30*1000,
