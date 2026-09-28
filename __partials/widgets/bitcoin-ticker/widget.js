@@ -85,7 +85,7 @@
 
     const modules=[
       ["ZZXBitcoinTickerConstants","js/constants.js",12],
-      ["ZZXBitcoinTickerDeps","js/deps.js",8],
+      ["ZZXBitcoinTickerDeps","js/deps.js",9],
       ["ZZXBitcoinTickerFetch","js/fetch.js"],
       ["ZZXBitcoinTickerSelection","js/selection.js",10],
       ["ZZXBitcoinTickerUnits","js/units.js",7],
@@ -95,9 +95,9 @@
       ["ZZXBitcoinTickerNationalDebts","js/national-debts.js",1],
       ["ZZXBitcoinTickerNationalBalances","js/national-balances.js",2],
       ["ZZXBitcoinTickerNationalTrade","js/national-trade.js",1],
-      ["ZZXBitcoinTickerPanels","js/panels.js",8],
+      ["ZZXBitcoinTickerPanels","js/panels.js",9],
       ["ZZXBitcoinTickerWidgetModules","js/widget-modules.js",3],
-      ["ZZXBitcoinTickerCharts","js/charts.js",1]
+      ["ZZXBitcoinTickerCharts","js/charts.js",2]
     ];
 
     for(const [globalName,relative,minVersion] of modules){
@@ -191,6 +191,101 @@
   function spreadPct(high,low){
     const h=positive(high),l=positive(low);
     return Number.isFinite(h)&&Number.isFinite(l)?((h-l)/l)*100:NaN;
+  }
+
+  function panelOpen(root,name){
+    const panel=q(root,`[data-panel="${name}"]`);
+    return !!panel&&!panel.hidden;
+  }
+
+  async function refreshChain(state,force=false){
+    const C=W.ZZXBitcoinTickerConstants;
+    const now=Date.now();
+    if(!force&&Number.isFinite(state.chainHeight)&&now-state.chainAt<C.chainRefreshMs)return;
+
+    try{
+      const tip=await W.ZZXChain.tipHeight(false);
+      const nextHeight=Number(tip?.height);
+      if(Number.isFinite(nextHeight)){
+        state.chainHeight=nextHeight;
+        state.issuedSats=W.ZZXChain.issuedSatsAtHeight(nextHeight);
+        state.chainAt=now;
+      }
+    }catch(_){
+      // Chain metadata is auxiliary; retain the last-known-good height/supply.
+    }
+  }
+
+  async function refreshAux(root,state,{panel=null,force=false}={}){
+    if(!root?.isConnected)return;
+
+    const C=W.ZZXBitcoinTickerConstants;
+    const now=Date.now();
+    const selected=panel?String(panel):null;
+    const relevant=selected||[
+      "fx","exchanges","references","debts","balances","imports","exports"
+    ].some(name=>panelOpen(root,name));
+
+    if(!relevant)return;
+    if(!selected&&!force&&now-state.auxAt<C.auxiliaryRefreshMs)return;
+
+    if(state.auxBusy){
+      state.auxQueued={
+        panel:selected||state.auxQueued?.panel||null,
+        force:!!force||!!state.auxQueued?.force
+      };
+      return;
+    }
+
+    state.auxBusy=true;
+
+    try{
+      const wants=name=>selected===name||(!selected&&panelOpen(root,name));
+
+      if(wants("fx"))W.ZZXBitcoinTickerExchangeRates?.render?.(root,state);
+      if(wants("exchanges"))W.ZZXBitcoinTickerExchanges?.render?.(root,state);
+
+      if(wants("references")&&Number.isFinite(Number(state.selection?.priceUsd))){
+        await W.ZZXBitcoinTickerPurchasingPower.update(
+          root,state,Number(state.selection.priceUsd),false
+        );
+      }
+
+      const needsSovereign=["debts","balances","imports","exports"].some(wants);
+      if(needsSovereign){
+        await refreshChain(state,false);
+      }
+
+      if(wants("debts")){
+        await W.ZZXBitcoinTickerNationalDebts.update(
+          root,state,state.chainHeight,state.issuedSats,false
+        );
+      }
+
+      if(wants("balances")||wants("imports")||wants("exports")){
+        await W.ZZXBitcoinTickerNationalBalances.update(
+          root,state,state.chainHeight,state.issuedSats,false
+        );
+      }
+
+      if(wants("imports")||wants("exports")){
+        W.ZZXBitcoinTickerNationalTrade?.render?.(root,state);
+      }
+
+      state.auxAt=Date.now();
+    }catch(error){
+      const detail=q(root,"[data-provider-detail]");
+      if(detail&&!state.selection){
+        detail.textContent=`auxiliary data: ${String(error?.message||error)}`;
+      }
+    }finally{
+      state.auxBusy=false;
+      const queued=state.auxQueued;
+      state.auxQueued=null;
+      if(queued){
+        W.setTimeout(()=>refreshAux(root,state,queued),0);
+      }
+    }
   }
 
   async function render(root,state,force=false){
@@ -292,74 +387,44 @@
 
     state.selection=selection;
 
-    if(force || !state.slowPanelsAt || now-state.slowPanelsAt>=60000){
-      await W.ZZXBitcoinTickerPurchasingPower.update(root,state,quote.priceUsd,force);
-    }
-
-    if(
-      force ||
-      !Number.isFinite(state.chainHeight) ||
-      now-state.chainAt>=C.chainRefreshMs
-    ){
-      try{
-        const tip=await W.ZZXChain.tipHeight(false);
-        const nextHeight=Number(tip?.height);
-        if(Number.isFinite(nextHeight)){
-          state.chainHeight=nextHeight;
-          state.issuedSats=W.ZZXChain.issuedSatsAtHeight(nextHeight);
-          state.chainAt=now;
-        }
-      }catch(_){
-        // Preserve the last-known-good chain state. Price selection must not fail
-        // merely because the chain metadata endpoint is temporarily unavailable.
-      }
-    }
-
-    const height=state.chainHeight;
-    const issued=state.issuedSats;
-
-    if(force || !state.slowPanelsAt || now-state.slowPanelsAt>=60000){
-      await W.ZZXBitcoinTickerNationalDebts.update(root,state,height,issued,force);
-      await W.ZZXBitcoinTickerNationalBalances.update(root,state,height,issued,force);
-      W.ZZXBitcoinTickerNationalTrade?.render?.(root,state);
-      state.slowPanelsAt=now;
-    }
-
-    state.chainHeight=height;
-    state.issuedSats=issued;
-
-    W.ZZXBitcoinTickerPanels?.update?.(root,state);
-
+    // The live price path ends here. Slow purchasing-power, sovereign, trade,
+    // and chain panels refresh independently so they can never stall the quote.
     status(root,stale?"Stale":"Live",stale?"stale":"ok");
+    refreshAux(root,state).catch(()=>{});
   }
 
   async function refresh(root,state,force=false){
-    if(state.busy||!root.isConnected){
-      state.queued=state.busy;
-      return;
+    if(!root.isConnected)return;
+
+    if(state.busy){
+      state.queued=true;
+      state.queuedForce=state.queuedForce||!!force;
+      return state.refreshPromise||null;
     }
 
     state.busy=true;
     status(root,"Loading","stale");
 
-    try{
-      if(force){
-        state.configAt=0;
-        state.references=null;
-        state.debts=null;
-        state.balances=null;
+    state.refreshPromise=(async()=>{
+      try{
+        if(force)state.configAt=0;
+        await render(root,state,force);
+      }catch(error){
+        status(root,state.selection?"Stale":"Offline",state.selection?"stale":"error");
+        set(root,"[data-provider-detail]",`ERROR: ${String(error?.message||error)}`);
+      }finally{
+        state.busy=false;
+        state.refreshPromise=null;
+        if(state.queued){
+          const queuedForce=state.queuedForce;
+          state.queued=false;
+          state.queuedForce=false;
+          W.setTimeout(()=>refresh(root,state,queuedForce),0);
+        }
       }
-      await render(root,state,force);
-    }catch(error){
-      status(root,state.selection?"Stale":"Offline",state.selection?"stale":"error");
-      set(root,"[data-provider-detail]",`ERROR: ${String(error?.message||error)}`);
-    }finally{
-      state.busy=false;
-      if(state.queued){
-        state.queued=false;
-        refresh(root,state,false);
-      }
-    }
+    })();
+
+    return state.refreshPromise;
   }
 
   async function boot(root,core){
@@ -370,26 +435,26 @@
       config:null,configAt:0,references:null,debts:null,balances:null,
       chainHeight:NaN,issuedSats:null,chainAt:0,
       lastGoodLatest:null,lastGoodLatestAt:0,lastStaticLatestFetchAt:0,
-      selection:null,busy:false,queued:false,timer:null,referenceType:null,slowPanelsAt:0
+      selection:null,busy:false,queued:false,queuedForce:false,refreshPromise:null,
+      auxBusy:false,auxQueued:null,auxAt:0,timer:null,referenceType:null
     };
     root.__zzxBitcoinTickerState=state;
 
     try{
       await ensureModules(state.core);
       await W.ZZXBitcoinTickerDeps.ensureShared();
-      W.ZZXLiveBPI.start().catch(()=>{});
+
+      // Start the shared 2.5 s market feed, but never make the first ticker
+      // paint wait for browser/exchange fallback work.
+      W.ZZXLiveBPI.start().catch(error=>{
+        if(!state.selection){
+          set(root,"[data-provider-detail]",`live feed fallback: ${String(error?.message||error)}`);
+        }
+      });
 
       const config=await loadConfig(state,false);
       W.ZZXBitcoinTickerExchanges.populateSources(root,config);
       W.ZZXBitcoinTickerExchangeRates.populateCurrencies(root,config);
-
-      // Load the Python-generated purchasing-power catalog before panel
-      // navigation is built.  Category navigation is data-driven; there is no
-      // parallel per-category JavaScript registry to maintain.
-      state.references=await W.ZZXBitcoinTickerPurchasingPower.load(false);
-      W.ZZXBitcoinTickerPurchasingPower.populatePages(
-        root,state,state.references,Number.NaN
-      );
 
       W.ZZXBitcoinTickerPurchasingPower.mount(root,state);
       W.ZZXBitcoinTickerNationalDebts.mount(root,state);
@@ -397,28 +462,21 @@
       W.ZZXBitcoinTickerNationalTrade.mount(root,state);
       W.ZZXBitcoinTickerPanels.mount(root,state);
 
-      try{
-        await W.ZZXBitcoinTickerWidgetModules.mount(root);
-      }catch(error){
-        set(root,"[data-provider-detail]",`widget modules: ${String(error?.message||error)}`);
-      }
-
-      try{
-        await W.ZZXBitcoinTickerCharts.mount(root);
-      }catch(error){
-        set(root,"[data-chart-status]",`chart engine: ${String(error?.message||error)}`);
-      }
-
       W.addEventListener("zzx:live-bpi",event=>{
         if(event?.detail&&state.config){
           state.config.latest=event.detail;
+          state.lastGoodLatest=event.detail;
+          state.lastGoodLatestAt=Date.now();
           W.ZZXBitcoinTickerExchanges.populateSources(root,state.config);
         }
         refresh(root,state,false);
       });
 
-      W.addEventListener("zzx:bpi-weighting",()=>{
-        refresh(root,state,false);
+      W.addEventListener("zzx:bpi-weighting",()=>refresh(root,state,false));
+
+      W.addEventListener("zzx:bitcoin-ticker-panel",event=>{
+        if(event?.detail?.root!==root||event?.detail?.open!==true)return;
+        refreshAux(root,state,{panel:event.detail.panel,force:false});
       });
 
       q(root,"[data-source-select]")?.addEventListener("change",event=>{
@@ -431,7 +489,8 @@
         refresh(root,state,false);
       });
 
-
+      // Price first. Optional subpanels and Chart Lab mount only after the
+      // ticker has a usable quote on screen.
       await refresh(root,state,false);
 
       try{
@@ -439,6 +498,14 @@
           detail:{root,selection:state.selection}
         }));
       }catch(_){}
+
+      W.ZZXBitcoinTickerWidgetModules.mount(root).catch(error=>{
+        set(root,"[data-provider-detail]",`widget modules: ${String(error?.message||error)}`);
+      });
+
+      W.ZZXBitcoinTickerCharts.mount(root).catch(error=>{
+        set(root,"[data-chart-status]",`chart engine: ${String(error?.message||error)}`);
+      });
 
       async function loop(){
         if(!root.isConnected)return;
