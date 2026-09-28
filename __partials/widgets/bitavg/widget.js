@@ -77,7 +77,7 @@
       ["ZZXBitAvgFX","js/fx.js",5],
       ["ZZXBitAvgModel","js/model.js",11],
       ["ZZXBitAvgProvider","js/provider.js",10],
-      ["ZZXBitAvgPublisher","js/publisher.js",9]
+      ["ZZXBitAvgPublisher","js/publisher.js",12]
     ];
 
     for(
@@ -476,33 +476,69 @@
     status(root,state.result.stale?"cached":"live",state.result.stale?"warn":"ok");
   }
 
-  function active(root){return !!(root?.isConnected && D.visibilityState!=="hidden" && !root.closest?.("[hidden]") && root.closest?.(".btc-slot")?.getAttribute("data-ticker-visible")!=="false" && W.ZZXHUD?.read?.().mode!=="hidden" && W.ZZXHUD?.read?.().mode!=="ticker-only");}
+  function active(root){return !!(root?.isConnected && D.visibilityState!=="hidden");}
 
   async function refresh(root,state){
-    if(!active(root)||state.busy)return;
+    if(!active(root))return;
+
+    // Coalesce refresh requests instead of dropping them while an earlier
+    // provider load is in flight.  This is especially important for the
+    // three-state weighting control: the last selected mode must always win.
+    if(state.busy){
+      state.refreshQueued=true;
+      return state.refreshPromise||null;
+    }
+
     state.busy=true;
+    state.refreshQueued=false;
     status(root,"refreshing","warn");
 
     const button=q(root,"[data-bitavg-refresh]");
     if(button)button.disabled=true;
 
-    try{
-      state.result=await W.ZZXBitAvgProvider.load();
-      state.page=0;
-      render(root,state);
-    }catch(error){
-      status(root,state.result?"stale":"offline",state.result?"warn":"error");
-      set(root,"[data-bitavg-meta]",String(error?.message||error));
-    }finally{
-      state.busy=false;
-      if(button)button.disabled=false;
-    }
+    state.refreshPromise=(async()=>{
+      try{
+        do{
+          state.refreshQueued=false;
+          const requestedMode=W.ZZXBPIWeightingController?.getMode?.()||"off";
+          const result=await W.ZZXBitAvgProvider.load();
+          const currentMode=W.ZZXBPIWeightingController?.getMode?.()||requestedMode;
+
+          // If the user changed modes while the provider was loading, do not
+          // paint the obsolete result over the newly selected switch state.
+          if(currentMode!==requestedMode){
+            state.refreshQueued=true;
+            continue;
+          }
+
+          state.result=result;
+          state.page=0;
+          render(root,state);
+        }while(state.refreshQueued&&active(root));
+      }catch(error){
+        status(root,state.result?"stale":"offline",state.result?"warn":"error");
+        set(root,"[data-bitavg-meta]",String(error?.message||error));
+      }finally{
+        state.busy=false;
+        state.refreshPromise=null;
+        if(button)button.disabled=false;
+
+        // A request can land between the loop's final condition and cleanup.
+        // Schedule exactly one follow-up rather than losing that final state.
+        if(state.refreshQueued&&active(root)){
+          state.refreshQueued=false;
+          W.setTimeout(()=>refresh(root,state),0);
+        }
+      }
+    })();
+
+    return state.refreshPromise;
   }
 
   async function boot(root,core){
     if(!root)return;
 
-    const state={busy:false,timer:null,result:null,page:0};
+    const state={busy:false,refreshQueued:false,refreshPromise:null,timer:null,result:null,page:0};
     root.__zzxBitAvgState=state;
 
     try{
@@ -514,39 +550,25 @@
       q(root,"[data-bitavg-refresh]")?.addEventListener("click",()=>refresh(root,state));
       const weightControl=q(root,"[data-bitavg-weight-toggle]");
 
-      weightControl?.addEventListener("click",event=>{
-        const direct=
-          event.target?.closest?.("[data-bitavg-weight-choice]");
-
-        if(direct&&weightControl.contains(direct)){
-          W.ZZXBPIWeightingController.setMode(
-            direct.getAttribute("data-bitavg-weight-choice"),
-            "bitavg-switch"
-          );
-          return;
-        }
-
+      weightControl?.addEventListener("click",()=>{
+        // The entire control is one three-position switch.  Every click moves
+        // exactly one detent: OFF -> BPI -> GLOBAL BPI -> OFF.
         W.ZZXBPIWeightingController.nextMode("bitavg-switch");
       });
 
       weightControl?.addEventListener("keydown",event=>{
-        let next=null;
-        const current=W.ZZXBPIWeightingController.getMode();
-        const index=weightIndex(current);
-
         if(event.key==="ArrowLeft"||event.key==="ArrowDown"){
-          next=WEIGHT_MODES[Math.max(0,index-1)];
-        }else if(event.key==="ArrowRight"||event.key==="ArrowUp"){
-          next=WEIGHT_MODES[Math.min(WEIGHT_MODES.length-1,index+1)];
-        }else if(event.key==="Home"){
-          next=WEIGHT_MODES[0];
-        }else if(event.key==="End"){
-          next=WEIGHT_MODES[WEIGHT_MODES.length-1];
-        }
-
-        if(next){
           event.preventDefault();
-          W.ZZXBPIWeightingController.setMode(next,"bitavg-keyboard");
+          W.ZZXBPIWeightingController.previousMode("bitavg-keyboard");
+        }else if(event.key==="ArrowRight"||event.key==="ArrowUp"){
+          event.preventDefault();
+          W.ZZXBPIWeightingController.nextMode("bitavg-keyboard");
+        }else if(event.key==="Home"){
+          event.preventDefault();
+          W.ZZXBPIWeightingController.setMode(WEIGHT_MODES[0],"bitavg-keyboard");
+        }else if(event.key==="End"){
+          event.preventDefault();
+          W.ZZXBPIWeightingController.setMode(WEIGHT_MODES[WEIGHT_MODES.length-1],"bitavg-keyboard");
         }
       });
 
