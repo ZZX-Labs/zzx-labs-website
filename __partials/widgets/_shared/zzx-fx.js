@@ -78,6 +78,17 @@
   }
 
   function liveTickerPrice(){
+    const canonical=W.ZZXPrice?.current?.(cache.latest||null);
+    const canonicalPrice=positive(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(canonicalPrice)){
+      return {
+        priceUsd:canonicalPrice,
+        label:String(canonical?.label||"Unweighted"),
+        sourceId:`bitavg:${canonical?.mode||"off"}`,
+        timestamp:canonical?.observed_at||null
+      };
+    }
+
     const selection=W.ZZXBPISelection||W.ZZXSelectedBPI;
 
     const selected=positive(
@@ -145,7 +156,10 @@
 
     const data=await load(force);
 
+    const canonical=W.ZZXPrice?.current?.(data.latest);
     const price=positive(
+      canonical?.price_usd ??
+      canonical?.priceUsd ??
       data.latest?.price_usd ??
       data.latest?.bpi_usd ??
       data.latest?.global_bpi?.price_usd
@@ -157,8 +171,8 @@
 
     return {
       priceUsd:price,
-      label:"ZZX BPI",
-      sourceId:"local-bpi",
+      label:String(canonical?.label||"ZZX BPI"),
+      sourceId:`bitavg:${canonical?.mode||"fallback"}`,
       timestamp:data.latest?.updated_at||null
     };
   }
