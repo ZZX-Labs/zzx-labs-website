@@ -24,9 +24,19 @@ def within(root: Path, relative: str) -> Path:
     return path
 
 
-def verify(repo: Path, update_portal: bool=False):
+def verify(repo: Path, update_portal: bool=False, allow_absent: bool=False):
     world=repo/"worldfactbook"
-    index=json_file(world/"api/country-archive/index.json")
+    archive=world/"api/country-archive"
+    index_path=archive/"index.json"
+    if not index_path.is_file():
+        if not allow_absent:
+            raise FileNotFoundError(f"Public country archive index is missing: {index_path}")
+        # An export in progress must never be treated as a clean, absent archive.
+        if archive.exists() and any(path.is_file() for path in archive.rglob("*")):
+            raise FileNotFoundError(f"Public country archive has files but no index: {index_path}")
+        return {"archive_status":"pending", "country_years":0,
+                "populated_years":0, "complete_years":[]}
+    index=json_file(index_path)
     assert (index["start_year"],index["end_year"])==(1962,2027)
     country_years={}
     for country in index["countries"]:
@@ -95,7 +105,8 @@ def verify(repo: Path, update_portal: bool=False):
         temporary=portal.with_suffix(".json.tmp")
         temporary.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         temporary.replace(portal)
-    return {"country_years":len(country_years),"populated_years":sum(bool(v) for v in by_year.values()),
+    return {"archive_status":"validated", "country_years":len(country_years),
+        "populated_years":sum(bool(v) for v in by_year.values()),
         "complete_years":[y for y,s in statuses.items() if s=="complete"]}
 
 
@@ -103,5 +114,7 @@ if __name__=="__main__":
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--repo",type=Path,default=Path("."))
     ap.add_argument("--update-portal",action="store_true")
+    ap.add_argument("--allow-absent",action="store_true",
+                    help="Report a not-yet-exported archive as pending; reject partial exports")
     args=ap.parse_args()
-    print(json.dumps(verify(args.repo,args.update_portal),indent=2))
+    print(json.dumps(verify(args.repo,args.update_portal,args.allow_absent),indent=2))
