@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerCharts?.__version>=1)return;
+  if(W.ZZXBitcoinTickerCharts?.__version>=2)return;
 
   const SHARED=[
     ["ZZXHistoryClient","/__partials/widgets/_shared/zzx-history-client.js",6],
@@ -137,7 +137,10 @@
         source,timeframe,resolution,maxPoints:6000
       });
 
-      state.chart.setData(data.points||[],recipe);
+      state.points=Array.isArray(data.points)?data.points.slice():[];
+      state.recipe=recipe;
+      state.source=source;
+      state.chart.setData(state.points,recipe,{preserveView:true,followRight:true});
 
       if(status){
         status.textContent=`${data.points?.length||0} points · ${data.resolution||resolution} · ${recipe.label} · ${data.transport||"history"}`;
@@ -151,6 +154,7 @@
       }
     }catch(error){
       if(status)status.textContent=`history error: ${String(error?.message||error)}`;
+      state.points=[];
       state.chart.setData([],state.recipes[0]);
     }finally{
       state.busy=false;
@@ -176,7 +180,10 @@
       recipes,
       chart:new W.ZZXChartEngine.Chart(canvas,tooltip),
       busy:false,
-      refreshTimer:null
+      refreshTimer:null,
+      points:[],
+      recipe:null,
+      source:null
     };
     root.__zzxTickerChartState=state;
 
@@ -192,8 +199,21 @@
     root.querySelector("[data-chart-refresh]")?.addEventListener("click",()=>refresh(root,state));
     root.querySelector("[data-chart-reset]")?.addEventListener("click",()=>state.chart.resetZoom());
 
-    W.addEventListener("zzx:bpi-selection",async()=>{
+    W.addEventListener("zzx:bpi-selection",async event=>{
       await populateSources(root);
+      const sel=event?.detail||{};
+      const selected=root.querySelector("[data-chart-source]")?.value||"global-bpi";
+      const sourceMatches=(selected==="global-bpi"&&sel.sourceType==="global-bpi") || (selected==="bpi"&&sel.sourceType==="bpi") || (sel.sourceType==="exchange"&&selected===sel.exchangeId);
+      if(!sourceMatches||!state.recipe)return;
+      const price=Number(sel.priceUsd),volume=Number(sel.volumeBtc),t=new Date(sel.timestamp||Date.now()).getTime();
+      if(!Number.isFinite(price)||!Number.isFinite(t))return;
+      const point={t,open:price,high:price,low:price,close:price,price,high_24h:Number(sel.highUsd),low_24h:Number(sel.lowUsd),volume_24h_btc:Number.isFinite(volume)?volume:null};
+      const rows=(state.points||[]).filter(p=>Number(p?.t)!==t);
+      rows.push(point);
+      rows.sort((a,b)=>Number(a.t)-Number(b.t));
+      const cutoff=Date.now()-W.ZZXHistoryClient.spanMs(root.querySelector("[data-chart-timeframe]")?.value||"24h");
+      state.points=rows.filter(p=>Number(p.t)>=cutoff).slice(-6000);
+      state.chart.setData(state.points,state.recipe,{preserveView:true,followRight:true});
     });
 
     // Keep Chart Lab responsive without refetching a full multi-thousand-point
@@ -214,7 +234,7 @@
   }
 
   W.ZZXBitcoinTickerCharts=Object.freeze({
-    __version:1,
+    __version:2,
     mount,
     refresh
   });
