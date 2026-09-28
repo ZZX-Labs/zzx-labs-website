@@ -6,7 +6,8 @@
   const root = client.root;
   const $ = (selector) => document.querySelector(selector);
   const state = { catalogue:null, points:[], country:"", year:2004, yaw:0.2,
-    layer:"map", renderer:null, candidates:[], version:0, available:new Set(),
+    pitch:0, roll:0, zoom:1, realism:0, speed:1, direction:1,
+    layer:"tactical", theme:24, renderer:null, candidates:[], version:0, available:new Set(),
     imageCache:new Map(), lastTexture:null, rotationSeconds:20, playing:true,
     dragging:false, lastFrame:0, boundaryManifest:null, boundaries:null,
     boundaryVersion:0, lookup:null, selectedRings:[], shapeVersion:0 };
@@ -16,6 +17,68 @@
     satellite: {title:"NASA Blue Marble (2002 composite)",link:"https://science.nasa.gov/earth/earth-observatory/the-blue-marble-true-color-global-imagery-at-1km-resolution/"},
     tactical: {title:"Reference map and geographic grid · Natural Earth",link:"https://www.naturalearthdata.com/"}
   };
+  const themeNames = [
+    "Map · Slate", "Map · Fir", "Map · Copper", "Map · Midnight",
+    "Map · Basalt", "Map · Sage", "Map · Indigo", "Map · Sandstone",
+    "Topo · Moss", "Topo · Glacial", "Topo · Umber", "Topo · Violet",
+    "Topo · Ash", "Topo · Alpine", "Topo · Cobalt", "Topo · Sienna",
+    "Satellite · Oceanic", "Satellite · Twilight", "Satellite · Amber earth", "Satellite · Nocturne",
+    "Satellite · Rust", "Satellite · Rainforest", "Satellite · Polar", "Satellite · Dusk",
+    "Tactical · Nightwatch", "Tactical · Arctic", "Tactical · Signal", "Tactical · Deep space",
+    "Tactical · Ember", "Tactical · Verdant", "Tactical · Ultramarine", "Tactical · Desert night"
+  ];
+  const themeHues=[164,194,43,263,7,113,222,31];
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+  function themePalette(index){
+    const family=Math.floor(index/8),hue=(themeHues[index%8]+family*11)%360;
+    return {family,hue,accent:`hsl(${hue} 64% 73%)`,
+      trim:`hsl(${(hue+40)%360} 70% 70%)`,panel:`hsl(${hue} 15% 9%)`,
+      ground:`hsl(${hue} 20% 5%)`,grid:[...hslRGB(hue,.67,.68)]};
+  }
+  function hslRGB(h,s,l){
+    const a=s*Math.min(l,1-l);
+    return [0,8,4].map(n=>{
+      const k=(n+h/30)%12;
+      return l-a*Math.max(-1,Math.min(k-3,9-k,1));
+    });
+  }
+  function themedTexture(image){
+    const palette=themePalette(state.theme);
+    const canvas=document.createElement("canvas");
+    canvas.width=image.naturalWidth||image.width;canvas.height=image.naturalHeight||image.height;
+    const ctx=canvas.getContext("2d");
+    ctx.filter=`brightness(${palette.family===2?.71:.68}) saturate(${palette.family===2?.86:.78}) hue-rotate(${palette.hue-164}deg)`;
+    ctx.drawImage(image,0,0,canvas.width,canvas.height);ctx.filter="none";
+    ctx.globalCompositeOperation="multiply";
+    ctx.fillStyle=`hsla(${palette.hue} 31% ${palette.family===2?54:43}% / .34)`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);ctx.globalCompositeOperation="source-over";
+    return canvas;
+  }
+  function applyTheme(){
+    const palette=themePalette(state.theme),page=$(".wfb-page");
+    if(page){
+      page.style.setProperty("--wfb-green",palette.accent);
+      page.style.setProperty("--wfb-amber",palette.trim);
+      page.style.setProperty("--wfb-panel",palette.panel);
+      page.style.setProperty("--wfb-bg-2",palette.ground);
+      page.style.setProperty("--wfb-globe-hue",`${palette.hue}`);
+    }
+    $("[data-wfb-theme-current]").textContent=themeNames[state.theme];
+    setLayer(["map","topo","satellite","tactical"][palette.family]);
+  }
+  function solar(now=new Date()){
+    const first=Date.UTC(now.getUTCFullYear(),0,0);
+    const day=(now.getTime()-first)/86400000;
+    const fraction=(now.getUTCHours()*3600+now.getUTCMinutes()*60+now.getUTCSeconds())/86400;
+    return {lon:Math.PI-2*Math.PI*fraction,
+      decl:(-23.44*Math.cos(2*Math.PI*(day+10)/365.2422))*Math.PI/180};
+  }
+  function camera(){
+    const sun=solar(),palette=themePalette(state.theme);
+    return {yaw:state.yaw,pitch:state.pitch+state.realism*23.44*Math.PI/180,
+      roll:state.roll,zoom:state.zoom,tactical:state.layer==="tactical",
+      realism:state.realism,solarLon:sun.lon,solarDecl:sun.decl,grid:palette.grid};
+  }
   function fallbackTexture(){
     const c=document.createElement("canvas");c.width=1024;c.height=512;
     const ctx=c.getContext("2d");
@@ -56,11 +119,19 @@
     try{
       const image=await layerTexture(layer);
       if(token!==state.version) return;
-      upload(image);
+      upload(themedTexture(image));
     }catch(error){
       if(token!==state.version) return;
-      upload(fallbackTexture());
-      credit.append(" · local layer missing; showing reference grid");
+      try{
+        const image=await loadImage(new URL(`boundaries/reference/${layer==="topo"?"topo":layer==="satellite"?"satellite":"map"}.png`,root).href);
+        if(token!==state.version)return;
+        upload(themedTexture(image));
+        credit.append(" · year texture unavailable; showing the local reference layer");
+      }catch(backupError){
+        if(token!==state.version)return;
+        upload(themedTexture(fallbackTexture()));
+        credit.append(" · local layer unavailable; showing the reference grid");
+      }
     }
     draw();
   }
@@ -141,17 +212,21 @@
       for(const rings of polygons.values())for(const parts of rings.values()){
         state.selectedRings.push(parts.sort((a,b)=>a[0]-b[0]).flatMap(part=>part[1]));
       }
-      draw();
+      fitCountry();draw();
     }catch(error){if(token===state.shapeVersion)console.warn("Selected outline unavailable",error);}
   }
   function regionAt(x,y,width,height){
     const lookup=state.lookup;if(!lookup)return null;
-    const radius=Math.min(width,height)*.4;
+    const view=camera(),radius=Math.min(width,height)*.4*view.zoom;
     const nx=(x-width/2)/radius,ny=(height/2-y)/radius;
     const distance=nx*nx+ny*ny;
     if(distance>1)return null;
-    const longitude=Math.atan2(nx,Math.sqrt(Math.max(0,1-distance)))+state.yaw;
-    const latitude=Math.asin(Math.max(-1,Math.min(1,ny)));
+    const z=Math.sqrt(Math.max(0,1-distance)),cr=Math.cos(view.roll),sr=Math.sin(view.roll);
+    const xx=nx*cr+ny*sr,yy=-nx*sr+ny*cr;
+    const north=yy*Math.cos(view.pitch)+z*Math.sin(view.pitch);
+    const toward=-yy*Math.sin(view.pitch)+z*Math.cos(view.pitch);
+    const longitude=Math.atan2(xx,toward)+state.yaw;
+    const latitude=Math.asin(clamp(north,-1,1));
     const u=((longitude/(2*Math.PI)+.5)%1+1)%1;
     const v=Math.min(1-Number.EPSILON,Math.max(0,.5-latitude/Math.PI));
     const offset=(Math.floor(v*lookup.height)*lookup.width+Math.floor(u*lookup.width))*4;
@@ -179,12 +254,37 @@
   }
   function project(point,width,height){
     if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))return null;
-    const lat=point.lat*Math.PI/180,delta=point.lon*Math.PI/180-state.yaw;
-    const z=Math.cos(lat)*Math.cos(delta);
+    const view=camera(),lat=point.lat*Math.PI/180,delta=point.lon*Math.PI/180-state.yaw;
+    const xx=Math.cos(lat)*Math.sin(delta),north=Math.sin(lat),toward=Math.cos(lat)*Math.cos(delta);
+    const yy=north*Math.cos(view.pitch)-toward*Math.sin(view.pitch);
+    const z=north*Math.sin(view.pitch)+toward*Math.cos(view.pitch);
     if(z<=0)return null;
-    const radius=Math.min(width,height)*.4;
-    return {x:width/2+Math.cos(lat)*Math.sin(delta)*radius,
-            y:height/2-Math.sin(lat)*radius,z};
+    const x=xx*Math.cos(view.roll)-yy*Math.sin(view.roll);
+    const y=xx*Math.sin(view.roll)+yy*Math.cos(view.roll);
+    const radius=Math.min(width,height)*.4*view.zoom;
+    return {x:width/2+x*radius,y:height/2-y*radius,z};
+  }
+  function fitCountry(){
+    const target=state.points.find(p=>p.code===state.country);
+    if(!target||!Number.isFinite(target.lat)||!Number.isFinite(target.lon))return;
+    state.yaw=target.lon*Math.PI/180;
+    state.pitch=target.lat*Math.PI/180-state.realism*23.44*Math.PI/180;
+    state.roll=0;
+    // A dominant ring ignores remote outlying possessions when framing the main landmass.
+    const rings=state.selectedRings.filter(r=>r.length>=4);
+    const dominant=rings.sort((a,b)=>b.length-a.length)[0];
+    if(dominant){
+      const samples=dominant.filter((_,i)=>i%Math.max(1,Math.floor(dominant.length/400))===0);
+      const extent=samples.map(([lon,lat])=>{
+        const latitude=lat*Math.PI/180,longitude=(lon-target.lon)*Math.PI/180;
+        return Math.hypot(Math.cos(latitude)*Math.sin(longitude),
+          Math.sin(latitude)*Math.cos(target.lat*Math.PI/180)-
+          Math.cos(latitude)*Math.cos(longitude)*Math.sin(target.lat*Math.PI/180));
+      }).sort((a,b)=>a-b);
+      const span=extent[Math.floor(extent.length*.95)]||.1;
+      state.zoom=clamp(.64/span,.85,6);
+    }else state.zoom=clamp(state.zoom,1,3);
+    syncZoom();
   }
   function draw(){
     const canvas=$("[data-wfb-globe-canvas]");
@@ -195,7 +295,7 @@
     const ratio=Math.min(window.devicePixelRatio||1,2);
     const w=Math.round(width*ratio),h=Math.round(height*ratio);
     if(canvas.width!==w||canvas.height!==h){canvas.width=marker.width=w;canvas.height=marker.height=h;}
-    try{state.renderer?.draw(w,h,state.yaw,false,state.layer==="tactical");}
+    try{state.renderer?.draw(w,h,camera());}
     catch(error){console.warn("Globe GPU rendering failed",error);cpuFallback();}
     const ctx=marker.getContext("2d");ctx.clearRect(0,0,w,h);ctx.scale(ratio,ratio);
     drawOutline(ctx,width,height);
@@ -210,6 +310,7 @@
       state.candidates.push({...point,x:p.x,y:p.y});
     }
     ctx.setTransform(1,0,0,1,0,0);
+    placeBubble(width,height);
   }
   const getJSON=async path=>{
     const response=await fetch(new URL(path,root));
@@ -220,10 +321,78 @@
   function choose(code){
     state.country=code;$("[data-wfb-globe-country]").value=code;
     const point=state.points.find(x=>x.code===code);
-    if(point&&Number.isFinite(point.lon))state.yaw=point.lon*Math.PI/180;
+    if(point&&Number.isFinite(point.lon)&&Number.isFinite(point.lat)){
+      state.yaw=point.lon*Math.PI/180;
+      state.pitch=point.lat*Math.PI/180-state.realism*23.44*Math.PI/180;
+    }
+    state.selectedRings=[];
     loadSelectedShape();draw();loadProfile();
   }
   let request=0;
+  function placeBubble(width,height){
+    const bubble=$("[data-wfb-country-bubble]");if(!bubble||bubble.hidden)return;
+    const point=state.points.find(p=>p.code===state.country);
+    const position=point&&project(point,width,height);
+    if(!position){bubble.style.visibility="hidden";return;}
+    bubble.style.visibility="visible";
+    const below=position.y<135;
+    bubble.classList.toggle("is-below",below);
+    bubble.style.left=`${clamp(position.x,135,width-135)}px`;
+    bubble.style.top=`${clamp(position.y+(below?16:-14),14,height-14)}px`;
+  }
+  function bubbleFields(fields,source){
+    const bubble=$("[data-wfb-country-bubble]");
+    if(!bubble)return;
+    bubble.replaceChildren();
+    const close=document.createElement("button");close.type="button";
+    close.className="wfb-bubble-close";close.setAttribute("aria-label","Close country summary");
+    close.textContent="×";close.addEventListener("click",()=>{bubble.hidden=true;});bubble.append(close);
+    const title=document.createElement("strong");
+    title.textContent=`${state.points.find(p=>p.code===state.country)?.name||state.country} · ${state.year}`;
+    bubble.append(title);
+    const profiles=[
+      ["Capital",/^Capital$/i],
+      ["Population",/^Population$/i],
+      ["Capital population",/^Major urban areas.?population$|^Urban areas.?population$/i],
+      ["Installed electricity capacity",/^Electricity.?installed generating capacity$|^Electricity.?capacity$/i],
+      ["Electricity production",/^Electricity.?production$/i],
+      ["Electricity consumption",/^Electricity.?consumption$/i],
+      ["GDP",/^GDP \(purchasing power parity\)$|^GDP \(official exchange rate\)$/i]
+    ];
+    const list=document.createElement("dl");
+    for(const [label,pattern] of profiles){
+      const field=fields.find(row=>pattern.test(row.label));
+      if(!field)continue;
+      const dt=document.createElement("dt"),dd=document.createElement("dd");
+      dt.textContent=label;dd.textContent=String(field.content).replace(/\s+/g," ").slice(0,125);
+      list.append(dt,dd);
+    }
+    if(list.childElementCount)bubble.append(list);
+    else{const p=document.createElement("p");p.textContent="No verified headline fields for this edition.";bubble.append(p);}
+    const foot=document.createElement("small");
+    foot.textContent=source?`Source: ${source.format||"archive"} · see complete record below`:
+      "No sourced record for this place and edition";
+    bubble.append(foot);bubble.hidden=false;
+    const canvas=$("[data-wfb-globe-canvas]");placeBubble(canvas.clientWidth,canvas.clientHeight);
+  }
+  function makePrelude(panel,index,groups){
+    const hero=document.createElement("header");hero.className="wfb-article-hero";
+    const eyebrow=document.createElement("p");eyebrow.className="wfb-kicker";
+    eyebrow.textContent=`WORLD FACTBOOK / ${state.year} / ${state.country}`;
+    const title=document.createElement("h4");title.textContent=index.name||state.country;
+    const byline=document.createElement("p");
+    byline.textContent=`${index.fields} sourced fields · ${index.media.length} media records · ${index.source.format||"archive"} source`;
+    hero.append(eyebrow,title,byline);panel.append(hero);
+    const contents=document.createElement("nav");contents.className="wfb-article-contents";
+    contents.setAttribute("aria-label","Profile sections");
+    const label=document.createElement("strong");label.textContent="In this edition";contents.append(label);
+    for(const category of groups.keys()){
+      const link=document.createElement("a");
+      link.href=`#wfb-section-${state.country}-${state.year}-${category.replace(/[^a-z0-9-]/gi,"-")}`;
+      link.textContent=category.replaceAll("-"," ");contents.append(link);
+    }
+    panel.append(contents);
+  }
   async function loadIndiaTrade(panel,year,requestId){
     const block=document.createElement("section");block.className="wfb-country-section wfb-trade";
     const title=document.createElement("h4");title.textContent="India imports, exports and trade balance";
@@ -278,6 +447,7 @@
   async function loadProfile(){
     const current=++request,code=state.country,year=state.year;
     const panel=$("[data-wfb-country-profile]");panel.replaceChildren();
+    const bubble=$("[data-wfb-country-bubble]");if(bubble)bubble.hidden=true;
     const selected=state.catalogue?.countries?.find(row=>row.code===code);
     $("[data-wfb-country-heading]").textContent=selected?.name||state.points.find(x=>x.code===code)?.name||"Select a location";
     if(!code){status("Choose a place to view an edition.");return;}
@@ -285,6 +455,7 @@
     const entry=selected?.years?.find(row=>row.year===year);
     if(!entry){
       status(`${year}: ${edition?.status||"missing"}. No source-backed Factbook profile is available for this location and edition.`);
+      bubbleFields([],null);
       if(code==="IN")await loadIndiaTrade(panel,year,current);
       return;
     }
@@ -299,8 +470,11 @@
         if(!groups.has(field.category))groups.set(field.category,[]);
         groups.get(field.category).push(field);
       }
+      makePrelude(panel,index,groups);
+      bubbleFields([...groups.values()].flat(),index.source);
       for(const [category,fields] of groups){
         const section=document.createElement("section");section.className="wfb-country-section";
+        section.id=`wfb-section-${code}-${year}-${category.replace(/[^a-z0-9-]/gi,"-")}`;
         const title=document.createElement("h4");title.textContent=category.replaceAll("-"," ");section.append(title);
         const dl=document.createElement("dl");
         for(const field of fields){
@@ -319,7 +493,7 @@
         for(const media of index.media){
           const figure=document.createElement("figure");
           const rights=String(media.rights||"").toLowerCase();
-          const cleared=["public domain","public-domain","redistribution cleared","licensed"].includes(rights);
+          const cleared=["public domain","public-domain","redistribution cleared"].includes(rights);
           if(cleared){
             const img=document.createElement("img");img.loading="lazy";
             img.src=new URL(media.path,root).href;img.alt=media.alt||media.label;
@@ -348,6 +522,7 @@
   function setYear(year){
     state.year=Number(year);$("[data-wfb-globe-year]").textContent=year;
     $("[data-wfb-globe-slider]").value=year;
+    $("[data-wfb-globe-slider]").style.setProperty("--year-progress",`${(state.year-1962)/65*100}%`);
     state.available=new Set((state.catalogue?.countries||[])
       .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code));
     boundaryStatus(`Boundaries: loading geometry for ${year}…`);
@@ -355,11 +530,55 @@
     draw();
     loadProfile();
   }
+  function syncZoom(){
+    const knob=$("[data-wfb-zoom-knob]");if(!knob)return;
+    knob.value=state.zoom;
+    knob.style.setProperty("--knob-angle",`${-135+(state.zoom-.8)/6.2*270}deg`);
+    knob.parentElement.style.setProperty("--knob-angle",`${-135+(state.zoom-.8)/6.2*270}deg`);
+    knob.parentElement.style.setProperty("--knob-progress",`${(state.zoom-.8)/6.2*270}deg`);
+    knob.setAttribute("aria-valuetext",`${state.zoom.toFixed(2)} times zoom`);
+    $("[data-wfb-zoom-value]").textContent=`${state.zoom.toFixed(2)}×`;
+    $("[data-wfb-zoom-out]").disabled=state.zoom<=.8001;
+    $("[data-wfb-zoom-in]").disabled=state.zoom>=6.999;
+    knob.classList.toggle("at-limit",state.zoom<=.8001||state.zoom>=6.999);
+  }
+  function setZoom(value){state.zoom=clamp(Number(value)||1,.8,7);syncZoom();draw();}
+  function syncRealism(){
+    const knob=$("[data-wfb-realism-knob]");
+    knob.value=state.realism;
+    knob.style.setProperty("--knob-angle",`${-135+state.realism*270}deg`);
+    knob.parentElement.style.setProperty("--knob-angle",`${-135+state.realism*270}deg`);
+    knob.parentElement.style.setProperty("--knob-progress",`${state.realism*270}deg`);
+    knob.setAttribute("aria-valuetext",state.realism>=.999?"Real-time Earth spin and approximate solar day/night":
+      `${Math.round(state.realism*100)} percent physical spin`);
+    $("[data-wfb-realism-value]").textContent=state.realism>=.999?"1:1 UTC":
+      state.realism<=.001?"MAP":"BLEND";
+    $("[data-wfb-rotation-value]").textContent=state.realism>=.999?"23h 56m · 1×":
+      state.realism>0?`${state.rotationSeconds} s → Earth`:`${state.rotationSeconds} s`;
+  }
+  function rotaryDrag(knob,min,max,get,set){
+    let start=null;
+    knob.addEventListener("pointerdown",event=>{
+      event.preventDefault();
+      start={x:event.clientX,y:event.clientY,value:get()};
+      knob.setPointerCapture(event.pointerId);
+    });
+    knob.addEventListener("pointermove",event=>{
+      if(!start)return;
+      set(start.value+(start.y-event.clientY+(event.clientX-start.x)*.35)*(max-min)/280);
+    });
+    knob.addEventListener("pointerup",()=>{start=null;});
+    knob.addEventListener("pointercancel",()=>{start=null;});
+    knob.addEventListener("wheel",event=>{
+      event.preventDefault();set(get()-Math.sign(event.deltaY)*(max-min)/90);
+    },{passive:false});
+  }
   function connect(canvas){
     let down=null;
     canvas.addEventListener("pointerdown",event=>{
-      if(event.button!==0)return;
-      down={x:event.clientX,y:event.clientY,yaw:state.yaw,moved:false};
+      if(event.button!==0&&event.button!==1)return;
+      down={x:event.clientX,y:event.clientY,yaw:state.yaw,pitch:state.pitch,
+        roll:state.roll,button:event.button,moved:false};
       state.dragging=true;
       canvas.setPointerCapture(event.pointerId);
     });
@@ -374,11 +593,16 @@
       }
       const dx=event.clientX-down.x;
       if(Math.abs(dx)+Math.abs(event.clientY-down.y)>5)down.moved=true;
-      if(down.moved){state.yaw=down.yaw-dx*.007;draw();}
+      if(down.moved){
+        if(down.button===0){state.yaw=down.yaw-dx*.007/state.zoom;
+          state.pitch=down.pitch+(event.clientY-down.y)*.007/state.zoom;}
+        else{state.roll=down.roll+dx*.007;state.pitch=down.pitch+(event.clientY-down.y)*.007;}
+        draw();
+      }
     });
     canvas.addEventListener("pointerup",event=>{
       if(!down)return;
-      if(!down.moved){
+      if(!down.moved&&down.button===0){
         const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
         const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
         if(near&&near.d<14)choose(near.code);
@@ -391,12 +615,36 @@
       state.dragging=false;
     });
     canvas.addEventListener("pointercancel",()=>{down=null;state.dragging=false;});
+    canvas.addEventListener("wheel",event=>{
+      event.preventDefault();setZoom(state.zoom*Math.exp(-event.deltaY*.0012));
+    },{passive:false});
+    canvas.addEventListener("auxclick",event=>{if(event.button===1)event.preventDefault();});
+    canvas.addEventListener("contextmenu",event=>{
+      event.preventDefault();
+      const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
+      const near=state.candidates.find(point=>Math.hypot(x-point.x,y-point.y)<14);
+      const area=near||regionAt(x,y,rect.width,rect.height);
+      if(area&&area.code!==state.country)choose(area.code);
+      if(!state.country)return;
+      const menu=$("[data-wfb-country-menu]");
+      menu.hidden=false;
+      menu.style.left=`${clamp(x,8,Math.max(8,rect.width-265))}px`;
+      menu.style.top=`${clamp(y,8,Math.max(8,rect.height-270))}px`;
+      const key=`wfb-notes:${state.country}:${state.year}`;
+      try{$("[data-wfb-note]").value=localStorage.getItem(key)||"";
+        $("[data-wfb-favorite]").checked=localStorage.getItem(`wfb-favorite:${state.country}`)==="1";
+      }catch(error){$("[data-wfb-note]").value="";}
+      $("[data-wfb-menu-place]").textContent=`${state.points.find(p=>p.code===state.country)?.name||state.country} · ${state.year}`;
+    });
   }
   function frame(now){
     const dt=state.lastFrame?Math.max(0,(now-state.lastFrame)/1000):0;
     state.lastFrame=now;
     if(!document.hidden&&state.playing&&!state.dragging){
-      state.yaw=(state.yaw+2*Math.PI*dt/state.rotationSeconds)%(2*Math.PI);
+      const manual=2*Math.PI/state.rotationSeconds;
+      const sidereal=2*Math.PI/86164.0905;
+      state.yaw=(state.yaw+state.direction*state.speed*dt*
+        (manual*(1-state.realism)+sidereal*state.realism))%(2*Math.PI);
       draw();
     }
     requestAnimationFrame(frame);
@@ -437,11 +685,53 @@
     select.addEventListener("change",()=>choose(select.value));
     const slider=$("[data-wfb-globe-slider]");
     slider.addEventListener("input",()=>setYear(slider.value));
-    document.querySelectorAll('input[name="wfb-layer"]').forEach(input=>input.addEventListener("change",()=>{
-      if(input.checked)setLayer(input.value);
-    }));
+    const themes=$("[data-wfb-layer-select]");
+    themeNames.forEach((name,i)=>{
+      const option=document.createElement("option");option.value=String(i);option.textContent=name;themes.append(option);
+    });
+    themes.value=String(state.theme);
+    themes.addEventListener("change",()=>{state.theme=Number(themes.value);applyTheme();});
+    $("[data-wfb-zoom-knob]").addEventListener("input",event=>setZoom(event.target.value));
+    rotaryDrag($("[data-wfb-zoom-knob]"),.8,7,()=>state.zoom,setZoom);
+    $("[data-wfb-zoom-out]").addEventListener("click",()=>setZoom(state.zoom/1.25));
+    $("[data-wfb-zoom-in]").addEventListener("click",()=>setZoom(state.zoom*1.25));
+    $("[data-wfb-realism-knob]").addEventListener("input",event=>{
+      state.realism=clamp(Number(event.target.value),0,1);syncRealism();draw();
+    });
+    rotaryDrag($("[data-wfb-realism-knob]"),0,1,()=>state.realism,value=>{
+      state.realism=clamp(value,0,1);syncRealism();draw();
+    });
+    for(const button of document.querySelectorAll("[data-wfb-speed]")){
+      button.addEventListener("click",()=>{
+        state.speed=Number(button.dataset.wfbSpeed);
+        for(const candidate of document.querySelectorAll("[data-wfb-speed]"))
+          candidate.setAttribute("aria-pressed",String(candidate===button));
+      });
+    }
+    $("[data-wfb-reverse]").addEventListener("click",event=>{
+      state.direction*=-1;
+      event.currentTarget.setAttribute("aria-pressed",String(state.direction<0));
+      event.currentTarget.textContent=state.direction<0?"↶ Reverse: on":"↻ Reverse: off";
+    });
+    $("[data-wfb-menu-close]").addEventListener("click",()=>{
+      $("[data-wfb-country-menu]").hidden=true;
+    });
+    $("[data-wfb-menu-profile]").addEventListener("click",()=>{
+      $("[data-wfb-country-menu]").hidden=true;
+      $(".wfb-country-panel").scrollIntoView({behavior:"smooth",block:"start"});
+    });
+    $("[data-wfb-menu-settings]").addEventListener("click",()=>{
+      $("[data-wfb-country-menu]").hidden=true;
+      $(".wfb-globe-controls").scrollIntoView({behavior:"smooth",block:"start"});
+    });
+    $("[data-wfb-menu-save]").addEventListener("click",()=>{
+      try{
+        localStorage.setItem(`wfb-notes:${state.country}:${state.year}`,$("[data-wfb-note]").value);
+        localStorage.setItem(`wfb-favorite:${state.country}`,$("[data-wfb-favorite]").checked?"1":"0");
+        $("[data-wfb-menu-saved]").textContent="Saved on this device";
+      }catch(error){$("[data-wfb-menu-saved]").textContent="Browser storage unavailable";}
+    });
     const rotation=$("[data-wfb-rotation-seconds]");
-    const period=$("[data-wfb-rotation-value]");
     const toggle=$("[data-wfb-rotation-toggle]");
     const updateToggle=()=>{
       toggle.textContent=state.playing?"Pause rotation":"Start rotation";
@@ -451,13 +741,14 @@
     updateToggle();
     rotation.addEventListener("input",()=>{
       state.rotationSeconds=Math.min(30,Math.max(15,Number(rotation.value)||20));
-      period.textContent=`${state.rotationSeconds} s`;
+      syncRealism();
     });
     toggle.addEventListener("click",()=>{state.playing=!state.playing;updateToggle();draw();});
+    syncZoom();syncRealism();
     if(window.ResizeObserver)new ResizeObserver(draw).observe(canvas.parentElement);
     else window.addEventListener("resize",draw);
     document.addEventListener("visibilitychange",()=>{state.lastFrame=0;if(!document.hidden)draw();});
-    upload(fallbackTexture());draw();
+    upload(themedTexture(fallbackTexture()));draw();applyTheme();
     try{state.boundaryManifest=await getJSON("boundaries/manifest.json");}
     catch(error){boundaryStatus("Local boundaries not installed; use the location selector");}
     setYear(state.year);
