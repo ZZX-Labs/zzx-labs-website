@@ -59,7 +59,7 @@
           </div>
           <div>
             <dt>Archive slots</dt>
-            <dd>64 years</dd>
+            <dd>66 years</dd>
           </div>
           <div>
             <dt>Indexed editions</dt>
@@ -108,33 +108,59 @@
       <div><p class="wfb-kicker">Country archive</p><h2 id="wfb-globe-title">World Factbook globe</h2></div>
       <p>Select a place and an edition year to read the sourced record. Years still under review are marked partial.</p>
     </header>
-    <div class="wfb-globe-controls">
+    <div class="wfb-globe-controls" aria-label="Globe controls">
       <label class="wfb-year-control"><span>Edition year: <output data-wfb-globe-year>2004</output></span>
         <input type="range" min="1962" max="2027" step="1" value="2004" data-wfb-globe-slider aria-label="Factbook edition year">
         <span class="wfb-year-limits"><span>1962</span><span>2027</span></span>
       </label>
       <label>Location<select data-wfb-globe-country><option value="">Choose a place</option></select></label>
-      <fieldset class="wfb-layer-choices"><legend>Globe layer</legend>
-        <label><input type="radio" name="wfb-layer" value="map" checked> Map</label>
-        <label><input type="radio" name="wfb-layer" value="topo"> Topo</label>
-        <label><input type="radio" name="wfb-layer" value="satellite"> Satellite</label>
-        <label><input type="radio" name="wfb-layer" value="tactical"> Tactical</label>
-      </fieldset>
+      <label>Layer and colour theme
+        <select data-wfb-layer-select aria-label="Map layer and colour theme"></select>
+        <span class="wfb-control-caption" data-wfb-theme-current>Tactical · Nightwatch</span>
+      </label>
+      <div class="wfb-rotary-bank" aria-label="Globe rotary controls">
+        <div class="wfb-rotary-unit">
+          <label for="wfb-zoom-knob">Zoom <output data-wfb-zoom-value>1.00×</output></label>
+          <span class="wfb-knob-shell"><input id="wfb-zoom-knob" class="wfb-rotary" data-wfb-zoom-knob type="range" min="0.8" max="7" step="0.01" value="1" aria-label="Zoom globe"></span>
+          <div class="wfb-knob-steps"><button type="button" data-wfb-zoom-out aria-label="Zoom out">−</button><button type="button" data-wfb-zoom-in aria-label="Zoom in">+</button></div>
+        </div>
+        <div class="wfb-rotary-unit">
+          <label for="wfb-realism-knob">Earth spin <output data-wfb-realism-value>MAP</output></label>
+          <span class="wfb-knob-shell"><input id="wfb-realism-knob" class="wfb-rotary" data-wfb-realism-knob type="range" min="0" max="1" step="0.001" value="0" aria-label="Blend map spin with real-time Earth rotation"></span>
+          <span class="wfb-knob-labels">Map <span>1:1 UTC</span></span>
+        </div>
+      </div>
       <div class="wfb-rotation-controls">
         <label class="wfb-year-control"><span>Full revolution: <output data-wfb-rotation-value>20 s</output></span>
           <input type="range" min="15" max="30" step="1" value="20" data-wfb-rotation-seconds aria-label="Seconds per globe revolution">
           <span class="wfb-year-limits"><span>15 s</span><span>30 s</span></span>
         </label>
         <button type="button" data-wfb-rotation-toggle aria-pressed="true">Pause rotation</button>
+        <button type="button" data-wfb-reverse aria-pressed="false">↻ Reverse: off</button>
+        <div class="wfb-speed-controls" role="group" aria-label="Rotation time scale">
+          <button type="button" data-wfb-speed="0.5" aria-pressed="false">½×</button>
+          <button type="button" data-wfb-speed="1" aria-pressed="true">1×</button>
+          <button type="button" data-wfb-speed="2" aria-pressed="false">2×</button>
+          <button type="button" data-wfb-speed="4" aria-pressed="false">4×</button>
+          <button type="button" data-wfb-speed="8" aria-pressed="false">8×</button>
+        </div>
         <span data-wfb-globe-renderer role="status">Renderer: loading</span>
         <span data-wfb-boundary-status role="status">Boundaries: loading</span>
       </div>
     </div>
     <div class="wfb-globe-layout">
       <div class="wfb-globe-surface">
-        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a region or a place marker"></canvas>
+        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth: left drag longitude and latitude, middle drag tilt, wheel zoom, click a boundary, right click local notes"></canvas>
         <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
-        <p class="wfb-globe-instructions">Drag to rotate · click a boundary or marker · choose an edition</p>
+        <p class="wfb-globe-instructions">Drag: pan and tilt · middle drag: roll · wheel: zoom · right click: notes</p>
+        <aside class="wfb-country-bubble" data-wfb-country-bubble role="status" hidden></aside>
+        <aside class="wfb-country-menu" data-wfb-country-menu hidden>
+          <div class="wfb-menu-head"><strong data-wfb-menu-place>Place · edition</strong><button type="button" data-wfb-menu-close aria-label="Close menu">×</button></div>
+          <label><input type="checkbox" data-wfb-favorite> Favorite this location</label>
+          <label>Private note on this device<textarea data-wfb-note rows="3" maxlength="2000"></textarea></label>
+          <div class="wfb-menu-actions"><button type="button" data-wfb-menu-profile>Read country data</button><button type="button" data-wfb-menu-settings>Map settings</button></div>
+          <button type="button" data-wfb-menu-save>Save note</button><small data-wfb-menu-saved></small>
+        </aside>
         <p class="wfb-globe-attribution" data-wfb-globe-attribution>Reference geography: Natural Earth</p>
       </div>
       <article class="wfb-country-panel" aria-live="polite">
@@ -143,6 +169,7 @@
         <div data-wfb-country-profile></div>
       </article>
     </div>
+    <p class="wfb-boundary-footnote">Edition records show their published figures and original observation dates. Present-day outlines are labeled as reference where a historical boundary has not been supplied. The physical day/night display approximates the Sun from current UTC and seasonal declination.</p>
   </section>
 
   <section class="wfb-section wfb-container" id="variants">
