@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerDeps?.__version>=9)return;
+  if(W.ZZXBitcoinTickerDeps?.__version>=10)return;
 
   const inflight=new Map();
   const resolve=path=>W.ZZXAPI?.url?W.ZZXAPI.url(path):path;
@@ -133,6 +133,11 @@
   async function ensureShared(){
     await Promise.all([
       loadScript(
+        W.ZZXBitcoinTickerConstants.sharedPricePath,
+        "ZZXPrice",
+        1
+      ),
+      loadScript(
         W.ZZXBitcoinTickerConstants.sharedFxPath,
         "ZZXFX"
       ),
@@ -146,6 +151,10 @@
         11
       )
     ]);
+
+    if(Number(W.ZZXPrice?.__version||0)<1 || !W.ZZXPrice?.current){
+      throw new Error("ZZXPrice dependency unavailable");
+    }
 
     if(!W.ZZXFX?.rate){
       throw new Error("ZZXFX dependency unavailable");
@@ -170,7 +179,7 @@
   }
 
   W.ZZXBitcoinTickerDeps=Object.freeze({
-    __version:9,
+    __version:10,
     ensureShared
   });
 })();
