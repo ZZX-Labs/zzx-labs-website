@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-28T07:20:22.410479Z",
+  "generated_at": "2026-09-28T21:38:27.497575Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "node_id": "C_kwDOABII59oAKDA1YmMyZjUzY2UwY2IyMzljMTdkYmRkNmIyNjFiZDJkYjdkMmE5NDA",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-09-28T09:18:26Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-09-28T09:18:26Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36024: ci: Make `test_bitcoin-qt.exe` output visible\n\n70701de7c55512b4c8dbc3eaca91659980bf5300 ci: Make `test_bitcoin-qt.exe` output visible (Hennadii Stepanov)\n\nPull request description:\n\n  When run in the GHA environment, there is no console attached, so Qt's [`stderrHasConsoleAttached()`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L296) returns false and the entire test report is lost. Set `QT_ASSUME_STDERR_HAS_CONSOLE=1` to override the detection, as documented in Qt's [`qlogging.cpp`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L302-L303):\n  ```c++\n          if (qEnvironmentVariableIntValue(\"QT_ASSUME_STDERR_HAS_CONSOLE\"))\n              return true;\n  ```\n\nACKs for top commit:\n  davidgumberg:\n    utACK https://github.com/bitcoin/bitcoin/pull/36024/commits/70701de7c55512b4c8dbc3eaca91659980bf5300\n  maflcko:\n    lgtm ACK 70701de7c55512b4c8dbc3eaca91659980bf5300\n\nTree-SHA512: ed6d25e47dcb5f9953f336ddc52d841c6b8f11fccce417d401bca227763c99f81153751318c675673de8333ba7f218b5424b2c07eea422e62de42e167c574755",
+        "tree": {
+          "sha": "7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmq6MOIACgkQQQEIES5+\nqB+TAg/7BlHuR6fpUGedtqwJDRqkmNHfgNyXBpv4cfQmVPfC2lAybeSLq/UnUbtX\n2xxWO3sxv6eopARlBSf1fLOO4wnBpdYH1Ri0zew8Odk1BWJExhH6b2nSMCA9biSy\nw921vXgrCY46OoiUi+FWfvil20cZBakXBjrISInWLdakb5EcNeJ8vq1NjUvSjz/h\ndtvqO2DRLNARxDijBr967Ipf1TQKxQaD1PfHPI0TxDbZy2uC/3RZPDvZ/726blvB\nQUAZYWKVP0swFszFCZNYyShMLQKUi8bRPevVN2DaSpO2OO4RDGb3/dkFc9biH+b/\nyqAqxh6zkbSi4o/0zt68id4/Vw+j7L/WN5U3yxDql/dd7ndpOVBShX7tYZ0z7aWG\nsIrLFFurWRAb5JZo1zSvZhNDASZDiji/05ps+ku18/SzC2F7YxY2f9u5ww+a56Kf\n06pNxMalEhfuI2hyQbZlBRPdjacnX8783KewCthw2WqX2t6oWtFVKWqp/0DK29/t\nBP8XNkryGMoi+KVsnFyM2hgdtlA1QrZlKzy9TBwtPjTpjQU8wFP1FiwdxeRRscIQ\necr6WJjsVFH2BfIpU1+wSzm1PC5dx2i45cIKzgKhI3DA7lyqKcG33V9Y3nGFJHE8\n6HH9JgfJ/vhowSpIeo5/kXMPaopQllYS0NwI5u3r28CxWsHXuI4=\n=Lm5V\n-----END PGP SIGNATURE-----",
+          "payload": "tree 7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504\nparent ed7dd7cf4e1561a97edf72eba29a67b14e28c717\nparent 70701de7c55512b4c8dbc3eaca91659980bf5300\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790587106 +0100\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790587106 +0100\n\nMerge bitcoin/bitcoin#36024: ci: Make `test_bitcoin-qt.exe` output visible\n\n70701de7c55512b4c8dbc3eaca91659980bf5300 ci: Make `test_bitcoin-qt.exe` output visible (Hennadii Stepanov)\n\nPull request description:\n\n  When run in the GHA environment, there is no console attached, so Qt's [`stderrHasConsoleAttached()`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L296) returns false and the entire test report is lost. Set `QT_ASSUME_STDERR_HAS_CONSOLE=1` to override the detection, as documented in Qt's [`qlogging.cpp`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L302-L303):\n  ```c++\n          if (qEnvironmentVariableIntValue(\"QT_ASSUME_STDERR_HAS_CONSOLE\"))\n              return true;\n  ```\n\nACKs for top commit:\n  davidgumberg:\n    utACK https://github.com/bitcoin/bitcoin/pull/36024/commits/70701de7c55512b4c8dbc3eaca91659980bf5300\n  maflcko:\n    lgtm ACK 70701de7c55512b4c8dbc3eaca91659980bf5300\n\nTree-SHA512: ed6d25e47dcb5f9953f336ddc52d841c6b8f11fccce417d401bca227763c99f81153751318c675673de8333ba7f218b5424b2c07eea422e62de42e167c574755\n",
+          "verified_at": "2026-09-28T09:18:54Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ed7dd7cf4e1561a97edf72eba29a67b14e28c717"
+        },
+        {
+          "sha": "70701de7c55512b4c8dbc3eaca91659980bf5300",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/70701de7c55512b4c8dbc3eaca91659980bf5300",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/70701de7c55512b4c8dbc3eaca91659980bf5300"
+        }
+      ]
+    },
     {
       "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
       "node_id": "C_kwDOABII59oAKGVkN2RkN2NmNGUxNTYxYTk3ZWRmNzJlYmEyOWE2N2IxNGUyOGM3MTc",
@@ -1593,93 +1680,6 @@
           "sha": "db21e03c9d50386072a1123568f917ba65dcf348",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db21e03c9d50386072a1123568f917ba65dcf348",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/db21e03c9d50386072a1123568f917ba65dcf348"
-        }
-      ]
-    },
-    {
-      "sha": "a632d4f697f367c11776ca34ddcf9d8223238d41",
-      "node_id": "C_kwDOABII59oAKGE2MzJkNGY2OTdmMzY3YzExNzc2Y2EzNGRkY2Y5ZDgyMjMyMzhkNDE",
-      "commit": {
-        "author": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-09-23T23:24:23Z"
-        },
-        "committer": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-09-23T23:24:23Z"
-        },
-        "message": "Merge bitcoin/bitcoin#35177: test: use MiniWallet for getblockstats test data generation\n\nb7cbd804284bb70f40c5beebf8d1d3ff614ae406 test: use MiniWallet for getblockstats test data generation (AgustinRivera)\n\nPull request description:\n\n  Fixes #31838.\n  Follow-up to #33184.\n\n  This updates `rpc_getblockstats.py --gen-test-data` to generate its fixture data using `MiniWallet` instead of wallet RPCs.\n\n  The normal test path still loads predefined block/stat data from `rpc_getblockstats.json`, so the test continues to compare `getblockstats` results against fixed expected data rather than against freshly computed RPC output.\n\n  This keeps the generator independent of wallet behavior while preserving the existing regression-test structure.\n\n  Tested on a wallet-disabled Linux build:\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --gen-test-data --test-data /tmp/rpc_getblockstats.generated.json`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --test-data /tmp/rpc_getblockstats.generated.json`\n\nACKs for top commit:\n  achow101:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  theStack:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  sedited:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n\nTree-SHA512: f763acd0467143c4f151fa2acd5b154c073fea8551eafcf102ef2d1cc0f4b2ce13b7828bd2736d0cdda782a78dfa6aea60b61bee27e9ca8a2b72d76dffc09340",
-        "tree": {
-          "sha": "0f4ebe0357b5d240094619daa3ee0da7dd41233a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0f4ebe0357b5d240094619daa3ee0da7dd41233a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a632d4f697f367c11776ca34ddcf9d8223238d41",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unknown_key",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq0X6cACgkQF1ZXMuCO\nXkEMMg/+ISeL4JBOyFp5S6S795YQy7v99MlU0I+0yw3TEprC6P/PsSKmtTv54z8z\nSlsqwaECnoYIPgYPEjGQ0EalyWfM5krH1UEBWC27xkALR/bNHMacrJ5WQtZSwKyZ\n72oSUTc87rtTlzBbaj98YxEpMvXQbQdXbYFqmF6deFW+oI61JJh8mHbkFz3pWf56\nR/sLrLJ/acA1tCmAP7RrnRNUFf6K6R/UwctMkxX+pBIKVqaYbjdReCIxUihaetJb\nEzR6UwWgTH0wAY0W/4oLrLXZmg8ob5F22T2UaaYGkhRCZ+DJ6Q0QvRLojm67rsLb\ncaDb1PfWwetqKlzKzf8Sj+FsYAe2A5SOym8/VLE3yEXJ3nN8fHpEyiA6fkMZBBes\nL1rNUUv1756zNbpijGHw8T4iKQDKMIegH27t2d5qoND/BMcYmfxblMYO8hleaa3z\nMk9AmGu3ZSSXEEzPmaiGZVNajTzRa7i0vVOKXG7m4CLEL2UP/5Ght98IWqjHhT73\ndMcUeBTqWtlzF5STN77z2ty+YJn2rdd6/2e+PK8DwRrjeDYVWnpXCJtsbsVQA3rh\nVzGsRuLxcD7lIerF503QOaJiENGOJeGw2YQJghOychFiFuEfrrsDMzF2XuQg0itz\nOSIQBfkF1tieobiFz3mbAkrR6Yy/FnVEOYFllCvcLrdd3IzFL58=\n=9rIo\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIP4rS0aG6G3VcxGOlnlIylvLkbrdAxWGhd+84iDsStqqCP/wEBHPAaiz8j8s\nlhJn/YVUN24I8SAyDltYjxWJFt/XqVdpbTgr/LBbk5I1JjxGwlXJ3sp4cwjxBGq0\nX6rwCNL7jUTyZpVmAIPf4w0u+QyOKShodHRwczovL2Zpbm5leS5jYWxlbmRhci5l\ndGVybml0eXdhbGwuY29t//AIOZTUmHIgKTkI8CDJAgTKeQYyyHJwVLxfjxSN7aeb\nvLs+/BXl5ag4ZzI6VgjwECFTmN5yNyZisNrT8fmUHfYI8SBxf3/uTpl/SB6nTJDm\nTlSepXdjgs89kedYK3CPlkDrIwjxBGq0X6rwCMnwAZph80EeAIPf4w0u+QyOLCto\ndHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn//AIWAcB\nMcIV4kcI8BCLJjkPAMSqINzl4+780pKxCPAgSbPC2+uNBuw9JI6psN9yZWf1BdOq\nKT2iqABu4mOQD4QI8CCKrZEyopRksLXJf4Xe4XX/xqeDavwBP+IfsRa6wlmrwAjw\nICbrNCLxpAU58SjjF3bpa919UC/9zMWfyI47DV/FeIkbCPEEarRfq/AIFr33ZrDE\n5C8Ag9/jDS75DI4uLWh0dHBzOi8vYWxpY2UuYnRjLmNhbGVuZGFyLm9wZW50aW1l\nc3RhbXBzLm9yZ/AQt91z6pG5NLPDknQ4CH0TbQjwIEokplNB8UOpmcWRfTZgqVPX\n15BMwoZGpp4jgP3G+QkECPAgIB+rRj1Vv3Rc4jsbTTMAfLw8UkJWBHvKiJpMUV6o\nsgYI8CCrrFzryZIR4Ub7TWf3xsqdv46kLuP2X9qOWBHfIBYYQgjxBGq0X6vwCMNg\n7v1859pVAIPf4w0u+QyOIyJodHRwczovL2J0Yy5jYWxlbmRhci5jYXRhbGxheHku\nY29t\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
-          "payload": "tree 0f4ebe0357b5d240094619daa3ee0da7dd41233a\nparent be5d0b5503fa820da86185537821359648f9f562\nparent b7cbd804284bb70f40c5beebf8d1d3ff614ae406\nauthor Ava Chow <github@achow101.com> 1790205863 -0700\ncommitter Ava Chow <github@achow101.com> 1790205863 -0700\n\nMerge bitcoin/bitcoin#35177: test: use MiniWallet for getblockstats test data generation\n\nb7cbd804284bb70f40c5beebf8d1d3ff614ae406 test: use MiniWallet for getblockstats test data generation (AgustinRivera)\n\nPull request description:\n\n  Fixes #31838.\n  Follow-up to #33184.\n\n  This updates `rpc_getblockstats.py --gen-test-data` to generate its fixture data using `MiniWallet` instead of wallet RPCs.\n\n  The normal test path still loads predefined block/stat data from `rpc_getblockstats.json`, so the test continues to compare `getblockstats` results against fixed expected data rather than against freshly computed RPC output.\n\n  This keeps the generator independent of wallet behavior while preserving the existing regression-test structure.\n\n  Tested on a wallet-disabled Linux build:\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --gen-test-data --test-data /tmp/rpc_getblockstats.generated.json`\n  - `python3 /tmp/bitcoin-build/test/functional/rpc_getblockstats.py --test-data /tmp/rpc_getblockstats.generated.json`\n\nACKs for top commit:\n  achow101:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  theStack:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n  sedited:\n    ACK b7cbd804284bb70f40c5beebf8d1d3ff614ae406\n\nTree-SHA512: f763acd0467143c4f151fa2acd5b154c073fea8551eafcf102ef2d1cc0f4b2ce13b7828bd2736d0cdda782a78dfa6aea60b61bee27e9ca8a2b72d76dffc09340\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a632d4f697f367c11776ca34ddcf9d8223238d41",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/a632d4f697f367c11776ca34ddcf9d8223238d41",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a632d4f697f367c11776ca34ddcf9d8223238d41/comments",
-      "author": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "be5d0b5503fa820da86185537821359648f9f562",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/be5d0b5503fa820da86185537821359648f9f562",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/be5d0b5503fa820da86185537821359648f9f562"
-        },
-        {
-          "sha": "b7cbd804284bb70f40c5beebf8d1d3ff614ae406",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b7cbd804284bb70f40c5beebf8d1d3ff614ae406",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b7cbd804284bb70f40c5beebf8d1d3ff614ae406"
         }
       ]
     }
