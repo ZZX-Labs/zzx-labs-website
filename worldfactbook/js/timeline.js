@@ -27,7 +27,7 @@
     const note = WFB.$("[data-wfb-edition-note]");
     if (note) {
       note.textContent = row?.status === "indexed"
-        ? "Full crawler index is available for this year."
+        ? "Source and country records for this edition passed the reviewed completeness gate."
         : row?.status === "partial"
           ? "Source evidence exists, but this checkout does not yet contain a complete normalized edition."
           : "No local source evidence has been indexed for this year yet. The interface does not invent missing coverage.";
