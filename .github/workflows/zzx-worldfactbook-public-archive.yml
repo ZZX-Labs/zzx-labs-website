@@ -30,11 +30,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git init .
+          git init -b main .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
-          git fetch --force --no-tags origin main
+          git fetch --depth=2 --force --no-tags origin main
           git checkout --force -B main origin/main
           git clean -fdx
 
@@ -42,7 +42,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/worldfactbook/verify_public_archive.py --repo . --update-portal
+          if [ ! -f worldfactbook/api/country-archive/index.json ] && \
+             git cat-file -e HEAD^:worldfactbook/api/country-archive/index.json 2>/dev/null; then
+            printf 'Previously published country archive index was removed.\n' >&2
+            exit 1
+          fi
+          python3 tools/worldfactbook/verify_public_archive.py --repo . --update-portal --allow-absent
 
       - name: Verify local globe imagery and clickable map units
         shell: bash
