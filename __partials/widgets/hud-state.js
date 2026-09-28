@@ -247,6 +247,12 @@
 
     syncControls(m);
 
+    // Render collapse is independent of data providers. Shared BPI/chain feeds keep
+    // running, while widget-local render loops can pause from the HUD event.
+    try {
+      W.dispatchEvent(new CustomEvent("zzx:hud-render-state", {detail:{mode:m,renderWidgets:m==="full"}}));
+    } catch (_) {}
+
     return m;
   }
 
