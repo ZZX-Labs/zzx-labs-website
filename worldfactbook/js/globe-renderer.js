@@ -19,8 +19,8 @@
     }
     @fragment fn fragment(input: Vertex) -> @location(0) vec4f {
       let pi = 3.141592653589793;
-      let xy = vec2f((input.uv.x - 0.5) * 2.0 * globe.aspect,
-                     (0.5 - input.uv.y) * 2.0) * 1.25;
+      let xy = vec2f((input.uv.x - 0.5) * 2.0 * max(globe.aspect, 1.0),
+                     (0.5 - input.uv.y) * 2.0 * max(1.0 / globe.aspect, 1.0)) * 1.25;
       let radius2 = dot(xy, xy);
       let normal = vec3f(xy, sqrt(max(0.0, 1.0 - radius2)));
       let latitude = asin(clamp(normal.y, -1.0, 1.0));
@@ -123,8 +123,8 @@
       lookupKey = key;
       lookup = new Array(w * h);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const nx = (((x + .5) / w) - .5) * 2 * w / h * 1.25;
-        const ny = (.5 - (y + .5) / h) * 2 * 1.25;
+        const nx = (((x + .5) / w) - .5) * 2 * Math.max(w / h, 1) * 1.25;
+        const ny = (.5 - (y + .5) / h) * 2 * Math.max(h / w, 1) * 1.25;
         const d = nx * nx + ny * ny;
         if (d > 1) continue;
         const nz = Math.sqrt(1 - d), lat = Math.asin(ny);
