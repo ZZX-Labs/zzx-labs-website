@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Factbook globe preview</title>
+  <style>
+    :root{color-scheme:dark;--wfb-panel:#101713;--wfb-bg-2:#09100d;--wfb-green:#c0d674;
+      --wfb-amber:#e6a42b;--wfb-text:#f0f2df;--wfb-text-soft:#d9ddca;--wfb-muted:#afbcaa;
+      --wfb-line:#3a4938;--wfb-line-strong:#657863;--wfb-line-soft:#253326;
+      --wfb-radius:8px;--wfb-font:monospace}
+    *{box-sizing:border-box}body{margin:0;background:#060906;color:var(--wfb-text);font:15px/1.5 monospace}
+    main{max-width:1300px;margin:auto;padding:1.5rem}h1{margin:0 0 .3rem;color:var(--wfb-green)}
+    p{color:var(--wfb-text-soft)}a{color:var(--wfb-green)}
+    .wfb-globe-controls{margin-top:1.4rem}
+    .wfb-globe-layout{border-radius:0 0 8px 8px;overflow:hidden}
+  </style>
+  <link rel="stylesheet" href="../css/globe.css">
+  <script>window.WFB={};window.ZZXWorldFactbook={root:new URL("../",location.href)};</script>
+  <script src="../js/globe-renderer.js" defer></script>
+  <script src="../js/globe.js" defer></script>
+  <script>document.addEventListener("DOMContentLoaded",()=>window.WFB.globe.init());</script>
+</head>
+<body><main>
+  <h1>World Factbook · globe preview</h1>
+  <p>Standalone renderer preview using the generated country archive. The original site can include the same modules without this preview shell.</p>
+  <div class="wfb-globe-controls">
+    <label class="wfb-year-control"><span>Edition year: <output data-wfb-globe-year>2004</output></span>
+      <input type="range" min="1962" max="2027" step="1" value="2004" data-wfb-globe-slider aria-label="Factbook edition year">
+      <span class="wfb-year-limits"><span>1962</span><span>2027</span></span>
+    </label>
+    <label>Location<select data-wfb-globe-country><option value="">Choose a place</option></select></label>
+    <fieldset class="wfb-layer-choices"><legend>Globe layer</legend>
+      <label><input type="radio" name="wfb-layer" value="map" checked> Map</label>
+      <label><input type="radio" name="wfb-layer" value="topo"> Topo</label>
+      <label><input type="radio" name="wfb-layer" value="satellite"> Satellite</label>
+      <label><input type="radio" name="wfb-layer" value="tactical"> Tactical</label>
+    </fieldset>
+    <div class="wfb-rotation-controls">
+      <label class="wfb-year-control"><span>Full revolution: <output data-wfb-rotation-value>20 s</output></span>
+        <input type="range" min="15" max="30" step="1" value="20" data-wfb-rotation-seconds aria-label="Seconds per globe revolution">
+        <span class="wfb-year-limits"><span>15 s</span><span>30 s</span></span>
+      </label>
+      <button type="button" data-wfb-rotation-toggle aria-pressed="true">Pause rotation</button>
+      <span data-wfb-globe-renderer role="status">Renderer: loading</span>
+    </div>
+  </div>
+  <div class="wfb-globe-layout">
+    <div class="wfb-globe-surface">
+      <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a place marker"></canvas>
+      <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
+      <p class="wfb-globe-instructions">Drag to rotate · select a marker · use the edition slider</p>
+      <p class="wfb-globe-attribution" data-wfb-globe-attribution>Map data © OpenStreetMap contributors</p>
+    </div>
+    <article class="wfb-country-panel" aria-live="polite">
+      <div class="wfb-country-panel-head"><h3 data-wfb-country-heading>Select a location</h3>
+        <p data-wfb-country-status>Select a place on the globe or in the location list.</p></div>
+      <div data-wfb-country-profile></div>
+    </article>
+  </div>
+</main></body></html>
