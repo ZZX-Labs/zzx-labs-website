@@ -1,0 +1,47 @@
+.wfb-globe-section { padding-block: 2.5rem; }
+.wfb-globe-controls { display: grid; grid-template-columns: minmax(260px,2fr) minmax(190px,1fr); align-items: end; gap: 1rem; padding: 1.2rem; background: var(--wfb-panel); border: 1px solid var(--wfb-line); border-radius: var(--wfb-radius) var(--wfb-radius) 0 0; }
+.wfb-globe-controls label, .wfb-layer-choices { color: var(--wfb-text); font: .8rem/1.5 var(--wfb-font); }
+.wfb-globe-controls select { display:block; width:100%; margin-top:.3rem; padding:.6rem; background:var(--wfb-bg-2); color:var(--wfb-text); border:1px solid var(--wfb-line-strong); }
+.wfb-year-control { display:grid; gap:.35rem; }
+.wfb-year-control input { width:100%; accent-color:var(--wfb-green); }
+.wfb-year-limits { display:flex; justify-content:space-between; color:var(--wfb-muted); }
+.wfb-layer-choices { grid-column: 1 / -1; display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap; border:0; margin:0; padding:0; }
+.wfb-layer-choices legend { color:var(--wfb-amber); float:left; margin-right:1rem; }
+.wfb-layer-choices label { white-space:nowrap; }
+.wfb-layer-choices input { accent-color:var(--wfb-green); }
+.wfb-rotation-controls { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:.6rem 1rem; font:.72rem/1.5 var(--wfb-font); color:var(--wfb-muted); }
+.wfb-rotation-controls .wfb-year-control { min-width:min(270px,100%); flex:1; }
+.wfb-rotation-controls button { padding:.5rem .75rem; border:1px solid var(--wfb-line-strong); color:var(--wfb-green); background:var(--wfb-bg-2); cursor:pointer; font:inherit; }
+.wfb-rotation-controls button:focus-visible { outline:2px solid var(--wfb-amber); outline-offset:2px; }
+.wfb-globe-layout { display:grid; grid-template-columns: minmax(320px,1.1fr) minmax(330px,1fr); border:1px solid var(--wfb-line); border-top:0; min-height:550px; background:var(--wfb-panel); }
+.wfb-globe-surface { min-height:550px; position:relative; overflow:hidden; background:radial-gradient(circle at center,#1b2a22 0,#060b0b 55%,#030503 75%); cursor:grab; touch-action:none; }
+.wfb-globe-surface:active { cursor:grabbing; }
+.wfb-globe-surface canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.wfb-globe-surface canvas[data-wfb-globe-markers] { pointer-events:none; }
+.wfb-globe-surface canvas.wfb-globe-cpu { pointer-events:none; }
+.wfb-globe-instructions, .wfb-globe-attribution { position:absolute; z-index:1; margin:0; padding:.4rem .6rem; font:.68rem/1.3 var(--wfb-font); background:rgba(4,9,8,.82); color:var(--wfb-text-soft); }
+.wfb-globe-instructions { left:.8rem; top:.8rem; }
+.wfb-globe-attribution { right:.8rem; bottom:.8rem; max-width:80%; text-align:right; }
+.wfb-country-panel { min-width:0; max-height:690px; overflow-y:auto; padding:1.3rem; border-left:1px solid var(--wfb-line); }
+.wfb-country-panel h3 { margin:.3rem 0; }
+.wfb-country-panel-head { border-bottom:1px solid var(--wfb-line); margin-bottom:1.2rem; }
+.wfb-country-panel-head p:last-child { color:var(--wfb-muted); font:.76rem/1.6 var(--wfb-font); }
+.wfb-country-section { margin:0 0 1.4rem; border-top:1px solid var(--wfb-line); }
+.wfb-country-section h4 { margin:.6rem 0; text-transform:capitalize; }
+.wfb-country-field { margin:0; padding:.65rem 0; border-top:1px solid var(--wfb-line-soft); }
+.wfb-country-field dt { color:var(--wfb-amber); font-size:.78rem; }
+.wfb-country-field dd { margin:.2rem 0 0; color:var(--wfb-text-soft); font-size:.77rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.wfb-country-field small { display:block; color:var(--wfb-muted); margin-top:.25rem; }
+.wfb-country-media { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:.6rem; }
+.wfb-country-media figure { margin:0; }
+.wfb-country-media img { max-width:100%; max-height:145px; object-fit:contain; }
+.wfb-country-media figcaption { font:.64rem/1.4 var(--wfb-font); color:var(--wfb-muted); overflow-wrap:anywhere; }
+.wfb-media-withheld { display:grid; place-items:center; min-height:100px; margin:0 0 .3rem; padding:.5rem; border:1px dashed var(--wfb-line); color:var(--wfb-muted); text-align:center; font:.68rem/1.4 var(--wfb-font); }
+.wfb-country-media details { color:var(--wfb-green); font:.65rem/1.4 var(--wfb-font); }
+.wfb-country-media pre { max-height:12rem; overflow:auto; white-space:pre-wrap; word-break:break-word; color:var(--wfb-text-soft); }
+.wfb-india-trade-table { border-collapse:collapse; width:100%; font:.68rem/1.5 var(--wfb-font); }
+.wfb-india-trade-table th,.wfb-india-trade-table td { padding:.45rem .3rem; border-bottom:1px solid var(--wfb-line-soft); text-align:right; white-space:nowrap; }
+.wfb-india-trade-table th:first-child,.wfb-india-trade-table td:first-child { text-align:left; }
+.wfb-trade { overflow-x:auto; }
+@media(max-width:850px) { .wfb-globe-layout { grid-template-columns:1fr; } .wfb-country-panel { border-left:0; border-top:1px solid var(--wfb-line); max-height:520px; } .wfb-globe-surface { min-height:450px; } }
+@media(max-width:600px) { .wfb-globe-controls { grid-template-columns:1fr; } .wfb-globe-surface { min-height:370px; } }
