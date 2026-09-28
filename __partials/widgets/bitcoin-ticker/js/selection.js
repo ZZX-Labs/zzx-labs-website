@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window;
-  if(W.ZZXBitcoinTickerSelection?.__version>=10)return;
+  if(W.ZZXBitcoinTickerSelection?.__version>=12)return;
 
   const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:NaN};
   const positive=v=>{const n=finite(v);return n>0?n:NaN};
@@ -259,7 +259,7 @@
       sourceId:"bpi",
       sourceType:"bpi",
       region,
-      label:`BPI ${region} · ${useWeighted?"weighted":"unweighted"}`,
+      label:useWeighted?"BPI Weighted":"Unweighted",
       priceUsd:p,
       highUsd:finite(native?.high_24h??latest?.high_24h),
       lowUsd:finite(native?.low_24h??latest?.low_24h),
@@ -304,7 +304,7 @@
       sourceId:"global-bpi",
       sourceType:"global-bpi",
       region:"GLOBAL",
-      label:`Global BPI · ${useWeighted?"weighted":"unweighted"}`,
+      label:useWeighted?"Global BPI Weighted":"Unweighted",
       priceUsd:p,
       highUsd:finite(global?.high_24h??latest?.high_24h),
       lowUsd:finite(global?.low_24h??latest?.low_24h),
@@ -347,24 +347,62 @@
     };
   }
 
+  function activeCanonicalQuote(config){
+    const latest=config?.latest||{};
+    const selected=W.ZZXPrice?.current?.(latest)||null;
+    const mode=String(selected?.mode||weightingMode());
+    const region=nativeRegion(config);
+    const native=latest?.national_bpi?.[region]||{};
+    const global=latest?.global_bpi||{};
+    const reference=mode==="bpi"?native:global;
+    const price=positive(selected?.price_usd??selected?.priceUsd);
+
+    if(!Number.isFinite(price))return null;
+
+    const raw=positive(selected?.raw_price_usd??selected?.unweighted_price_usd);
+    const bpiWeighted=positive(selected?.bpi_weighted_price_usd);
+    const globalWeighted=positive(selected?.global_bpi_weighted_price_usd);
+    const label=mode==="bpi"?"BPI Weighted":mode==="global-bpi"?"Global BPI Weighted":"Unweighted";
+
+    return {
+      sourceId:mode==="off"?"raw":mode,
+      sourceType:mode==="off"?"raw":mode,
+      region:mode==="bpi"?region:"GLOBAL",
+      label,
+      priceUsd:price,
+      highUsd:finite(reference?.high_24h??latest?.high_24h),
+      lowUsd:finite(reference?.low_24h??latest?.low_24h),
+      volumeBtc:finite(reference?.volume_24h_btc??latest?.volume_24h_btc),
+      timestamp:selected?.observed_at??latest?.observed_at??latest?.updated_at??null,
+      sourceTimestamp:selected?.source_updated_at??latest?.source_updated_at??latest?.updated_at??null,
+      mode:mode==="bpi"?"bpi_weighted":mode==="global-bpi"?"global_bpi_weighted":"unweighted",
+      weightingMode:mode,
+      weightingApplied:mode!=="off",
+      weightedPriceUsd:mode==="bpi"?bpiWeighted:globalWeighted,
+      unweightedPriceUsd:raw,
+      rawPriceUsd:raw,
+      bpiWeightedPriceUsd:bpiWeighted,
+      globalBpiWeightedPriceUsd:globalWeighted,
+      priceSet:Object.freeze({
+        rawUsd:raw,
+        bpiWeightedUsd:bpiWeighted,
+        globalBpiWeightedUsd:globalWeighted
+      }),
+      exchangeCount:Number(reference?.exchange_count||0),
+      marketCount:Number(reference?.market_count||0),
+      exchangeIds:Array.isArray(reference?.exchanges)?reference.exchanges.slice():[]
+    };
+  }
+
   function resolve(config,sourceId){
-    const id=String(sourceId||"bpi");
-
-    if(id==="bpi")return canonicalBpi(config);
-    if(id==="global-bpi")return globalBpi(config.latest);
-
-    if(id.startsWith("exchange:")){
-      const ex=id.slice("exchange:".length);
-      return exchangeQuote(config.latest,ex,exchangeMap(config).get(ex)?.label,config);
-    }
-
-    return canonicalBpi(config);
+    return activeCanonicalQuote(config);
   }
 
   function publish(selection){
     const value=Object.freeze({...selection,selected_at:Date.now()});
     W.ZZXBPISelection=value;
     W.ZZXSelectedBPI=value;
+    W.ZZXSelectedPriceUsd=Number(value.priceUsd);
 
     try{
       if(W.ZZXBPIRegistry?.setSelected)W.ZZXBPIRegistry.setSelected(value);
@@ -379,7 +417,7 @@
   }
 
   W.ZZXBitcoinTickerSelection=Object.freeze({
-    __version:10,
+    __version:12,
     weightingMode,
     nativeRegion,
     weightsEnabled,
@@ -389,6 +427,7 @@
     exchangeMap,
     exchangeEligible,
     localConsensus,
+    activeCanonicalQuote,
     resolve,
     publish
   });
