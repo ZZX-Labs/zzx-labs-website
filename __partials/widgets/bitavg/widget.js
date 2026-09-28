@@ -64,20 +64,6 @@
   }
 
   async function ensureModules(core){
-    if(Number(W.ZZXLiveBPI?.__version||0)<10){
-      const raw="/__partials/widgets/_shared/zzx-live-bpi.js";
-      const baseSrc=W.ZZXAPI?.url?W.ZZXAPI.url(raw):raw;
-      const src=`${baseSrc}${baseSrc.includes("?")?"&":"?"}zzxmod=10`;
-      await new Promise((resolve,reject)=>{
-        const script=D.createElement("script");
-        script.src=src;script.defer=true;
-        script.addEventListener("load",resolve,{once:true});
-        script.addEventListener("error",reject,{once:true});
-        (D.head||D.documentElement).appendChild(script);
-      });
-    }
-    await W.ZZXLiveBPI?.start?.();
-
     const base=core?.widgetBase
       ? String(
           core.widgetBase(ID)
@@ -90,7 +76,7 @@
       ["ZZXBitAvgFetch","js/fetch.js",5],
       ["ZZXBitAvgFX","js/fx.js",5],
       ["ZZXBitAvgModel","js/model.js",11],
-      ["ZZXBitAvgProvider","js/provider.js",9],
+      ["ZZXBitAvgProvider","js/provider.js",10],
       ["ZZXBitAvgPublisher","js/publisher.js",9]
     ];
 
