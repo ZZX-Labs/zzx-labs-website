@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const W=window,D=document;
-  if(W.ZZXBitcoinTickerPanels?.__version>=8)return;
+  if(W.ZZXBitcoinTickerPanels?.__version>=9)return;
 
   const KEY="zzx.widget.bitcoin-ticker.panels.v2";
 
@@ -46,6 +46,12 @@
     if(panel==="charts"&&open){
       requestAnimationFrame(()=>root.__zzxTickerChartState?.chart?.resize?.());
     }
+
+    try{
+      W.dispatchEvent(new CustomEvent("zzx:bitcoin-ticker-panel",{
+        detail:{root,panel,open:!!open}
+      }));
+    }catch(_){}
   }
 
   function openReferencePage(root,pageId){
@@ -110,7 +116,7 @@
   }
 
   W.ZZXBitcoinTickerPanels=Object.freeze({
-    __version:8,
+    __version:9,
     categoryButtons,
     mount,
     update,
