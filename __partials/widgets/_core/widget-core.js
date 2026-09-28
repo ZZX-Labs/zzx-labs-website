@@ -1380,6 +1380,12 @@
     },
 
     {
+      key: "zzx-shared-price",
+      path:
+        "/__partials/widgets/_shared/zzx-price.js"
+    },
+
+    {
       key: "zzx-shared-fx",
       path:
         "/__partials/widgets/_shared/zzx-fx.js"
