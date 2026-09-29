@@ -351,6 +351,18 @@
         refresh(root,state,true);
       });
 
+      W.addEventListener("zzx:canonical-bitcoin-price",event=>{
+        if(!root.isConnected||!state.market)return;
+        const value=Number(event?.detail?.price_usd??event?.detail?.priceUsd);
+        if(!(Number.isFinite(value)&&value>0))return;
+        state.market={
+          ...state.market,
+          source:String(event?.detail?.label||"BitAvg"),
+          data:{...(state.market.data||{}),price_usd:value,bpi_usd:value}
+        };
+        renderMarket(root,state);
+      });
+
       await refresh(root,state,false);
 
       async function refreshLoop() {
