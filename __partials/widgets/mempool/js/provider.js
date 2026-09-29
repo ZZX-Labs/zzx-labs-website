@@ -37,6 +37,12 @@
     return Number.isFinite(parsed)?parsed:NaN;
   }
   function marketStatePrice(){
+    const canonical=W.ZZXPrice?.current?.();
+    const canonicalPrice=positive(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(canonicalPrice)){
+      return {value:canonicalPrice,source:String(canonical?.label||"BitAvg"),mode:String(canonical?.mode||"off")};
+    }
+
     const state=W.ZZXMarketState;
     for(const value of [
       state?.effectivePriceUsd,state?.effective_price_usd,
