@@ -330,6 +330,15 @@
 
       q(root,"[data-fees-refresh]")?.addEventListener("click",()=>refresh(root,state));
 
+      W.addEventListener("zzx:canonical-bitcoin-price",event=>{
+        if(!root.isConnected||!state.model)return;
+        const value=Number(event?.detail?.price_usd??event?.detail?.priceUsd);
+        if(!(Number.isFinite(value)&&value>0))return;
+        state.priceUsd=value;
+        state.priceSource=String(event?.detail?.label||"BitAvg");
+        render(root,state);
+      });
+
       await refresh(root,state);
 
       async function loop(){
