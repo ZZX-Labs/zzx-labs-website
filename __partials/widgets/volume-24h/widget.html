@@ -4,7 +4,7 @@
     <div>
       <div class="mini-history__title">Volume · 24h</div>
       <div class="mini-history__eyebrow" data-volume24-eyebrow>
-        actual interval BTC volume · rolling 24h reference
+        canonical BitAvg market volume · rolling 24h
       </div>
     </div>
 
@@ -24,21 +24,21 @@
     <label>
       <span>resolution</span>
       <select data-volume24-resolution aria-label="Volume history resolution">
-        <option value="auto">auto</option>
-        <option value="5s">5 sec</option>
+        <option value="auto" selected>auto</option>
         <option value="15s">15 sec</option>
         <option value="30s">30 sec</option>
         <option value="1m">1 min</option>
         <option value="5m">5 min</option>
+        <option value="15m">15 min</option>
       </select>
     </label>
 
     <label>
       <span>plot</span>
       <select data-volume24-mode aria-label="Volume chart plotting mode">
-        <option value="rolling-line">rolling 24h line</option>
-        <option value="interval-bars">actual interval volume bars</option>
-        <option value="interval-bars+rolling" selected>interval bars + rolling 24h line</option>
+        <option value="interval-bars" selected>actual interval volume bars</option>
+        <option value="rolling-bars">rolling 24h volume bars</option>
+        <option value="rolling-line">rolling 24h volume line</option>
       </select>
     </label>
 
@@ -48,7 +48,7 @@
     </label>
   </div>
 
-  <div class="mini-history__stats" aria-label="24 hour rolling BTC volume statistics">
+  <div class="mini-history__stats" aria-label="24 hour BTC volume statistics">
     <div>
       <span>current 24h</span>
       <strong data-volume24-current>—</strong>
@@ -75,18 +75,8 @@
     </div>
 
     <div>
-      <span>range</span>
-      <strong data-volume24-range>—</strong>
-    </div>
-
-    <div>
       <span>average</span>
       <strong data-volume24-average>—</strong>
-    </div>
-
-    <div>
-      <span>median</span>
-      <strong data-volume24-median>—</strong>
     </div>
   </div>
 
@@ -95,24 +85,18 @@
       data-mini-canvas
       tabindex="0"
       role="img"
-      aria-label="Volume · 24h rolling BTC-volume candlestick and line chart"
+      aria-label="Volume · 24h Bitcoin market volume chart"
       aria-describedby="volume24-help"
     ></canvas>
 
     <div class="mini-history__legend" aria-hidden="true">
       <span>
-        <i class="mini-history__legend-up"></i>
-        actual interval BTC volume
+        <i class="mini-history__legend-volume"></i>
+        <span data-volume24-legend-label>rolling 24h BTC volume</span>
       </span>
-
       <span>
-        <i class="mini-history__legend-down"></i>
-        interval volume bucket
-      </span>
-
-      <span data-volume24-line-legend>
-        <i class="mini-history__legend-line"></i>
-        rolling 24h volume
+        <i class="mini-history__legend-average"></i>
+        average
       </span>
     </div>
 
@@ -121,7 +105,7 @@
     <div class="mini-history__empty" data-volume24-empty hidden>
       <strong>No 24h volume history yet</strong>
       <span data-volume24-empty-detail>
-        Waiting for Python history API volume data.
+        Waiting for canonical BitAvg volume history.
       </span>
     </div>
   </div>
@@ -130,19 +114,16 @@
     <span data-volume24-points>0 points</span>
     <span data-volume24-coverage>0% coverage</span>
     <span data-volume24-cadence>cadence —</span>
-    <span data-volume24-age>age —</span>
+    <span data-volume24-age>edge —</span>
+    <span data-volume24-interval>interval buckets —</span>
   </div>
 
   <div class="mini-history__footer">
-    <span class="mini-history__status" data-mini-status aria-live="polite">
-      history idle
-    </span>
-    <span class="mini-history__transport" data-volume24-transport>
-      transport —
-    </span>
+    <span class="mini-history__status" data-mini-status aria-live="polite">history idle</span>
+    <span class="mini-history__transport" data-volume24-transport>transport —</span>
   </div>
 
   <span class="mini-history__sr" id="volume24-help">
-    Bars show actual BTC volume traded inside each returned interval. The gold line shows the upstream rolling 24 hour BTC-volume statistic. These are different quantities and are never substituted for one another. Mouse wheel zooms at the cursor. Horizontal/thumb wheel scroll pans through time. Drag or left/right arrows pan. Double click, Escape, or zero resets zoom.
+    The default bars are actual BTC volume traded in each history interval for the same Unweighted, BPI Weighted, or Global BPI Weighted source selected by BitAvg. Actual interval-volume bars are used only when the history API supplies interval_volume_btc; the widget never invents interval volume from changes in a rolling 24 hour statistic. Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset zoom restores the rolling 24 hour view.
   </span>
 </div>
