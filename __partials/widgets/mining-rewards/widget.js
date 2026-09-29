@@ -199,9 +199,12 @@
       let avgFeeSats=finite(feeResult.avgFeeSats);
       if (!Number.isFinite(avgFeeSats)) avgFeeSats=await recentFeeFallback();
 
-      state.model=W.ZZXMiningRewardsModel.build(poolResult.rows,{
-        subsidyBTC:subsidy,
-        avgFeeSats,
+      state.poolRows=poolResult.rows;
+      state.subsidyBTC=subsidy;
+      state.avgFeeSats=avgFeeSats;
+      state.model=W.ZZXMiningRewardsModel.build(state.poolRows,{
+        subsidyBTC:state.subsidyBTC,
+        avgFeeSats:state.avgFeeSats,
         priceUsd:priceResult.price
       });
 
@@ -228,6 +231,9 @@
       busy:false,
       poolSource:"",
       priceSource:"",
+      poolRows:[],
+      subsidyBTC:NaN,
+      avgFeeSats:NaN,
       timer:null
     };
 
@@ -247,6 +253,19 @@
       });
 
       q(root,"[data-mr-refresh]")?.addEventListener("click",()=>refresh(root,state));
+
+      W.addEventListener("zzx:canonical-bitcoin-price",event=>{
+        if(!root.isConnected||!state.model||!state.poolRows.length)return;
+        const value=Number(event?.detail?.price_usd??event?.detail?.priceUsd);
+        if(!(Number.isFinite(value)&&value>0))return;
+        state.priceSource=String(event?.detail?.label||"BitAvg");
+        state.model=W.ZZXMiningRewardsModel.build(state.poolRows,{
+          subsidyBTC:state.subsidyBTC,
+          avgFeeSats:state.avgFeeSats,
+          priceUsd:value
+        });
+        render(root,state);
+      });
 
       await refresh(root,state);
 
