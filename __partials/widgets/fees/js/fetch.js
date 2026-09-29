@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXFeesFetch?.__version>=2)return;
+  if(W.ZZXFeesFetch?.__version>=3)return;
 
   async function getJSON(url,local=false){
     if(W.ZZXAPI?.jsonStrict){
@@ -51,6 +51,12 @@
   }
 
   async function price(){
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=Number(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)&&selected>0){
+      return {value:selected,source:String(canonical?.label||"BitAvg")};
+    }
+
     try{
       const data=await getJSON(W.ZZXFeesSources.price,true);
       const value=Number(
@@ -70,7 +76,7 @@
   }
 
   W.ZZXFeesFetch=Object.freeze({
-    __version:2,
+    __version:3,
     getJSON,
     recommended,
     price
