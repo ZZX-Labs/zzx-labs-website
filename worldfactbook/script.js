@@ -8,6 +8,7 @@
     "js/navigation.js",
     "js/archive.js",
     "js/timeline.js",
+    "js/globe-config.js",
     "js/globe-renderer.js",
     "js/globe.js",
     "js/status.js",
