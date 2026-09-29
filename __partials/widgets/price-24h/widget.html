@@ -4,7 +4,7 @@
     <div>
       <div class="mini-history__title">Price · 24h</div>
       <div class="mini-history__eyebrow" data-price24-eyebrow>
-        interactive BTC price history · follows Bitcoin Ticker
+        canonical BitAvg BTC / USD · rolling 24h
       </div>
     </div>
 
@@ -17,7 +17,7 @@
 
   <div class="mini-history__toolbar">
     <div class="mini-history__source">
-      <span>source</span>
+      <span>BitAvg mode</span>
       <strong data-price24-source>—</strong>
     </div>
 
@@ -36,14 +36,14 @@
     <label>
       <span>chart</span>
       <select data-price24-renderer aria-label="Price chart style">
+        <option value="line" selected>line</option>
         <option value="area">area</option>
-        <option value="line">line</option>
         <option value="candles">candles</option>
       </select>
     </label>
 
     <label class="mini-history__check">
-      <input type="checkbox" data-price24-sma checked>
+      <input type="checkbox" data-price24-sma>
       <span>SMA 20</span>
     </label>
 
@@ -96,7 +96,7 @@
 
     <div class="mini-history__legend" aria-hidden="true">
       <span><i class="mini-history__legend-price"></i>price</span>
-      <span data-price24-sma-legend><i class="mini-history__legend-sma"></i>SMA 20</span>
+      <span data-price24-sma-legend hidden><i class="mini-history__legend-sma"></i>SMA 20</span>
       <span data-price24-ema-legend hidden><i class="mini-history__legend-ema"></i>EMA 50</span>
     </div>
 
@@ -104,7 +104,7 @@
 
     <div class="mini-history__empty" data-price24-empty hidden>
       <strong>No 24h history yet</strong>
-      <span data-price24-empty-detail>Waiting for history collector data.</span>
+      <span data-price24-empty-detail>Waiting for BitAvg history collector data.</span>
     </div>
   </div>
 
@@ -112,7 +112,7 @@
     <span data-price24-points>0 points</span>
     <span data-price24-coverage>0% coverage</span>
     <span data-price24-cadence>cadence —</span>
-    <span data-price24-age>age —</span>
+    <span data-price24-age>edge —</span>
   </div>
 
   <div class="mini-history__footer">
@@ -121,6 +121,6 @@
   </div>
 
   <span class="mini-history__sr" id="price24-help">
-    Mouse wheel zooms at the cursor. Horizontal/thumb wheel scroll pans through time. Drag or left/right arrows pan. Double click, Escape, or zero resets zoom.
+    Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset zoom restores the rolling 24 hour view.
   </span>
 </div>
