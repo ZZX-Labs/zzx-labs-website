@@ -221,6 +221,12 @@
   const finite=value=>{const n=Number(value);return Number.isFinite(n)?n:NaN};
 
   function marketPrice(){
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=finite(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)&&selected>0){
+      return {value:selected,source:String(canonical?.label||"BitAvg")};
+    }
+
     const state=W.ZZXMarketState;
     let snap=null;
     try{snap=typeof state?.getSnapshot==="function"?state.getSnapshot():(state?.snapshot||state?.current||state)}
