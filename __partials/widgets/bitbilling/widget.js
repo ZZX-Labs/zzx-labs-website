@@ -55,7 +55,11 @@
   }
 
   async function calculate(root, state) {
-    if (!W.ZZXFX || state.busy) return;
+    if (!W.ZZXFX) return;
+    if (state.busy) {
+      state.queued = true;
+      return;
+    }
 
     const amount = finite(q(root, "[data-bill-amount]")?.value);
     const currency = q(root, "[data-bill-currency]")?.value;
@@ -70,21 +74,34 @@
     status(root, "quoting", "warn");
 
     try {
-      const [btcResult, usdResult, btcUsd] = await Promise.all([
-        W.ZZXFX.convert(amount, currency, "BTC"),
-        W.ZZXFX.convert(amount, currency, "USD"),
-        W.ZZXFX.btcPriceUsd()
+      const [usdResult, quote] = await Promise.all([
+        W.ZZXFX.convertDetailed(amount, currency, "USD"),
+        W.ZZXFX.btcQuote(false)
       ]);
+
+      const btcUsd = finite(quote?.priceUsd ?? quote?.price_usd);
+      const usd = finite(usdResult?.value);
+      if (!(btcUsd > 0) || !(usd >= 0)) {
+        throw new Error("canonical BTC/USD quote unavailable");
+      }
+
+      // BTC due is derived from the same canonical BitAvg quote shown by the
+      // rest of the HUD.  Never perform an independent BTC conversion here.
+      const btc = usd / btcUsd;
+      const providers = [
+        ...(Array.isArray(usdResult?.providers) ? usdResult.providers : []),
+        quote?.sourceId
+      ].filter(Boolean);
 
       const invoice = W.ZZXBitBillingInvoice.build({
         amount,
         currency,
         memo,
-        btc: btcResult.value,
-        usd: usdResult.value,
+        btc,
+        usd,
         btcUsd,
-        providers: [...(btcResult.providers || []), ...(usdResult.providers || [])],
-        timestamp: new Date().toISOString()
+        providers,
+        timestamp: quote?.timestamp || quote?.observed_at || new Date().toISOString()
       });
 
       state.invoice = invoice;
@@ -101,8 +118,9 @@
         invoice.btcUsd.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2});
       q(root, "[data-bill-time]").textContent =
         new Date(invoice.timestamp).toLocaleTimeString();
+      const modeLabel = String(quote?.label || "Unweighted");
       q(root, "[data-bill-meta]").textContent =
-        `Calculator snapshot · ${invoice.providers.join(" + ") || "ZZX BPI"} · no custody/address/rate lock`;
+        `Calculator snapshot · ${modeLabel} · ${invoice.providers.join(" + ") || "BitAvg"} · no custody/address/rate lock`;
 
       status(root, "live", "ok");
     } catch (error) {
@@ -110,6 +128,12 @@
       q(root, "[data-bill-meta]").textContent = String(error?.message || error);
     } finally {
       state.busy = false;
+      if (state.queued) {
+        state.queued = false;
+        W.queueMicrotask(() => {
+          if (root.isConnected) calculate(root, state);
+        });
+      }
     }
   }
 
@@ -132,7 +156,7 @@
   async function boot(root, core) {
     if (!root) return;
 
-    const state = { invoice:null, busy:false };
+    const state = { invoice:null, busy:false, queued:false };
     root.__zzxBitBillingState = state;
 
     try {
