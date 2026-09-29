@@ -93,6 +93,35 @@ def verify(repo):
         path = safe(reference, name)
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise ValueError(f"Local texture differs from the cited source: {name}")
+    catalog = load_json(root / "layers.json")
+    if catalog.get("schema") != "zzx-wfb-globe-layers-v1":
+        raise ValueError("Invalid globe layer catalog")
+    ids = set()
+    for layer in catalog["layers"]:
+        identifier = layer["id"]
+        if identifier in ids or not identifier.replace("_", "").isalnum():
+            raise ValueError(f"Duplicate or invalid layer ID: {identifier}")
+        ids.add(identifier)
+        if not layer["credit"] or not layer["url"].startswith("https://"):
+            raise ValueError(f"Missing source attribution for layer: {identifier}")
+        path = safe(world, layer["file"])
+        if layer["installed"]:
+            if not path.is_file() or path.stat().st_size > 45_000_000:
+                raise ValueError(f"Missing or oversize globe layer: {path}")
+            if path.suffix == ".png":
+                png(path)
+            elif path.suffix == ".webp":
+                raw = path.read_bytes()
+                if raw[:4] != b"RIFF" or raw[8:12] != b"WEBP":
+                    raise ValueError(f"Invalid WebP layer: {path}")
+            else:
+                raise ValueError(f"Unsupported globe raster: {path}")
+            if layer.get("sha256") and hashlib.sha256(path.read_bytes()).hexdigest() != layer["sha256"]:
+                raise ValueError(f"Layer digest changed: {identifier}")
+        elif path.is_file():
+            raise ValueError(f"Layer raster exists but catalog marks it unavailable: {identifier}")
+    if not {"tactical", "political", "topographic", "relief", "satellite"} <= ids:
+        raise ValueError("Built-in globe layers are missing")
     globe = (world / "js/globe.js").read_text(encoding="utf-8")
     if any(host in globe for host in ("tile.openstreetmap.org", "opentopomap.org",
                                    "gibs.earthdata.nasa.gov")):
