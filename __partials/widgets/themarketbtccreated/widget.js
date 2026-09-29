@@ -311,6 +311,14 @@
         ()=>refresh(root,state)
       );
 
+      W.addEventListener("zzx:canonical-bitcoin-price",()=>{
+        if(!root.isConnected||!state.result?.model)return;
+        const reprice=W.ZZXTheMarketBTCCreatedProvider?.applyCanonicalSpot;
+        if(typeof reprice!=="function")return;
+        state.result={...state.result,model:reprice(state.result.model)};
+        render(root,state);
+      });
+
       await refresh(root,state);
 
       async function loop(){
