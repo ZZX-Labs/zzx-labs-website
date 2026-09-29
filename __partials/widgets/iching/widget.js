@@ -418,6 +418,15 @@
         if(event.key==="Enter"){event.preventDefault();addLot(root,state)}
       });
       q(root,"[data-ich-refresh]")?.addEventListener("click",()=>refreshPrice(root,state));
+      W.addEventListener("zzx:canonical-bitcoin-price",event=>{
+        if(!root.isConnected)return;
+        const value=Number(event?.detail?.price_usd??event?.detail?.priceUsd);
+        if(!(Number.isFinite(value)&&value>0))return;
+        state.currentPrice=value;
+        state.currentPriceSource=String(event?.detail?.label||"BitAvg");
+        state.currentPriceAt=Date.now();
+        render(root,state);
+      });
       q(root,"[data-ich-clear]")?.addEventListener("click",()=>clearAll(root,state));
       q(root,"[data-ich-export]")?.addEventListener("click",()=>exportLots(root,state));
       q(root,"[data-ich-import]")?.addEventListener("click",()=>q(root,"[data-ich-import-file]")?.click());
