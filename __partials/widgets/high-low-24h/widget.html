@@ -1,31 +1,28 @@
 <!-- __partials/widgets/high-low-24h/widget.html -->
-<div class="btc-card mini-history mini-history--high-low-24h">
-  <div class="mini-history__head">
+<div class="btc-card highlow24">
+  <div class="highlow24__header">
     <div>
-      <div class="mini-history__title">High / Low · 24h</div>
-      <div class="mini-history__eyebrow" data-hl24-eyebrow>
-        BTC price range + true interval/rolling volume history
-      </div>
+      <div class="highlow24__title">High / Low · 24h</div>
+      <div class="highlow24__eyebrow" data-hl24-eyebrow>canonical BitAvg 24h price envelope</div>
     </div>
 
-    <div class="mini-history__actions">
-      <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset zoom</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
+    <div class="highlow24__actions">
+      <button type="button" class="zzx-widgets__btn" data-hl24-refresh>Refresh</button>
+      <button type="button" class="zzx-widgets__btn" data-hl24-reset>Reset zoom</button>
+      <button type="button" class="zzx-widgets__btn" data-hl24-export>PNG</button>
     </div>
   </div>
 
-  <div class="mini-history__toolbar">
-    <div class="mini-history__source">
+  <div class="highlow24__toolbar">
+    <div class="highlow24__source">
       <span>source</span>
       <strong data-hl24-source>—</strong>
     </div>
 
     <label>
       <span>resolution</span>
-      <select data-hl24-resolution aria-label="High low history resolution">
+      <select data-hl24-resolution aria-label="High low 24 hour history resolution">
         <option value="auto">auto</option>
-        <option value="5s">5 sec</option>
         <option value="15s">15 sec</option>
         <option value="30s">30 sec</option>
         <option value="1m">1 min</option>
@@ -34,166 +31,77 @@
     </label>
 
     <label>
-      <span>price plot</span>
-      <select data-hl24-price-mode aria-label="Price plotting mode">
-        <option value="area">area + H/L</option>
-        <option value="line">line + H/L</option>
-        <option value="range">H/L range focus</option>
+      <span>view</span>
+      <select data-hl24-view aria-label="High low chart view">
+        <option value="range-price">range + price</option>
+        <option value="range-only">range only</option>
+        <option value="high-low-lines">high / low lines</option>
       </select>
     </label>
 
-    <label>
-      <span>volume plot</span>
-      <select data-hl24-volume-mode aria-label="Volume plotting mode">
-        <option value="interval-bars">actual interval volume bars</option>
-        <option value="rolling-line">rolling 24h volume line</option>
-      </select>
-    </label>
-
-    <label class="mini-history__check">
+    <label class="highlow24__check">
       <input type="checkbox" data-hl24-follow checked>
       <span>follow live edge</span>
     </label>
   </div>
 
-  <div class="mini-history__section-label">
-    <span>PRICE · USD AXIS</span>
-    <span data-hl24-price-range-state>24h range —</span>
+  <div class="highlow24__metrics">
+    <div><span>current</span><strong data-hl24-current>—</strong></div>
+    <div><span>24h high</span><strong data-hl24-high>—</strong></div>
+    <div><span>24h low</span><strong data-hl24-low>—</strong></div>
+    <div><span>range</span><strong data-hl24-range>—</strong></div>
+    <div><span>range position</span><strong data-hl24-position>—</strong></div>
+    <div><span>24h change</span><strong data-hl24-change data-tone="flat">—</strong></div>
   </div>
 
-  <div class="mini-history__stats mini-history__stats--price">
-    <div>
-      <span>price now</span>
-      <strong data-hl24-price-current>—</strong>
+  <div class="highlow24__range" aria-label="Current price position inside the 24 hour high low range">
+    <div class="highlow24__range-labels">
+      <span>LOW <strong data-hl24-range-low>—</strong></span>
+      <span data-hl24-range-current>CURRENT —</span>
+      <span>HIGH <strong data-hl24-range-high>—</strong></span>
     </div>
-
-    <div>
-      <span>24h high</span>
-      <strong data-hl24-price-high>—</strong>
-    </div>
-
-    <div>
-      <span>24h low</span>
-      <strong data-hl24-price-low>—</strong>
-    </div>
-
-    <div>
-      <span>price range</span>
-      <strong data-hl24-price-range>—</strong>
-    </div>
-
-    <div>
-      <span>range position</span>
-      <strong data-hl24-price-position>—</strong>
-    </div>
-
-    <div>
-      <span>24h change</span>
-      <strong data-hl24-price-change data-tone="flat">—</strong>
+    <div class="highlow24__range-track">
+      <span class="highlow24__range-fill" data-hl24-range-fill></span>
+      <span class="highlow24__range-marker" data-hl24-range-marker></span>
     </div>
   </div>
 
-  <div class="mini-history__section-label">
-    <span>VOLUME · BTC AXIS</span>
-    <span data-hl24-volume-range-state>24h observed range —</span>
-  </div>
-
-  <div class="mini-history__stats mini-history__stats--volume">
-    <div>
-      <span>volume now</span>
-      <strong data-hl24-volume-current>—</strong>
-    </div>
-
-    <div>
-      <span>volume high</span>
-      <strong data-hl24-volume-high>—</strong>
-    </div>
-
-    <div>
-      <span>volume low</span>
-      <strong data-hl24-volume-low>—</strong>
-    </div>
-
-    <div>
-      <span>volume range</span>
-      <strong data-hl24-volume-range>—</strong>
-    </div>
-
-    <div>
-      <span>24h change</span>
-      <strong data-hl24-volume-change data-tone="flat">—</strong>
-    </div>
-
-    <div>
-      <span>average / median</span>
-      <strong data-hl24-volume-average>—</strong>
-    </div>
-  </div>
-
-  <div class="mini-history__stage" data-hl24-stage>
+  <div class="highlow24__stage" data-hl24-stage>
     <canvas
-      data-mini-canvas
+      data-hl24-canvas
       tabindex="0"
       role="img"
-      aria-label="High Low 24 hour dual axis Bitcoin price and rolling volume chart"
+      aria-label="Bitcoin 24 hour high low price range chart"
       aria-describedby="hl24-help"
     ></canvas>
 
-    <div class="mini-history__legend" aria-hidden="true">
-      <span>
-        <i class="mini-history__legend-price"></i>
-        price
-      </span>
-
-      <span>
-        <i class="mini-history__legend-price-high"></i>
-        price 24h high
-      </span>
-
-      <span>
-        <i class="mini-history__legend-price-low"></i>
-        price 24h low
-      </span>
-
-      <span data-hl24-volume-candle-legend>
-        <i class="mini-history__legend-volume-candle"></i>
-        interval volume
-      </span>
-
-      <span data-hl24-volume-line-legend>
-        <i class="mini-history__legend-volume-line"></i>
-        rolling 24h volume
-      </span>
+    <div class="highlow24__legend" aria-hidden="true">
+      <span><i class="highlow24__legend-high"></i>high</span>
+      <span><i class="highlow24__legend-price"></i>price</span>
+      <span><i class="highlow24__legend-low"></i>low</span>
     </div>
 
-    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+    <div class="highlow24__tooltip" data-hl24-tooltip hidden></div>
 
-    <div class="mini-history__empty" data-hl24-empty hidden>
+    <div class="highlow24__empty" data-hl24-empty hidden>
       <strong>High / Low history unavailable</strong>
-      <span data-hl24-empty-detail>
-        Waiting for price-range and volume history.
-      </span>
+      <span data-hl24-empty-detail>Waiting for canonical BitAvg range history.</span>
     </div>
   </div>
 
-  <div class="mini-history__diagnostics">
+  <div class="highlow24__diagnostics">
     <span data-hl24-points>0 points</span>
-    <span data-hl24-coverage>0% coverage</span>
+    <span data-hl24-coverage>0% of 24h covered</span>
     <span data-hl24-cadence>cadence —</span>
-    <span data-hl24-age>age —</span>
-    <span data-hl24-range-coverage>price H/L —</span>
+    <span data-hl24-age>edge —</span>
   </div>
 
-  <div class="mini-history__footer">
-    <span class="mini-history__status" data-mini-status aria-live="polite">
-      history idle
-    </span>
-    <span class="mini-history__transport" data-hl24-transport>
-      transport —
-    </span>
+  <div class="highlow24__footer">
+    <span data-hl24-status aria-live="polite">history idle</span>
+    <span data-hl24-transport>transport —</span>
   </div>
 
-  <span class="mini-history__sr" id="hl24-help">
-    The left axis plots Bitcoin price in USD with high/low range. The volume view is either actual BTC traded inside each returned candle interval or the upstream rolling 24 hour BTC-volume statistic. Those quantities are never substituted for one another. Mouse wheel zooms at the cursor, horizontal/thumb wheel scroll pans through time, dragging pans, and double click resets.
+  <span class="highlow24__sr" id="hl24-help">
+    This chart uses the active BitAvg price mode. Gold is the observed interval high, red is the observed interval low, and green is the canonical price. The shaded envelope is the traded range. Mouse wheel zooms, horizontal or shift-wheel pans, drag pans, and double click resets.
   </span>
 </div>
