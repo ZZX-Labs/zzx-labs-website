@@ -3,7 +3,7 @@
   "use strict";
 
   const W = window;
-  if (W.ZZXMiningRewardsFetch?.__version >= 2) return;
+  if (W.ZZXMiningRewardsFetch?.__version >= 3) return;
 
   const AO_RAW = "https://api.allorigins.win/raw?url=";
 
@@ -175,6 +175,12 @@
   }
 
   async function fetchPrice(url) {
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=finite(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)&&selected>0){
+      return {price:selected,source:String(canonical?.label||"BitAvg")};
+    }
+
     const data = await rawJSON(url,false);
 
     const price = finite(
@@ -231,7 +237,7 @@
   }
 
   W.ZZXMiningRewardsFetch = Object.freeze({
-    __version:2,
+    __version:3,
     rawJSON,
     normalizePools,
     fetchPools,
