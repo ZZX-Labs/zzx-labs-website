@@ -4,7 +4,7 @@
   "use strict";
 
   const W=window;
-  if(Number(W.ZZXBTCIntelSources?.__version||0)>=2)return;
+  if(Number(W.ZZXBTCIntelSources?.__version||0)>=3)return;
 
   const REPOS=Object.freeze([
     {repo:"bitcoin/bitcoin",category:"protocol",label:"Core"},
@@ -83,7 +83,12 @@
   async function market(force=false){
     return cached("market",15000,async()=>{
       const data=await fetchJSON("/bitcoin/bpi/api/latest.json");
-      return {data,source:data?.source||"ZZX Global BPI"};
+      const canonical=W.ZZXPrice?.current?.(data);
+      const price=Number(canonical?.price_usd??canonical?.priceUsd);
+      const normalized=Number.isFinite(price)&&price>0
+        ? {...data,price_usd:price,bpi_usd:price,source:String(canonical?.label||"BitAvg")}
+        : data;
+      return {data:normalized,source:normalized?.source||"ZZX Global BPI"};
     },force);
   }
 
@@ -201,7 +206,7 @@
   }
 
   W.ZZXBTCIntelSources=Object.freeze({
-    __version:2,
+    __version:3,
     REPOS,
     SOURCE_COUNT:REPOS.length+1,
     market,
