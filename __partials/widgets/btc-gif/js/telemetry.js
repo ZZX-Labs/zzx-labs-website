@@ -102,7 +102,10 @@
 
     const rows=historyRows(history);
     const selected=W.ZZXBPISelection||W.ZZXSelectedBPI||null;
+    const canonical=W.ZZXPrice?.current?.(latest);
     const price=positive(
+      canonical?.price_usd ??
+      canonical?.priceUsd ??
       selected?.priceUsd ??
       selected?.price_usd ??
       W.ZZXSelectedPriceUsd ??
@@ -158,7 +161,7 @@
         : NaN;
 
     return save("bpi",{
-      source:selected?.label||latest?.source||"ZZX BPI",
+      source:canonical?.label||selected?.label||latest?.source||"ZZX BPI",
       priceUsd:price,
       priceChange24hPct:changePct,
       high24hUsd:high,
