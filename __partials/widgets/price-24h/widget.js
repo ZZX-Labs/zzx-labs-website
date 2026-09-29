@@ -4,19 +4,24 @@
   const W=window;
   const D=document;
   const ID="price-24h";
-  const REFRESH_MS=15000;
-  const MAX_POINTS_AUTO=4096;
+  const HISTORY_REFRESH_MS=30_000;
+  const MAX_POINTS_AUTO=6000;
   const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
-    resolution:"zzx.widget.price-24h.resolution.v2",
-    renderer:"zzx.widget.price-24h.renderer.v2",
-    sma:"zzx.widget.price-24h.sma20.v2",
-    ema:"zzx.widget.price-24h.ema50.v2",
-    follow:"zzx.widget.price-24h.follow-live.v2"
+    resolution:"zzx.widget.price-24h.resolution.v3",
+    renderer:"zzx.widget.price-24h.renderer.v3",
+    sma:"zzx.widget.price-24h.sma20.v3",
+    ema:"zzx.widget.price-24h.ema50.v3",
+    follow:"zzx.widget.price-24h.follow-live.v3"
   });
 
   const MODULES=Object.freeze([
+    {
+      global:"ZZXPrice",
+      path:"/__partials/widgets/_shared/zzx-price.js",
+      version:1
+    },
     {
       global:"ZZXHistoryClient",
       path:"/__partials/widgets/_shared/zzx-history-client.js",
@@ -30,7 +35,7 @@
     {
       global:"ZZXPrice24HModel",
       path:"js/model.js",
-      version:2,
+      version:4,
       local:true
     }
   ]);
@@ -39,12 +44,16 @@
     return root?.querySelector?.(selector)||null;
   }
 
-  function active(root){
-    return !!(
-      root?.isConnected &&
-      D.visibilityState!=="hidden" &&
-      !root.closest?.("[hidden]")
-    );
+  function connected(root){
+    return !!root?.isConnected;
+  }
+
+  function renderable(root){
+    if(!connected(root)||D.visibilityState==="hidden")return false;
+    const slot=root.closest?.(".btc-slot,[data-widget-slot],[data-widget]");
+    if(slot?.getAttribute?.("aria-hidden")==="true")return false;
+    if(root.closest?.("[hidden]"))return false;
+    return true;
   }
 
   function set(root,selector,value){
@@ -136,7 +145,7 @@
       if(W.ZZXAPI?.jsonStrict){
         return await W.ZZXAPI.jsonStrict(target,{
           cacheBust:true,
-          timeoutMs:6000,
+          timeoutMs:5000,
           retries:1
         });
       }
@@ -177,15 +186,15 @@
     return `${(number/3_600_000).toFixed(1)} h`;
   }
 
-  function currentSelection(){
-    return W.ZZXBPISelection||W.ZZXSelectedBPI||null;
+  function canonicalQuote(latest=null){
+    return W.ZZXPrice?.current?.(latest)||W.ZZXCanonicalBitcoinPrice||null;
   }
 
   function controlState(root){
     return {
       resolution:q(root,"[data-price24-resolution]")?.value||"auto",
-      renderer:q(root,"[data-price24-renderer]")?.value||"area",
-      sma:q(root,"[data-price24-sma]")?.checked!==false,
+      renderer:q(root,"[data-price24-renderer]")?.value||"line",
+      sma:q(root,"[data-price24-sma]")?.checked===true,
       ema:q(root,"[data-price24-ema]")?.checked===true,
       follow:q(root,"[data-price24-follow]")?.checked!==false
     };
@@ -202,22 +211,16 @@
     const savedRenderer=safeGet(STORE.renderer);
 
     if(
-      resolution&&
-      savedResolution&&
+      resolution&&savedResolution&&
       [...resolution.options].some(option=>option.value===savedResolution)
-    ){
-      resolution.value=savedResolution;
-    }
+    )resolution.value=savedResolution;
 
     if(
-      renderer&&
-      savedRenderer&&
+      renderer&&savedRenderer&&
       [...renderer.options].some(option=>option.value===savedRenderer)
-    ){
-      renderer.value=savedRenderer;
-    }
+    )renderer.value=savedRenderer;
 
-    if(sma&&safeGet(STORE.sma)!=null)sma.checked=safeGet(STORE.sma)!=="false";
+    if(sma&&safeGet(STORE.sma)!=null)sma.checked=safeGet(STORE.sma)==="true";
     if(ema&&safeGet(STORE.ema)!=null)ema.checked=safeGet(STORE.ema)==="true";
     if(follow&&safeGet(STORE.follow)!=null)follow.checked=safeGet(STORE.follow)!=="false";
   }
@@ -232,8 +235,9 @@
     return controls;
   }
 
-  function renderStats(root,stats){
-    set(root,"[data-price24-current]",money(stats.current));
+  function renderStats(root,stats,quote){
+    const canonical=finite(quote?.price_usd??quote?.priceUsd);
+    set(root,"[data-price24-current]",money(Number.isFinite(canonical)?canonical:stats.current));
     set(root,"[data-price24-open]",money(stats.open));
     set(root,"[data-price24-high]",money(stats.high));
     set(root,"[data-price24-low]",money(stats.low));
@@ -258,9 +262,15 @@
     set(
       root,
       "[data-price24-cadence]",
-      `median cadence ${duration(stats.medianIntervalMs)} · max gap ${duration(stats.largestGapMs)}`
+      Number.isFinite(stats.medianIntervalMs)
+        ? `median ${duration(stats.medianIntervalMs)}`
+        : "cadence —"
     );
-    set(root,"[data-price24-age]",`last point ${duration(stats.ageMs)} ago`);
+    set(
+      root,
+      "[data-price24-age]",
+      Number.isFinite(stats.ageMs)?`edge ${duration(stats.ageMs)} ago`:"edge —"
+    );
   }
 
   function renderLegend(root,controls){
@@ -271,30 +281,17 @@
   }
 
   async function historyFor(descriptor,controls){
-    const query=async source=>
-      await W.ZZXHistoryClient.series({
-        source,
-        timeframe:"24h",
-        resolution:controls.resolution,
-        maxPoints:controls.resolution==="auto"
-          ? MAX_POINTS_AUTO
-          : MAX_POINTS_DETAIL
-      });
+    const resolution=
+      controls.renderer==="candles"&&controls.resolution==="auto"
+        ? "5m"
+        : controls.resolution;
 
-    let primary=await query(descriptor.id);
-
-    if(
-      (primary.points?.length||0)<2&&
-      descriptor.compatibility&&
-      descriptor.compatibility!==descriptor.id
-    ){
-      const fallback=await query(descriptor.compatibility);
-      if((fallback.points?.length||0)>(primary.points?.length||0)){
-        primary={...fallback,compatibilitySource:descriptor.compatibility};
-      }
-    }
-
-    return primary;
+    return await W.ZZXHistoryClient.series({
+      source:descriptor.id,
+      timeframe:"24h",
+      resolution,
+      maxPoints:resolution==="auto"?MAX_POINTS_AUTO:MAX_POINTS_DETAIL
+    });
   }
 
   function tooltipRows(point){
@@ -307,14 +304,13 @@
     const close=finite(point?.close??point?.price);
     const change=finite(point?.change);
     const changePct=finite(point?.change_pct);
-    const volume=finite(point?.volume_24h_btc);
 
     return [
       date,
       `close ${money(close)}`,
       `O ${money(open)} · H ${money(high)} · L ${money(low)} · C ${money(close)}`,
       `tick Δ ${Number.isFinite(change)?`${change>=0?"+":""}${money(change)}`:"—"} · ${pct(changePct)}`,
-      `24h market volume ${Number.isFinite(volume)?`${volume.toLocaleString(undefined,{maximumFractionDigits:2})} BTC`:"—"}`
+      point?.canonical?"canonical BitAvg live edge":"24h history"
     ];
   }
 
@@ -325,8 +321,43 @@
     if(detail)set(root,"[data-price24-empty-detail]",detail);
   }
 
+  function paint(root,state,{preserveView=true,resetView=false}={}){
+    const controls=controlState(root);
+    const stats=W.ZZXPrice24HModel.stats(state.points);
+    const recipe=W.ZZXPrice24HModel.recipe({
+      renderer:controls.renderer,
+      sma20:controls.sma,
+      ema50:controls.ema,
+      stats
+    });
+
+    state.stats=stats;
+    state.recipe=recipe;
+    renderStats(root,stats,state.quote);
+    renderLegend(root,controls);
+
+    if(renderable(root)){
+      state.chart.setData(state.points,recipe,{
+        preserveView:preserveView&&!resetView,
+        followRight:controls.follow
+      });
+      if(resetView)state.chart.resetZoom();
+    }
+
+    const enough=state.points.length>=2;
+    showEmpty(
+      root,
+      !enough,
+      state.points.length===1
+        ? `Live ${state.descriptor?.label||"BitAvg"} is available; waiting for a second history point.`
+        : `No ${state.descriptor?.label||"BitAvg"} 24h history is available yet.`
+    );
+
+    return stats;
+  }
+
   async function refresh(root,state,{resetView=false}={}){
-    if(!root.isConnected)return;
+    if(!connected(root))return;
 
     if(state.busy){
       state.queued=true;
@@ -340,76 +371,46 @@
       const controls=controlState(root);
       const latest=await json("/bitcoin/bpi/api/latest.json",{optional:true});
       state.latest=latest||state.latest||{};
-      const selection=currentSelection();
-      const descriptor=W.ZZXPrice24HModel.sourceDescriptor(selection,latest||{});
+      const quote=canonicalQuote(state.latest);
+      const descriptor=W.ZZXPrice24HModel.sourceDescriptor(quote);
       const sourceChanged=descriptor.id!==state.sourceId;
+
+      state.quote=quote||state.quote||null;
       state.sourceId=descriptor.id;
       state.descriptor=descriptor;
 
       set(root,"[data-price24-source]",descriptor.label);
-      set(
-        root,
-        "[data-price24-eyebrow]",
-        `${descriptor.label} · 24h · ${selection?.weightingApplied===false||selection?.weightsEnabled===false?"unweighted":"weighted"}`
-      );
+      set(root,"[data-price24-eyebrow]",`${descriptor.label} · canonical BitAvg BTC / USD · rolling 24h`);
 
       const data=await historyFor(descriptor,controls);
-      const points=W.ZZXPrice24HModel.mergeLive(data.points||[],selection);
-      const stats=W.ZZXPrice24HModel.stats(points);
-      const recipe=W.ZZXPrice24HModel.recipe({
-        renderer:controls.renderer,
-        sma20:controls.sma,
-        ema50:controls.ema,
-        stats
-      });
-
-      state.points=points;
-      state.stats=stats;
-      state.recipe=recipe;
       state.transport=data.transport||"history";
+      state.points=W.ZZXPrice24HModel.mergeLive(data.points||[],state.quote)
+        .slice(-MAX_POINTS_DETAIL);
 
-      renderStats(root,stats);
-      renderLegend(root,controls);
-
-      const mustReset=resetView||sourceChanged;
-      state.chart.setData(points,recipe,{
-        preserveView:!mustReset,
-        followRight:controls.follow
+      const stats=paint(root,state,{
+        preserveView:!sourceChanged&&!resetView,
+        resetView:sourceChanged||resetView
       });
-
-      if(mustReset)state.chart.resetZoom();
-
-      const enough=points.length>=2;
-      showEmpty(
-        root,
-        !enough,
-        points.length===1
-          ? `Live ${descriptor.label} is available, but the 24h collector has not accumulated a second point yet.`
-          : `No ${descriptor.label} 24h history is available yet. The chart will populate as the local collector/browser-live history accumulates.`
-      );
-
-      const compatibility=data.compatibilitySource
-        ? ` · compatibility ${data.compatibilitySource}`
-        : "";
 
       set(
         root,
         "[data-mini-status]",
-        enough
-          ? `live · ${stats.points.toLocaleString()} points · ${data.resolution||controls.resolution}`
-          : `waiting for ${descriptor.label} history`
+        state.points.length>=2
+          ? `live · ${descriptor.label} · ${stats.points.toLocaleString()} points`
+          : `waiting · ${descriptor.label}`
       );
       set(
         root,
         "[data-price24-transport]",
-        `${data.transport||"history"}${compatibility}`
+        `${data.transport||"history"} · BitAvg canonical edge`
       );
 
       const canvas=q(root,"[data-mini-canvas]");
       if(canvas){
+        const current=finite(state.quote?.price_usd??stats.current);
         canvas.setAttribute(
           "aria-label",
-          `${descriptor.label} 24 hour price chart. Current ${money(stats.current)}, high ${money(stats.high)}, low ${money(stats.low)}, change ${pct(stats.changePct)}.`
+          `${descriptor.label} 24 hour Bitcoin price chart. Current ${money(current)}, high ${money(stats.high)}, low ${money(stats.low)}, change ${pct(stats.changePct)}.`
         );
       }
     }catch(error){
@@ -419,7 +420,7 @@
     }finally{
       state.busy=false;
 
-      if(state.queued&&root.isConnected){
+      if(state.queued&&connected(root)){
         const reset=state.resetQueued;
         state.queued=false;
         state.resetQueued=false;
@@ -428,38 +429,23 @@
     }
   }
 
-  function applyLive(root,state,selection){
-    if(!active(root)||state.busy||!state.points?.length)return;
+  function applyCanonical(root,state,quote){
+    if(!connected(root)||!quote)return false;
 
-    const controls=controlState(root);
-    const descriptor=W.ZZXPrice24HModel.sourceDescriptor(
-      selection,
-      state.latest||{}
-    );
+    const descriptor=W.ZZXPrice24HModel.sourceDescriptor(quote);
+    state.quote=quote;
 
     if(descriptor.id!==state.sourceId){
       return false;
     }
 
-    const points=W.ZZXPrice24HModel.mergeLive(state.points,selection)
+    state.points=W.ZZXPrice24HModel.mergeLive(state.points,quote)
       .slice(-MAX_POINTS_DETAIL);
-    const stats=W.ZZXPrice24HModel.stats(points);
-    const recipe=W.ZZXPrice24HModel.recipe({
-      renderer:controls.renderer,
-      sma20:controls.sma,
-      ema50:controls.ema,
-      stats
-    });
+    paint(root,state,{preserveView:true,resetView:false});
 
-    state.points=points;
-    state.stats=stats;
-    state.recipe=recipe;
-    renderStats(root,stats);
-    renderLegend(root,controls);
-    state.chart.setData(points,recipe,{
-      preserveView:true,
-      followRight:controls.follow
-    });
+    set(root,"[data-price24-source]",descriptor.label);
+    set(root,"[data-price24-eyebrow]",`${descriptor.label} · canonical BitAvg BTC / USD · rolling 24h`);
+    set(root,"[data-mini-status]",`live · ${descriptor.label} · canonical ${money(quote.price_usd??quote.priceUsd)}`);
     return true;
   }
 
@@ -481,7 +467,6 @@
     const abortController=typeof AbortController==="function"
       ? new AbortController()
       : null;
-
     const options=abortController?{signal:abortController.signal}:undefined;
 
     try{
@@ -505,6 +490,7 @@
         sourceId:null,
         descriptor:null,
         latest:null,
+        quote:null,
         points:[],
         stats:null,
         recipe:null,
@@ -538,9 +524,7 @@
         "click",
         async()=>{
           try{
-            await state.chart.exportPNG(
-              `zzx-${state.sourceId||"bpi"}-price-24h.png`
-            );
+            await state.chart.exportPNG(`zzx-${state.sourceId||"bitavg"}-price-24h.png`);
           }catch(error){
             set(root,"[data-mini-status]",`export error: ${String(error?.message||error)}`);
           }
@@ -559,44 +543,50 @@
           "change",
           ()=>{
             saveControls(root);
-            const rendererChanged=selector.includes("renderer");
-            scheduleRefresh(0,rendererChanged);
+            const requiresHistory=selector.includes("resolution")||selector.includes("renderer");
+            if(requiresHistory)scheduleRefresh(0,selector.includes("renderer"));
+            else paint(root,state,{preserveView:true});
           },
           options
         );
       }
 
       W.addEventListener(
-        "zzx:bpi-selection",
+        "zzx:canonical-bitcoin-price",
         event=>{
-          if(!applyLive(root,state,event.detail)){
-            scheduleRefresh(40,true);
+          if(!applyCanonical(root,state,event.detail)){
+            scheduleRefresh(0,true);
           }
         },
         options
       );
 
-      for(const eventName of ["zzx:bpi-country","zzx:bpi-weighting"]){
-        W.addEventListener(
-          eventName,
-          ()=>scheduleRefresh(40,true),
-          options
-        );
-      }
+      W.addEventListener(
+        "zzx:bpi-weighting",
+        ()=>scheduleRefresh(0,true),
+        options
+      );
 
-      // Do not refetch/reparse the full 24h history payload on every 2.5 s
-      // live-market heartbeat.  The ticker's bpi-selection event supplies the
-      // current point; the full history is reconciled on the bounded timer.
+      D.addEventListener(
+        "visibilitychange",
+        ()=>{
+          if(D.visibilityState==="visible"&&connected(root)){
+            state.chart.resize?.();
+            scheduleRefresh(0,false);
+          }
+        },
+        options
+      );
 
       await refresh(root,state,{resetView:true});
 
       async function loop(){
-        if(!root.isConnected||abortController?.signal?.aborted)return;
-        if(active(root))await refresh(root,state);
-        state.timer=W.setTimeout(loop,REFRESH_MS);
+        if(!connected(root)||abortController?.signal?.aborted)return;
+        await refresh(root,state);
+        state.timer=W.setTimeout(loop,HISTORY_REFRESH_MS);
       }
 
-      state.timer=W.setTimeout(loop,REFRESH_MS);
+      state.timer=W.setTimeout(loop,HISTORY_REFRESH_MS);
     }catch(error){
       set(root,"[data-mini-status]",`boot error: ${String(error?.message||error)}`);
       showEmpty(root,true,String(error?.message||error));
