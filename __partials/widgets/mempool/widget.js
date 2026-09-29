@@ -302,6 +302,22 @@
         ()=>refresh(root,state)
       );
 
+      W.addEventListener("zzx:canonical-bitcoin-price",event=>{
+        if(!root.isConnected||!state.model)return;
+        const value=Number(event?.detail?.price_usd??event?.detail?.priceUsd);
+        if(!(Number.isFinite(value)&&value>0))return;
+        state.model={
+          ...state.model,
+          priceUsd:value,
+          priceSource:String(event?.detail?.label||"BitAvg"),
+          priceMode:String(event?.detail?.mode||"off"),
+          totalFeeUSD:Number.isFinite(state.model.totalFeeBTC)
+            ? state.model.totalFeeBTC*value
+            : NaN
+        };
+        render(root,state);
+      });
+
       if("ResizeObserver" in W){
         state.resize=new ResizeObserver(
           ()=>W.requestAnimationFrame(()=>draw(root,state))
