@@ -2,786 +2,269 @@
   "use strict";
 
   const W=window;
-
-  if(W.ZZXHighLow24HModel?.__version>=3)return;
+  if(W.ZZXHighLow24HModel?.__version>=4)return;
 
   const DAY_MS=24*60*60*1000;
+  const LIVE_BUCKET_MS=15_000;
+  const MODES=new Set(["off","bpi","global-bpi"]);
 
   const finite=value=>{
+    if(value==null||value==="")return NaN;
     const number=Number(value);
-    return Number.isFinite(number)
-      ? number
-      : NaN;
+    return Number.isFinite(number)?number:NaN;
   };
 
   const positive=value=>{
     const number=finite(value);
-    return number>0
-      ? number
-      : NaN;
-  };
-
-  const nonnegative=value=>{
-    const number=finite(value);
-    return number>=0
-      ? number
-      : NaN;
+    return number>0?number:NaN;
   };
 
   function timestamp(point){
-    const raw=
-      point?.t ??
-      point?.ts_ms ??
-      point?.timestamp ??
-      point?.updated_at;
-
-    if(typeof raw==="number"){
-      return raw<1e11
-        ? raw*1000
-        : raw;
-    }
-
-    const parsed=
-      new Date(raw).getTime();
-
-    return Number.isFinite(parsed)
-      ? parsed
-      : NaN;
+    const raw=point?.t??point?.ts_ms??point?.timestamp??point?.updated_at;
+    if(typeof raw==="number")return raw<1e11?raw*1000:raw;
+    const parsed=new Date(raw).getTime();
+    return Number.isFinite(parsed)?parsed:NaN;
   }
 
-  function normalize(points){
+  function normalize(points,{now=Date.now(),trim=true}={}){
+    const cutoff=now-DAY_MS;
     const byTime=new Map();
 
-    for(
-      const raw
-      of Array.isArray(points)
-        ? points
-        : []
-    ){
-      if(
-        !raw ||
-        typeof raw!=="object"
-      ){
-        continue;
-      }
+    for(const raw of Array.isArray(points)?points:[]){
+      if(!raw||typeof raw!=="object")continue;
 
       const t=timestamp(raw);
+      if(!Number.isFinite(t))continue;
+      if(trim&&t<cutoff-60_000)continue;
 
-      const price=positive(
-        raw.price ??
-        raw.price_usd ??
-        raw.close
-      );
+      const close=positive(raw.close??raw.price??raw.price_usd??raw.bpi_usd);
+      if(!Number.isFinite(close))continue;
 
-      if(
-        !Number.isFinite(t) ||
-        !Number.isFinite(price)
-      ){
-        continue;
-      }
+      const open=positive(raw.open);
+      const high=positive(raw.high);
+      const low=positive(raw.low);
 
-      const high24=positive(
-        raw.high_24h ??
-        raw.high_24h_usd
-      );
+      const normalizedOpen=Number.isFinite(open)?open:close;
+      const normalizedHigh=Number.isFinite(high)?Math.max(high,normalizedOpen,close):Math.max(normalizedOpen,close);
+      const normalizedLow=Number.isFinite(low)?Math.min(low,normalizedOpen,close):Math.min(normalizedOpen,close);
 
-      const low24=positive(
-        raw.low_24h ??
-        raw.low_24h_usd
-      );
-
-      const intervalVolume=nonnegative(
-        raw.interval_volume_btc
-      );
-
-      const volumeClose=nonnegative(
-        raw.volume_close_24h_btc ??
-        raw.volume_24h_btc
-      );
-
-      const volumeOpen=nonnegative(
-        raw.volume_open_24h_btc
-      );
-
-      const volumeHigh=nonnegative(
-        raw.volume_high_24h_btc
-      );
-
-      const volumeLow=nonnegative(
-        raw.volume_low_24h_btc
-      );
-
-      const closeVolume=
-        Number.isFinite(volumeClose)
-          ? volumeClose
-          : NaN;
-
-      const openVolume=
-        Number.isFinite(volumeOpen)
-          ? volumeOpen
-          : closeVolume;
-
-      const highVolume=
-        Number.isFinite(volumeHigh)
-          ? Math.max(
-              volumeHigh,
-              openVolume,
-              closeVolume
-            )
-          : (
-              Number.isFinite(closeVolume)
-                ? Math.max(
-                    openVolume,
-                    closeVolume
-                  )
-                : NaN
-            );
-
-      const lowVolume=
-        Number.isFinite(volumeLow)
-          ? Math.min(
-              volumeLow,
-              openVolume,
-              closeVolume
-            )
-          : (
-              Number.isFinite(closeVolume)
-                ? Math.min(
-                    openVolume,
-                    closeVolume
-                  )
-                : NaN
-            );
-
-      byTime.set(
+      byTime.set(t,{
+        ...raw,
         t,
-        {
-          ...raw,
-          t,
-          price,
-          high_24h:
-            Number.isFinite(high24)
-              ? high24
-              : null,
-          low_24h:
-            Number.isFinite(low24)
-              ? low24
-              : null,
-          interval_volume_btc:
-            Number.isFinite(intervalVolume)
-              ? intervalVolume
-              : null,
-          volume_24h_btc:
-            Number.isFinite(closeVolume)
-              ? closeVolume
-              : null,
-          volume_open_24h_btc:
-            Number.isFinite(openVolume)
-              ? openVolume
-              : null,
-          volume_high_24h_btc:
-            Number.isFinite(highVolume)
-              ? highVolume
-              : null,
-          volume_low_24h_btc:
-            Number.isFinite(lowVolume)
-              ? lowVolume
-              : null,
-          volume_close_24h_btc:
-            Number.isFinite(closeVolume)
-              ? closeVolume
-              : null
-        }
-      );
+        open:normalizedOpen,
+        high:normalizedHigh,
+        low:normalizedLow,
+        close,
+        price:close,
+        bucket_high_usd:normalizedHigh,
+        bucket_low_usd:normalizedLow
+      });
     }
 
-    return [
-      ...byTime.values()
-    ].sort(
-      (a,b)=>a.t-b.t
-    );
+    return [...byTime.values()].sort((a,b)=>a.t-b.t);
   }
 
-  function selectionPoint(selection){
-    const price=positive(
-      selection?.priceUsd ??
-      selection?.price_usd ??
-      W.ZZXSelectedPriceUsd
-    );
+  function quoteMode(quote){
+    const mode=String(quote?.mode??W.ZZXPrice?.mode?.()??"off");
+    return MODES.has(mode)?mode:"off";
+  }
 
-    if(!Number.isFinite(price)){
-      return null;
+  function sourceDescriptor(quote){
+    const mode=quoteMode(quote);
+
+    if(mode==="bpi"){
+      return {
+        id:"bpi",
+        label:"BPI Weighted",
+        mode,
+        type:"bpi",
+        weighted:true
+      };
     }
 
-    const rawTime=
-      selection?.timestamp ??
-      selection?.updated_at;
-
-    const parsed=
-      new Date(
-        rawTime||
-        Date.now()
-      ).getTime();
-
-    const t=
-      Number.isFinite(parsed)
-        ? parsed
-        : Date.now();
-
-    const high24=positive(
-      selection?.highUsd ??
-      selection?.high_24h
-    );
-
-    const low24=positive(
-      selection?.lowUsd ??
-      selection?.low_24h
-    );
-
-    const volume=nonnegative(
-      selection?.volumeBtc ??
-      selection?.volume_24h_btc
-    );
+    if(mode==="global-bpi"){
+      return {
+        id:"global-bpi",
+        label:"Global BPI Weighted",
+        mode,
+        type:"global-bpi",
+        weighted:true
+      };
+    }
 
     return {
-      t,
-      price,
-      high_24h:
-        Number.isFinite(high24)
-          ? high24
-          : null,
-      low_24h:
-        Number.isFinite(low24)
-          ? low24
-          : null,
-      volume_24h_btc:
-        Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_open_24h_btc:
-        Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_high_24h_btc:
-        Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_low_24h_btc:
-        Number.isFinite(volume)
-          ? volume
-          : null,
-      volume_close_24h_btc:
-        Number.isFinite(volume)
-          ? volume
-          : null,
-      live:true
+      id:"global-bpi-unweighted",
+      label:"Unweighted",
+      mode:"off",
+      type:"global-bpi-unweighted",
+      weighted:false
     };
   }
 
-  function mergeLive(points,selection){
-    const normalized=
-      normalize(points);
+  function quotePoint(quote,{now=Date.now()}={}){
+    const price=positive(quote?.price_usd??quote?.priceUsd);
+    if(!Number.isFinite(price))return null;
 
-    const live=
-      selectionPoint(selection);
+    const t=Math.floor(now/LIVE_BUCKET_MS)*LIVE_BUCKET_MS;
+    return {
+      t,
+      open:price,
+      high:price,
+      low:price,
+      close:price,
+      price,
+      bucket_high_usd:price,
+      bucket_low_usd:price,
+      live:true,
+      canonical:true,
+      mode:quoteMode(quote),
+      provider:quote?.provider||"bitavg",
+      source_observed_at:quote?.observed_at??quote?.updated_at??null
+    };
+  }
 
-    if(!live){
-      return normalized;
-    }
+  function mergeLive(points,quote,{now=Date.now()}={}){
+    const normalized=normalize(points,{now,trim:true});
+    const live=quotePoint(quote,{now});
+    if(!live)return normalized;
 
-    const last=
-      normalized.at(-1);
-
-    if(
-      last &&
-      Math.abs(
-        last.t-live.t
-      )<=1250
-    ){
-      normalized[
-        normalized.length-1
-      ]={
+    const last=normalized.at(-1);
+    if(last&&Math.abs(last.t-live.t)<LIVE_BUCKET_MS){
+      const open=positive(last.open);
+      const high=positive(last.high);
+      const low=positive(last.low);
+      normalized[normalized.length-1]={
         ...last,
         ...live,
-
-        // Preserve the first observed rolling-volume value
-        // and expand the intra-bucket volume H/L.
-        volume_open_24h_btc:
-          last.volume_open_24h_btc ??
-          live.volume_open_24h_btc,
-
-        volume_high_24h_btc:
-          [
-            last.volume_high_24h_btc,
-            live.volume_close_24h_btc
-          ]
-            .map(nonnegative)
-            .filter(Number.isFinite)
-            .reduce(
-              (a,b)=>Math.max(a,b),
-              -Infinity
-            ),
-
-        volume_low_24h_btc:
-          [
-            last.volume_low_24h_btc,
-            live.volume_close_24h_btc
-          ]
-            .map(nonnegative)
-            .filter(Number.isFinite)
-            .reduce(
-              (a,b)=>Math.min(a,b),
-              Infinity
-            )
+        t:Math.max(last.t,live.t),
+        open:Number.isFinite(open)?open:live.price,
+        high:Math.max(Number.isFinite(high)?high:live.price,live.price),
+        low:Math.min(Number.isFinite(low)?low:live.price,live.price),
+        close:live.price,
+        price:live.price,
+        bucket_high_usd:Math.max(Number.isFinite(high)?high:live.price,live.price),
+        bucket_low_usd:Math.min(Number.isFinite(low)?low:live.price,live.price)
       };
-
-      const row=
-        normalized[
-          normalized.length-1
-        ];
-
-      if(
-        !Number.isFinite(
-          row.volume_high_24h_btc
-        )
-      ){
-        row.volume_high_24h_btc=
-          null;
-      }
-
-      if(
-        !Number.isFinite(
-          row.volume_low_24h_btc
-        )
-      ){
-        row.volume_low_24h_btc=
-          null;
-      }
-
-      return normalized;
+    }else{
+      const prior=positive(last?.close??last?.price);
+      normalized.push({
+        ...live,
+        open:Number.isFinite(prior)?prior:live.price,
+        high:Number.isFinite(prior)?Math.max(prior,live.price):live.price,
+        low:Number.isFinite(prior)?Math.min(prior,live.price):live.price,
+        bucket_high_usd:Number.isFinite(prior)?Math.max(prior,live.price):live.price,
+        bucket_low_usd:Number.isFinite(prior)?Math.min(prior,live.price):live.price
+      });
     }
 
-    normalized.push(live);
-    normalized.sort(
-      (a,b)=>a.t-b.t
-    );
-
-    return normalized;
+    return normalize(normalized,{now,trim:true});
   }
 
-  function median(values){
-    const valid=
-      values
-        .map(finite)
-        .filter(Number.isFinite)
-        .sort((a,b)=>a-b);
-
-    if(!valid.length)return NaN;
-
-    const middle=
-      Math.floor(
-        valid.length/2
-      );
-
-    return valid.length%2
-      ? valid[middle]
-      : (
-          valid[middle-1]+
-          valid[middle]
-        )/2;
+  function cadence(rows){
+    const intervals=[];
+    for(let index=1;index<rows.length;index+=1){
+      const gap=rows[index].t-rows[index-1].t;
+      if(gap>0&&Number.isFinite(gap))intervals.push(gap);
+    }
+    intervals.sort((a,b)=>a-b);
+    return {
+      medianIntervalMs:intervals.length?intervals[Math.floor(intervals.length/2)]:NaN,
+      largestGapMs:intervals.length?Math.max(...intervals):NaN
+    };
   }
 
-  function stats(points,now=Date.now()){
-    const rows=normalize(points);
-
+  function stats(points,quote=null,now=Date.now()){
+    const rows=normalize(points,{now,trim:true});
     if(!rows.length){
       return {
-        points:0,
-        priceCurrent:NaN,
-        priceOpen:NaN,
-        priceHigh24:NaN,
-        priceLow24:NaN,
-        priceRange:NaN,
-        priceRangePct:NaN,
-        pricePositionPct:NaN,
-        priceChange:NaN,
-        priceChangePct:NaN,
-        volumeCurrent:NaN,
-        volumeOpen:NaN,
-        volumeHigh:NaN,
-        volumeLow:NaN,
-        volumeRange:NaN,
-        volumeRangePct:NaN,
-        volumeChange:NaN,
-        volumeChangePct:NaN,
-        volumeAverage:NaN,
-        volumeMedian:NaN,
-        coveragePct:0,
-        medianIntervalMs:NaN,
-        largestGapMs:NaN,
-        ageMs:NaN
+        points:0,current:NaN,open:NaN,high:NaN,low:NaN,range:NaN,rangePct:NaN,
+        positionPct:NaN,change:NaN,changePct:NaN,coveragePct:0,
+        firstTime:NaN,lastTime:NaN,ageMs:NaN,medianIntervalMs:NaN,largestGapMs:NaN
       };
     }
 
     const first=rows[0];
     const last=rows.at(-1);
-
-    const priceCurrent=
-      positive(last.price);
-
-    const priceOpen=
-      positive(first.price);
-
-    const priceHigh24=
-      positive(last.high_24h);
-
-    const priceLow24=
-      positive(last.low_24h);
-
-    const priceRange=
-      Number.isFinite(priceHigh24) &&
-      Number.isFinite(priceLow24)
-        ? priceHigh24-priceLow24
-        : NaN;
-
-    const priceRangePct=
-      Number.isFinite(priceRange) &&
-      priceLow24>0
-        ? priceRange/priceLow24*100
-        : NaN;
-
-    const pricePositionPct=
-      Number.isFinite(priceCurrent) &&
-      Number.isFinite(priceLow24) &&
-      Number.isFinite(priceRange) &&
-      priceRange>0
-        ? (
-            (
-              priceCurrent-priceLow24
-            )/
-            priceRange*
-            100
-          )
-        : NaN;
-
-    const priceChange=
-      Number.isFinite(priceCurrent) &&
-      Number.isFinite(priceOpen)
-        ? priceCurrent-priceOpen
-        : NaN;
-
-    const priceChangePct=
-      Number.isFinite(priceChange) &&
-      priceOpen>0
-        ? priceChange/priceOpen*100
-        : NaN;
-
-    const volumeRows=
-      rows.filter(
-        row=>
-          Number.isFinite(
-            nonnegative(
-              row.volume_close_24h_btc
-            )
-          )
-      );
-
-    const volumeCurrent=
-      volumeRows.length
-        ? nonnegative(
-            volumeRows.at(-1)
-              .volume_close_24h_btc
-          )
-        : NaN;
-
-    const volumeOpen=
-      volumeRows.length
-        ? nonnegative(
-            volumeRows[0]
-              .volume_open_24h_btc
-          )
-        : NaN;
-
-    const volumeHighValues=
-      rows
-        .map(
-          row=>
-            nonnegative(
-              row.volume_high_24h_btc
-            )
-        )
-        .filter(Number.isFinite);
-
-    const volumeLowValues=
-      rows
-        .map(
-          row=>
-            nonnegative(
-              row.volume_low_24h_btc
-            )
-        )
-        .filter(Number.isFinite);
-
-    const volumeCloseValues=
-      rows
-        .map(
-          row=>
-            nonnegative(
-              row.volume_close_24h_btc
-            )
-        )
-        .filter(Number.isFinite);
-
-    const volumeHigh=
-      volumeHighValues.length
-        ? Math.max(
-            ...volumeHighValues
-          )
-        : NaN;
-
-    const volumeLow=
-      volumeLowValues.length
-        ? Math.min(
-            ...volumeLowValues
-          )
-        : NaN;
-
-    const volumeRange=
-      Number.isFinite(volumeHigh) &&
-      Number.isFinite(volumeLow)
-        ? volumeHigh-volumeLow
-        : NaN;
-
-    const volumeRangePct=
-      Number.isFinite(volumeRange) &&
-      volumeLow>0
-        ? volumeRange/volumeLow*100
-        : NaN;
-
-    const volumeChange=
-      Number.isFinite(volumeCurrent) &&
-      Number.isFinite(volumeOpen)
-        ? volumeCurrent-volumeOpen
-        : NaN;
-
-    const volumeChangePct=
-      Number.isFinite(volumeChange) &&
-      volumeOpen>0
-        ? volumeChange/volumeOpen*100
-        : NaN;
-
-    const volumeAverage=
-      volumeCloseValues.length
-        ? volumeCloseValues.reduce(
-            (sum,value)=>sum+value,
-            0
-          )/
-          volumeCloseValues.length
-        : NaN;
-
-    const volumeMedian=
-      median(
-        volumeCloseValues
-      );
-
-    const span=
-      Math.max(
-        0,
-        last.t-first.t
-      );
-
-    const coveragePct=
-      Math.min(
-        100,
-        span/DAY_MS*100
-      );
-
-    const intervals=[];
-
-    for(
-      let index=1;
-      index<rows.length;
-      index+=1
-    ){
-      const gap=
-        rows[index].t-
-        rows[index-1].t;
-
-      if(
-        Number.isFinite(gap) &&
-        gap>0
-      ){
-        intervals.push(gap);
-      }
-    }
-
-    const medianIntervalMs=
-      median(intervals);
-
-    const largestGapMs=
-      intervals.length
-        ? Math.max(
-            ...intervals
-          )
-        : NaN;
+    const canonical=positive(quote?.price_usd??quote?.priceUsd);
+    const current=Number.isFinite(canonical)?canonical:positive(last.close??last.price);
+    const open=positive(first.open??first.price);
+    const highs=rows.map(row=>positive(row.high??row.price)).filter(Number.isFinite);
+    const lows=rows.map(row=>positive(row.low??row.price)).filter(Number.isFinite);
+    const high=highs.length?Math.max(...highs):current;
+    const low=lows.length?Math.min(...lows):current;
+    const range=Number.isFinite(high)&&Number.isFinite(low)?high-low:NaN;
+    const rangePct=Number.isFinite(range)&&low>0?range/low*100:NaN;
+    const rawPosition=Number.isFinite(current)&&Number.isFinite(low)&&Number.isFinite(range)&&range>0
+      ? (current-low)/range*100
+      : NaN;
+    const positionPct=Number.isFinite(rawPosition)?Math.max(0,Math.min(100,rawPosition)):NaN;
+    const change=Number.isFinite(current)&&Number.isFinite(open)?current-open:NaN;
+    const changePct=Number.isFinite(change)&&open>0?change/open*100:NaN;
+    const span=Math.max(0,last.t-first.t);
+    const {medianIntervalMs,largestGapMs}=cadence(rows);
 
     return {
       points:rows.length,
-
-      priceCurrent,
-      priceOpen,
-      priceHigh24,
-      priceLow24,
-      priceRange,
-      priceRangePct,
-      pricePositionPct,
-      priceChange,
-      priceChangePct,
-
-      volumeCurrent,
-      volumeOpen,
-      volumeHigh,
-      volumeLow,
-      volumeRange,
-      volumeRangePct,
-      volumeChange,
-      volumeChangePct,
-      volumeAverage,
-      volumeMedian,
-
-      coveragePct,
+      current,
+      open,
+      high,
+      low,
+      range,
+      rangePct,
+      positionPct,
+      positionOutside:Number.isFinite(rawPosition)?(rawPosition<0||rawPosition>100):false,
+      change,
+      changePct,
+      coveragePct:Math.min(100,span/DAY_MS*100),
       firstTime:first.t,
       lastTime:last.t,
+      ageMs:Math.max(0,now-last.t),
       medianIntervalMs,
-      largestGapMs,
-      ageMs:
-        Math.max(
-          0,
-          now-last.t
-        )
+      largestGapMs
     };
   }
 
-  function sourceDescriptor(selection,latest){
-    const sourceType=
-      String(
-        selection?.sourceType||
-        "bpi"
-      );
+  function displayPoints(points,{maxPoints=720,now=Date.now()}={}){
+    const rows=normalize(points,{now,trim:true});
+    if(rows.length<=maxPoints)return rows;
 
-    const mode=String(selection?.weightingMode||"off");
-    const weighted=
-      selection?.weightingApplied != null
-        ? !!selection.weightingApplied
-        : selection?.weightsEnabled != null
-          ? !!selection.weightsEnabled
-          : sourceType==="global-bpi"
-            ? mode==="global-bpi"
-            : sourceType==="bpi"
-              ? mode==="bpi"
-              : true;
+    const groupSize=Math.max(1,Math.ceil(rows.length/maxPoints));
+    const output=[];
 
-    if(sourceType==="global-bpi"){
-      return {
-        id:weighted
-          ? "global-bpi"
-          : "global-bpi-unweighted",
-        compatibility:null,
-        label:
-          `Global BPI · `+
-          `${weighted?"weighted":"unweighted"}`,
-        type:"global-bpi",
-        country:"GLOBAL",
-        weightsEnabled:weighted
-      };
+    for(let index=0;index<rows.length;index+=groupSize){
+      const group=rows.slice(index,index+groupSize);
+      if(!group.length)continue;
+      const first=group[0];
+      const last=group.at(-1);
+      const highs=group.map(row=>positive(row.high)).filter(Number.isFinite);
+      const lows=group.map(row=>positive(row.low)).filter(Number.isFinite);
+
+      output.push({
+        ...last,
+        open:positive(first.open) || last.open,
+        high:highs.length?Math.max(...highs):last.high,
+        low:lows.length?Math.min(...lows):last.low,
+        close:positive(last.close??last.price),
+        price:positive(last.close??last.price),
+        bucket_high_usd:highs.length?Math.max(...highs):last.high,
+        bucket_low_usd:lows.length?Math.min(...lows):last.low,
+        display_bucket_count:group.length
+      });
     }
 
-    if(
-      sourceType==="exchange" &&
-      selection?.exchangeId
-    ){
-      return {
-        id:String(
-          selection.exchangeId
-        ),
-        compatibility:null,
-        label:String(
-          selection.label||
-          selection.exchangeId
-        ),
-        type:"exchange",
-        exchangeId:String(
-          selection.exchangeId
-        ),
-        country:null,
-        weightsEnabled:true
-      };
-    }
-
-    const country=String(
-      selection?.region ??
-      selection?.bpiCountry ??
-      selection?.countryCode ??
-      latest?.bpi_country ??
-      latest?.default_country ??
-      "US"
-    ).toUpperCase();
-
-    const defaultCountry=String(
-      latest?.default_country ??
-      latest?.bpi_country ??
-      "US"
-    ).toUpperCase();
-
-    return {
-      id:weighted
-        ? `bpi:${country}`
-        : `bpi-unweighted:${country}`,
-      compatibility:
-        weighted &&
-        country===defaultCountry
-          ? "bpi"
-          : null,
-      label:
-        `BPI · ${country} · `+
-        `${weighted?"weighted":"unweighted"}`,
-      type:"bpi",
-      country,
-      defaultCountry,
-      weightsEnabled:weighted
-    };
+    return output;
   }
 
-  function recipe({
-    priceMode="area",
-    volumeMode="interval-bars"
-  }={}){
-    const normalizedPrice=["area","line","range","candles"].includes(priceMode)?priceMode:"area";
-    const normalizedVolume=["interval-bars","rolling-line"].includes(volumeMode)?volumeMode:"interval-bars";
-    return {
-      id:`highlow24h__${normalizedPrice}__${normalizedVolume}`,
-      kind:"combo",
-      renderer:"combo",
-      priceMode:normalizedPrice,
-      volumeMode:normalizedVolume,
-      showPriceLine:true,
-      showPriceHighLow:true,
-      showPriceRangeBand:true,
-      showVolumeCandles:normalizedVolume==="interval-bars",
-      showVolumeLine:normalizedVolume==="rolling-line"
-    };
-  }
-
-
-  W.ZZXHighLow24HModel=
-    Object.freeze({
-      __version:3,
-      DAY_MS,
-      normalize,
-      selectionPoint,
-      mergeLive,
-      stats,
-      sourceDescriptor,
-      recipe
-    });
+  W.ZZXHighLow24HModel=Object.freeze({
+    __version:4,
+    DAY_MS,
+    LIVE_BUCKET_MS,
+    normalize,
+    quoteMode,
+    sourceDescriptor,
+    quotePoint,
+    mergeLive,
+    stats,
+    displayPoints
+  });
 })();
