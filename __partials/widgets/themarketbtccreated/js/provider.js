@@ -3,7 +3,7 @@
   "use strict";
 
   const W=window;
-  if(W.ZZXTheMarketBTCCreatedProvider?.__version>=4)return;
+  if(W.ZZXTheMarketBTCCreatedProvider?.__version>=5)return;
 
   async function liveHeight(){
     if(W.ZZXChain?.tipHeight){
@@ -15,6 +15,30 @@
     }
 
     return NaN;
+  }
+
+  function applyCanonicalSpot(model){
+    const canonical=W.ZZXPrice?.current?.();
+    const spot=Number(canonical?.price_usd??canonical?.priceUsd);
+    if(!(Number.isFinite(spot)&&spot>0))return model;
+
+    const deltaUSD=model.theoretical-spot;
+    const deltaPct=spot>0?deltaUSD/spot*100:NaN;
+    const totalDeltaUSD=model.adjusted-spot;
+    const totalDeltaPct=spot>0?totalDeltaUSD/spot*100:NaN;
+
+    return {
+      ...model,
+      spot,
+      deltaUSD,
+      deltaPct,
+      invDeltaPct:-deltaPct,
+      totalDeltaUSD,
+      totalDeltaPct,
+      invTotalDeltaPct:-totalDeltaPct,
+      multiple:spot>0?model.adjusted/spot:NaN,
+      marketSource:`${canonical?.label||"BitAvg"} · canonical site price`
+    };
   }
 
   function refreshNetwork(model,height){
@@ -44,7 +68,7 @@
 
       W.ZZXTheMarketBTCCreatedFetch.save(raw);
 
-      const model=W.ZZXTheMarketBTCCreatedModel.normalize(raw);
+      const model=applyCanonicalSpot(W.ZZXTheMarketBTCCreatedModel.normalize(raw));
       const height=await liveHeight();
 
       return {
@@ -58,9 +82,9 @@
 
       if(!cached)throw error;
 
-      const model=W.ZZXTheMarketBTCCreatedModel.normalize(
+      const model=applyCanonicalSpot(W.ZZXTheMarketBTCCreatedModel.normalize(
         cached.value
-      );
+      ));
 
       const height=await liveHeight();
 
@@ -76,7 +100,8 @@
   }
 
   W.ZZXTheMarketBTCCreatedProvider=Object.freeze({
-    __version:4,
-    load
+    __version:5,
+    load,
+    applyCanonicalSpot
   });
 })();
