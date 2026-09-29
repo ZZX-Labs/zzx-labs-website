@@ -172,6 +172,10 @@
         calculate(root, state);
       });
 
+      W.addEventListener("zzx:canonical-bitcoin-price",()=>{
+        if(root.isConnected)calculate(root,state);
+      });
+
       q(root, "[data-bill-copy]")?.addEventListener("click", async () => {
         if (!state.invoice) return;
         try {
