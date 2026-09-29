@@ -21,6 +21,12 @@
   }
 
   function marketStatePrice(){
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=positive(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)){
+      return {value:selected,source:String(canonical?.label||"BitAvg")};
+    }
+
     const state=W.ZZXMarketState;
     let snap=null;
 
