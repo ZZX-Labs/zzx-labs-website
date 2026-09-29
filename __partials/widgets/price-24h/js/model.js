@@ -2,10 +2,11 @@
   "use strict";
 
   const W=window;
-
-  if(W.ZZXPrice24HModel?.__version>=3)return;
+  if(W.ZZXPrice24HModel?.__version>=4)return;
 
   const DAY_MS=24*60*60*1000;
+  const LIVE_BUCKET_MS=15_000;
+  const MODES=new Set(["off","bpi","global-bpi"]);
 
   const finite=value=>{
     const number=Number(value);
@@ -24,14 +25,16 @@
     return Number.isFinite(parsed)?parsed:NaN;
   }
 
-  function normalize(points){
+  function normalize(points,{now=Date.now(),trim=true}={}){
     const byTime=new Map();
+    const cutoff=now-DAY_MS;
 
     for(const raw of Array.isArray(points)?points:[]){
       if(!raw||typeof raw!=="object")continue;
       const t=timestamp(raw);
       const price=positive(raw.price??raw.close??raw.price_usd??raw.bpi_usd);
       if(!Number.isFinite(t)||!Number.isFinite(price))continue;
+      if(trim&&t<cutoff-60_000)continue;
 
       const open=positive(raw.open);
       const high=positive(raw.high);
@@ -55,60 +58,68 @@
     return [...byTime.values()].sort((a,b)=>a.t-b.t);
   }
 
-  function selectionPoint(selection){
-    const price=positive(
-      selection?.priceUsd??
-      selection?.price_usd??
-      W.ZZXSelectedPriceUsd
-    );
+  function quoteMode(quote){
+    const mode=String(quote?.mode??W.ZZXPrice?.mode?.()??"off");
+    return MODES.has(mode)?mode:"off";
+  }
 
+  function quotePoint(quote,{now=Date.now()}={}){
+    const price=positive(quote?.price_usd??quote?.priceUsd);
     if(!Number.isFinite(price))return null;
 
-    const high=positive(selection?.highUsd??selection?.high_usd);
-    const low=positive(selection?.lowUsd??selection?.low_usd);
-    const volume=finite(selection?.volumeBtc??selection?.volume_24h_btc);
-    const rawTime=selection?.timestamp??selection?.updated_at;
-    const parsed=new Date(rawTime||Date.now()).getTime();
-    const t=Number.isFinite(parsed)?parsed:Date.now();
+    const t=Math.floor(now/LIVE_BUCKET_MS)*LIVE_BUCKET_MS;
+    const observedAt=quote?.observed_at??quote?.updated_at??null;
 
     return {
       t,
       open:price,
-      high:Number.isFinite(high)?high:price,
-      low:Number.isFinite(low)?low:price,
+      high:price,
+      low:price,
       close:price,
       price,
-      volume_24h_btc:Number.isFinite(volume)?volume:null,
-      live:true
+      volume_24h_btc:Number.isFinite(finite(quote?.volume_24h_btc))
+        ? finite(quote.volume_24h_btc)
+        : null,
+      live:true,
+      canonical:true,
+      mode:quoteMode(quote),
+      source_observed_at:observedAt,
+      provider:quote?.provider||"bitavg"
     };
   }
 
-  function mergeLive(points,selection){
-    const normalized=normalize(points);
-    const live=selectionPoint(selection);
+  function mergeLive(points,quote,{now=Date.now()}={}){
+    const normalized=normalize(points,{now,trim:true});
+    const live=quotePoint(quote,{now});
     if(!live)return normalized;
 
-    const tolerance=1250;
     const last=normalized.at(-1);
 
-    if(last&&Math.abs(last.t-live.t)<=tolerance){
+    if(last&&last.t===live.t){
       normalized[normalized.length-1]={
         ...last,
         ...live,
-        open:last.open,
-        high:Math.max(last.high??live.price,live.high??live.price),
-        low:Math.min(last.low??live.price,live.low??live.price)
+        open:positive(last.open) || live.price,
+        high:Math.max(positive(last.high)||live.price,live.price),
+        low:Math.min(positive(last.low)||live.price,live.price),
+        close:live.price,
+        price:live.price
       };
-      return normalized;
+    }else{
+      const priorClose=positive(last?.close??last?.price);
+      normalized.push({
+        ...live,
+        open:Number.isFinite(priorClose)?priorClose:live.price,
+        high:Number.isFinite(priorClose)?Math.max(priorClose,live.price):live.price,
+        low:Number.isFinite(priorClose)?Math.min(priorClose,live.price):live.price
+      });
     }
 
-    normalized.push(live);
-    normalized.sort((a,b)=>a.t-b.t);
-    return normalized;
+    return normalize(normalized,{now,trim:true});
   }
 
   function stats(points,now=Date.now()){
-    const rows=normalize(points);
+    const rows=normalize(points,{now,trim:true});
 
     if(!rows.length){
       return {
@@ -176,78 +187,42 @@
     };
   }
 
-  function sourceDescriptor(selection,latest){
-    const sourceType=String(selection?.sourceType||"bpi");
+  function sourceDescriptor(quote){
+    const mode=quoteMode(quote);
 
-    const mode=String(selection?.weightingMode||"off");
-    const weighted=
-      selection?.weightingApplied != null
-        ? !!selection.weightingApplied
-        : selection?.weightsEnabled != null
-          ? !!selection.weightsEnabled
-          : sourceType==="global-bpi"
-            ? mode==="global-bpi"
-            : sourceType==="bpi"
-              ? mode==="bpi"
-              : true;
-
-    if(sourceType==="global-bpi"){
+    if(mode==="bpi"){
       return {
-        id:weighted?"global-bpi":"global-bpi-unweighted",
-        compatibility:null,
-        label:`Global BPI · ${weighted?"weighted":"unweighted"}`,
+        id:"bpi",
+        label:"BPI Weighted",
+        mode,
+        type:"bpi",
+        weighted:true
+      };
+    }
+
+    if(mode==="global-bpi"){
+      return {
+        id:"global-bpi",
+        label:"Global BPI Weighted",
+        mode,
         type:"global-bpi",
-        country:"GLOBAL",
-        weightsEnabled:weighted
+        weighted:true
       };
     }
-
-    if(sourceType==="exchange"&&selection?.exchangeId){
-      return {
-        id:String(selection.exchangeId),
-        compatibility:null,
-        label:String(selection.label||selection.exchangeId),
-        type:"exchange",
-        exchangeId:String(selection.exchangeId),
-        country:null
-      };
-    }
-
-    const country=String(
-      selection?.region??
-      selection?.bpiCountry??
-      selection?.countryCode??
-      latest?.bpi_country??
-      latest?.default_country??
-      "US"
-    ).toUpperCase();
-
-    const defaultCountry=String(
-      latest?.default_country??
-      latest?.bpi_country??
-      "US"
-    ).toUpperCase();
 
     return {
-      id:weighted
-        ? `bpi:${country}`
-        : `bpi-unweighted:${country}`,
-      compatibility:
-        weighted && country===defaultCountry
-          ? "bpi"
-          : null,
-      label:`BPI · ${country} · ${weighted?"weighted":"unweighted"}`,
-      type:"bpi",
-      country,
-      defaultCountry,
-      weightsEnabled:weighted
+      id:"global-bpi-unweighted",
+      label:"Unweighted",
+      mode:"off",
+      type:"global-bpi-unweighted",
+      weighted:false
     };
   }
 
-  function recipe({renderer="area",sma20=true,ema50=false,stats=null}={}){
+  function recipe({renderer="line",sma20=false,ema50=false,stats=null}={}){
     const normalizedRenderer=["area","line","candles"].includes(renderer)
       ? renderer
-      : "area";
+      : "line";
 
     const overlays=[];
 
@@ -257,7 +232,7 @@
           metric:"price",
           transform:"sma_20",
           stroke:"#e6a42b",
-          width:1.15,
+          width:1.1,
           dash:[4,3],
           label:"SMA 20"
         });
@@ -276,31 +251,13 @@
     }
 
     const referenceLines=[];
-
-    if(stats){
-      if(Number.isFinite(stats.high)){
-        referenceLines.push({
-          value:stats.high,
-          label:"24h H",
-          stroke:"rgba(192,214,116,.55)"
-        });
-      }
-
-      if(Number.isFinite(stats.low)){
-        referenceLines.push({
-          value:stats.low,
-          label:"24h L",
-          stroke:"rgba(214,116,116,.55)"
-        });
-      }
-
-      if(Number.isFinite(stats.open)){
-        referenceLines.push({
-          value:stats.open,
-          label:"24h open",
-          stroke:"rgba(230,164,43,.52)"
-        });
-      }
+    if(stats&&Number.isFinite(stats.open)){
+      referenceLines.push({
+        value:stats.open,
+        label:"24h open",
+        stroke:"rgba(230,164,43,.44)",
+        dash:[4,4]
+      });
     }
 
     return {
@@ -309,16 +266,21 @@
       metric:normalizedRenderer==="candles"?"ohlc":"price",
       transform:"raw",
       renderer:normalizedRenderer,
+      stroke:"#c0d674",
+      accent:"#e6a42b",
+      closeLineStroke:"#c0d674",
+      showCloseLine:true,
       overlays,
       referenceLines
     };
   }
 
   W.ZZXPrice24HModel=Object.freeze({
-    __version:3,
+    __version:4,
     DAY_MS,
+    LIVE_BUCKET_MS,
     normalize,
-    selectionPoint,
+    quotePoint,
     mergeLive,
     stats,
     sourceDescriptor,
