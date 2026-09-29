@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-28T07:16:51.418368Z",
+  "generated_at": "2026-09-29T01:27:47.980520Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "node_id": "C_kwDOABII59oAKDA1YmMyZjUzY2UwY2IyMzljMTdkYmRkNmIyNjFiZDJkYjdkMmE5NDA",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-09-28T09:18:26Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-09-28T09:18:26Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36024: ci: Make `test_bitcoin-qt.exe` output visible\n\n70701de7c55512b4c8dbc3eaca91659980bf5300 ci: Make `test_bitcoin-qt.exe` output visible (Hennadii Stepanov)\n\nPull request description:\n\n  When run in the GHA environment, there is no console attached, so Qt's [`stderrHasConsoleAttached()`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L296) returns false and the entire test report is lost. Set `QT_ASSUME_STDERR_HAS_CONSOLE=1` to override the detection, as documented in Qt's [`qlogging.cpp`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L302-L303):\n  ```c++\n          if (qEnvironmentVariableIntValue(\"QT_ASSUME_STDERR_HAS_CONSOLE\"))\n              return true;\n  ```\n\nACKs for top commit:\n  davidgumberg:\n    utACK https://github.com/bitcoin/bitcoin/pull/36024/commits/70701de7c55512b4c8dbc3eaca91659980bf5300\n  maflcko:\n    lgtm ACK 70701de7c55512b4c8dbc3eaca91659980bf5300\n\nTree-SHA512: ed6d25e47dcb5f9953f336ddc52d841c6b8f11fccce417d401bca227763c99f81153751318c675673de8333ba7f218b5424b2c07eea422e62de42e167c574755",
+        "tree": {
+          "sha": "7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmq6MOIACgkQQQEIES5+\nqB+TAg/7BlHuR6fpUGedtqwJDRqkmNHfgNyXBpv4cfQmVPfC2lAybeSLq/UnUbtX\n2xxWO3sxv6eopARlBSf1fLOO4wnBpdYH1Ri0zew8Odk1BWJExhH6b2nSMCA9biSy\nw921vXgrCY46OoiUi+FWfvil20cZBakXBjrISInWLdakb5EcNeJ8vq1NjUvSjz/h\ndtvqO2DRLNARxDijBr967Ipf1TQKxQaD1PfHPI0TxDbZy2uC/3RZPDvZ/726blvB\nQUAZYWKVP0swFszFCZNYyShMLQKUi8bRPevVN2DaSpO2OO4RDGb3/dkFc9biH+b/\nyqAqxh6zkbSi4o/0zt68id4/Vw+j7L/WN5U3yxDql/dd7ndpOVBShX7tYZ0z7aWG\nsIrLFFurWRAb5JZo1zSvZhNDASZDiji/05ps+ku18/SzC2F7YxY2f9u5ww+a56Kf\n06pNxMalEhfuI2hyQbZlBRPdjacnX8783KewCthw2WqX2t6oWtFVKWqp/0DK29/t\nBP8XNkryGMoi+KVsnFyM2hgdtlA1QrZlKzy9TBwtPjTpjQU8wFP1FiwdxeRRscIQ\necr6WJjsVFH2BfIpU1+wSzm1PC5dx2i45cIKzgKhI3DA7lyqKcG33V9Y3nGFJHE8\n6HH9JgfJ/vhowSpIeo5/kXMPaopQllYS0NwI5u3r28CxWsHXuI4=\n=Lm5V\n-----END PGP SIGNATURE-----",
+          "payload": "tree 7fa6a1a4dfa6ef3828b76e0cde17dffcb3c26504\nparent ed7dd7cf4e1561a97edf72eba29a67b14e28c717\nparent 70701de7c55512b4c8dbc3eaca91659980bf5300\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790587106 +0100\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790587106 +0100\n\nMerge bitcoin/bitcoin#36024: ci: Make `test_bitcoin-qt.exe` output visible\n\n70701de7c55512b4c8dbc3eaca91659980bf5300 ci: Make `test_bitcoin-qt.exe` output visible (Hennadii Stepanov)\n\nPull request description:\n\n  When run in the GHA environment, there is no console attached, so Qt's [`stderrHasConsoleAttached()`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L296) returns false and the entire test report is lost. Set `QT_ASSUME_STDERR_HAS_CONSOLE=1` to override the detection, as documented in Qt's [`qlogging.cpp`](https://github.com/qt/qtbase/blob/5d8cae8a76ee5293ea885bd8fd8b2604819edfe3/src/corelib/global/qlogging.cpp#L302-L303):\n  ```c++\n          if (qEnvironmentVariableIntValue(\"QT_ASSUME_STDERR_HAS_CONSOLE\"))\n              return true;\n  ```\n\nACKs for top commit:\n  davidgumberg:\n    utACK https://github.com/bitcoin/bitcoin/pull/36024/commits/70701de7c55512b4c8dbc3eaca91659980bf5300\n  maflcko:\n    lgtm ACK 70701de7c55512b4c8dbc3eaca91659980bf5300\n\nTree-SHA512: ed6d25e47dcb5f9953f336ddc52d841c6b8f11fccce417d401bca227763c99f81153751318c675673de8333ba7f218b5424b2c07eea422e62de42e167c574755\n",
+          "verified_at": "2026-09-28T09:18:54Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ed7dd7cf4e1561a97edf72eba29a67b14e28c717"
+        },
+        {
+          "sha": "70701de7c55512b4c8dbc3eaca91659980bf5300",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/70701de7c55512b4c8dbc3eaca91659980bf5300",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/70701de7c55512b4c8dbc3eaca91659980bf5300"
+        }
+      ]
+    },
     {
       "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
       "node_id": "C_kwDOABII59oAKGVkN2RkN2NmNGUxNTYxYTk3ZWRmNzJlYmEyOWE2N2IxNGUyOGM3MTc",
@@ -8268,88 +8355,6 @@
           "sha": "2c249dbdf5c9d8c7dd71ac90ea29a8b52ec4b2ba",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2c249dbdf5c9d8c7dd71ac90ea29a8b52ec4b2ba",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/2c249dbdf5c9d8c7dd71ac90ea29a8b52ec4b2ba"
-        }
-      ]
-    },
-    {
-      "sha": "20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
-      "node_id": "C_kwDOABII59oAKDIwMzA3ZjBhYzBlMTdjNmU0NzhlMmUxMTMxOGRjN2E5YjE4ZmM1ZDE",
-      "commit": {
-        "author": {
-          "name": "Fabian Jahr",
-          "email": "fjahr@protonmail.com",
-          "date": "2026-09-16T22:27:38Z"
-        },
-        "committer": {
-          "name": "Fabian Jahr",
-          "email": "fjahr@protonmail.com",
-          "date": "2026-09-16T22:48:54Z"
-        },
-        "message": "wallet: don't double count discarded output groups with avoidpartialspends",
-        "tree": {
-          "sha": "c932e77c612b59ff1e09520c7bc785ff19037511",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c932e77c612b59ff1e09520c7bc785ff19037511"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\nComment: GPGTools - https://gpgtools.org\n\niQJPBAABCgA5FiEEtFq20ghhrCHSdrgm8T0enYkHmM0FAmqrHNYbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEPE9Hp2JB5jNMnEP/3C92dpsSnfurC6wVvFP\nAr7JVjG7TSmF5xLK69Y3VuVEw6TaBIu4gT8wghh4vLSBL1j38tgkSefuyD5c8kkh\nfjDVwb+rK/np7/SnUELwk/3os620QQsL3dqByS6tyrSqux0eBNeq4BhdV0Yz0MPT\nE8fVR+mNypkP/aOnE0j6iWAIFcAo71YECsxmHk459pd+i9Acb6qxAueaKpvaYKfV\noZ4fzniYkH6BZdt1WkiM1KqQ5OFOAc+GJzufykmNVeu2vov9Xqm8JXoLwusJ9HM+\n4dpE40d/FESjidPwC//2ozJLbuo/HMO4zt5znHvjQCgPsKXWRQdqxbfNA+dImrYp\nkG6GOofk62UN2MYEa4q1xs3NUWFn0CAoQh+LPdBcKxKhbUObefkLNPr5DzJGpWB8\nFtKNYczJPjr7qKW91QKmQ3hEGxmxmNp+MNZnAZZkIKgc+Q5Lon7bkHuS9JKGC42Y\n7L8Z79OsN86Zw1e7H0stA3kUQA1BMVTRpdDv0wyrKadFaRUt1EQBtZV8lB45QHgb\nYhhckSj8jdKPGFhbbKe7nrlKgal/T8vdUpxRE+SlLT0vKIU4SZIsLWiYHpSBUvO5\n6+xI9qjVK714GmXI3ybFkEM2lKIxZuKY3oljMnIxBU6qEhTL0xzEIgk9R4SH9dQ0\naXSO2R3PmWkMeu5k0N4tdzFH\n=Lusg\n-----END PGP SIGNATURE-----",
-          "payload": "tree c932e77c612b59ff1e09520c7bc785ff19037511\nparent b8215855437288cac95c7fd5d41104c73c0f3495\nauthor Fabian Jahr <fjahr@protonmail.com> 1789597658 +0200\ncommitter Fabian Jahr <fjahr@protonmail.com> 1789598934 +0200\n\nwallet: don't double count discarded output groups with avoidpartialspends\n",
-          "verified_at": "2026-09-16T22:49:10Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1/comments",
-      "author": {
-        "login": "fjahr",
-        "id": 1322187,
-        "node_id": "MDQ6VXNlcjEzMjIxODc=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fjahr",
-        "html_url": "https://github.com/fjahr",
-        "followers_url": "https://api.github.com/users/fjahr/followers",
-        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
-        "organizations_url": "https://api.github.com/users/fjahr/orgs",
-        "repos_url": "https://api.github.com/users/fjahr/repos",
-        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fjahr/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fjahr",
-        "id": 1322187,
-        "node_id": "MDQ6VXNlcjEzMjIxODc=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1322187?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fjahr",
-        "html_url": "https://github.com/fjahr",
-        "followers_url": "https://api.github.com/users/fjahr/followers",
-        "following_url": "https://api.github.com/users/fjahr/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fjahr/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fjahr/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fjahr/subscriptions",
-        "organizations_url": "https://api.github.com/users/fjahr/orgs",
-        "repos_url": "https://api.github.com/users/fjahr/repos",
-        "events_url": "https://api.github.com/users/fjahr/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fjahr/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "b8215855437288cac95c7fd5d41104c73c0f3495",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b8215855437288cac95c7fd5d41104c73c0f3495",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/b8215855437288cac95c7fd5d41104c73c0f3495"
         }
       ]
     }
