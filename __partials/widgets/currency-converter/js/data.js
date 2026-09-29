@@ -86,6 +86,19 @@
   }
 
   function currentTickerPrice(latest){
+    const canonical=W.ZZXPrice?.current?.(latest);
+    const canonicalPrice=positive(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(canonicalPrice)){
+      return {
+        priceUsd:canonicalPrice,
+        label:String(canonical?.label||"Unweighted"),
+        sourceId:`bitavg:${canonical?.mode||"off"}`,
+        sourceType:String(canonical?.mode||"off"),
+        timestamp:canonical?.observed_at||null,
+        live:!!canonical?.authoritative
+      };
+    }
+
     const selection=
       W.ZZXBPISelection||
       W.ZZXSelectedBPI;
