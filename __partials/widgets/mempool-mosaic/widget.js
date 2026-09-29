@@ -205,6 +205,12 @@
   const optionalText=async(url,opts)=>{try{return await F().fetchText(url,opts)}catch(_){return null}};
 
   function marketPrice(){
+    const canonical=W.ZZXPrice?.current?.();
+    const selected=finite(canonical?.price_usd??canonical?.priceUsd);
+    if(Number.isFinite(selected)&&selected>0){
+      return {value:selected,source:String(canonical?.label||"BitAvg")};
+    }
+
     const state=W.ZZXMarketState;let snap=null;
     try{snap=typeof state?.getSnapshot==="function"?state.getSnapshot():(state?.snapshot||state?.current||state)}catch(_){snap=state}
     for(const value of [snap?.effectivePriceUsd,snap?.effective_price_usd,state?.effectivePriceUsd,state?.effective_price_usd]){
