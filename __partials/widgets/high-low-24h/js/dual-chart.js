@@ -2,1897 +2,339 @@
   "use strict";
 
   const W=window;
-  const D=document;
-
-  if(W.ZZXHighLow24HChart?.__version>=3)return;
+  if(W.ZZXHighLow24HChart?.__version>=4)return;
 
   const finite=value=>{
+    if(value==null||value==="")return NaN;
     const number=Number(value);
-    return Number.isFinite(number)
-      ? number
-      : NaN;
+    return Number.isFinite(number)?number:NaN;
   };
 
-  const clamp=(value,min,max)=>
-    Math.max(
-      min,
-      Math.min(max,value)
-    );
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
-  function normalize(points){
-    const byTime=new Map();
-
-    for(
-      const raw
-      of Array.isArray(points)
-        ? points
-        : []
-    ){
-      const t=finite(raw?.t);
-
-      if(
-        !raw ||
-        !Number.isFinite(t)
-      ){
-        continue;
-      }
-
-      byTime.set(
-        t,
-        {
-          ...raw,
-          t
-        }
-      );
-    }
-
-    return [
-      ...byTime.values()
-    ].sort(
-      (a,b)=>a.t-b.t
-    );
-  }
-
-  function compact(value){
+  function money(value){
     const number=finite(value);
-
-    if(!Number.isFinite(number)){
-      return "—";
-    }
-
-    const absolute=
-      Math.abs(number);
-
-    if(absolute>=1e9){
-      return (
-        `${(
-          number/1e9
-        ).toFixed(2)}B`
-      );
-    }
-
-    if(absolute>=1e6){
-      return (
-        `${(
-          number/1e6
-        ).toFixed(2)}M`
-      );
-    }
-
-    if(absolute>=1e3){
-      return (
-        `${(
-          number/1e3
-        ).toFixed(2)}K`
-      );
-    }
-
-    if(absolute>=1){
-      return number.toFixed(2);
-    }
-
-    return number.toFixed(4);
-  }
-
-  function priceLabel(value){
-    const number=finite(value);
-
     return Number.isFinite(number)
-      ? (
-          "$"+
-          compact(number)
-        )
+      ? number.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2})
       : "—";
   }
 
-  function volumeLabel(value){
-    const number=finite(value);
-
-    return Number.isFinite(number)
-      ? (
-          compact(number)+
-          " BTC"
-        )
-      : "—";
+  function timeLabel(value){
+    const date=new Date(value);
+    if(!Number.isFinite(date.getTime()))return "—";
+    return date.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
   }
 
-  function timeLabel(ms){
-    const date=
-      new Date(ms);
-
-    return date.toLocaleTimeString(
-      undefined,
-      {
-        hour:"2-digit",
-        minute:"2-digit"
-      }
-    );
-  }
-
-  function scaleRange(values){
-    const valid=
-      values
-        .map(finite)
-        .filter(Number.isFinite);
-
-    if(!valid.length){
-      return null;
-    }
-
-    let min=
-      Math.min(...valid);
-
-    let max=
-      Math.max(...valid);
-
-    if(min===max){
-      const pad=
-        Math.max(
-          1,
-          Math.abs(min)*0.01
-        );
-
-      min-=pad;
-      max+=pad;
-    }
-
-    const margin=
-      (max-min)*0.065;
-
-    return {
-      min:min-margin,
-      max:max+margin
-    };
+  function fullTime(value){
+    const date=new Date(value);
+    return Number.isFinite(date.getTime())?date.toLocaleString():"time —";
   }
 
   class Chart{
-    constructor(
-      canvas,
-      tooltip,
-      options={}
-    ){
-      if(!canvas){
-        throw new Error(
-          "high-low canvas unavailable"
-        );
-      }
-
+    constructor(canvas,tooltip=null,{tooltipFormatter=null}={}){
+      if(!(canvas instanceof HTMLCanvasElement))throw new Error("high-low canvas unavailable");
       this.canvas=canvas;
-      this.ctx=
-        canvas.getContext("2d");
-
-      if(!this.ctx){
-        throw new Error(
-          "2D canvas unavailable"
-        );
-      }
-
-      this.tooltip=
-        tooltip||null;
-
-      this.options=
-        {...options};
-
+      this.ctx=canvas.getContext("2d");
+      this.tooltip=tooltip||null;
+      this.tooltipFormatter=typeof tooltipFormatter==="function"?tooltipFormatter:null;
       this.points=[];
-      this.recipe={
-        priceMode:"area",
-        volumeMode:"interval-bars",
-        showPriceLine:true,
-        showPriceHighLow:true,
-        showPriceRangeBand:true,
-        showVolumeCandles:true,
-        showVolumeLine:true
-      };
-
-      this.viewStart=0;
-      this.viewEnd=1;
+      this.viewMode="range-price";
+      this.followRight=true;
+      this.zoom=1;
+      this.pan=0;
+      this.dragging=false;
+      this.dragX=0;
       this.hoverIndex=-1;
-      this.drag=null;
-      this.width=900;
-      this.height=420;
-      this.dpr=
-        Math.max(
-          1,
-          W.devicePixelRatio||1
-        );
-      this._destroyed=false;
-      this._resizeObserver=null;
+      this.destroyed=false;
+      this.abortController=typeof AbortController==="function"?new AbortController():null;
+      const options=this.abortController?{signal:this.abortController.signal}:undefined;
 
-      this.bind();
+      this.resizeObserver=typeof ResizeObserver==="function"
+        ? new ResizeObserver(()=>this.resize())
+        : null;
+      this.resizeObserver?.observe(canvas);
+
+      canvas.addEventListener("wheel",event=>this.onWheel(event),{...(options||{}),passive:false});
+      canvas.addEventListener("pointerdown",event=>this.onPointerDown(event),options);
+      canvas.addEventListener("pointermove",event=>this.onPointerMove(event),options);
+      canvas.addEventListener("pointerup",event=>this.onPointerUp(event),options);
+      canvas.addEventListener("pointercancel",event=>this.onPointerUp(event),options);
+      canvas.addEventListener("pointerleave",()=>this.hideTooltip(),options);
+      canvas.addEventListener("dblclick",()=>this.resetZoom(),options);
       this.resize();
     }
 
-    padding(){
-      return {
-        l:78,
-        r:84,
-        t:22,
-        b:42
-      };
-    }
-
-    bind(){
-      this._onResize=
-        ()=>this.resize();
-
-      this._onPointerMove=
-        event=>
-          this.pointerMove(event);
-
-      this._onPointerLeave=
-        ()=>this.clearHover();
-
-      this._onPointerDown=
-        event=>{
-          this.drag={
-            x:event.clientX,
-            start:this.viewStart,
-            end:this.viewEnd
-          };
-
-          this.canvas
-            .setPointerCapture
-            ?.(event.pointerId);
-        };
-
-      this._onPointerUp=
-        event=>{
-          this.drag=null;
-
-          try{
-            this.canvas
-              .releasePointerCapture
-              ?.(event.pointerId);
-          }catch(_){}
-        };
-
-      this._onWheel=
-        event=>
-          this.wheel(event);
-
-      this._onDblClick=
-        ()=>this.resetZoom();
-
-      this._onKeyDown=
-        event=>
-          this.keyDown(event);
-
-      W.addEventListener(
-        "resize",
-        this._onResize
-      );
-
-      this.canvas.addEventListener(
-        "pointermove",
-        this._onPointerMove
-      );
-
-      this.canvas.addEventListener(
-        "pointerleave",
-        this._onPointerLeave
-      );
-
-      this.canvas.addEventListener(
-        "pointerdown",
-        this._onPointerDown
-      );
-
-      this.canvas.addEventListener(
-        "pointerup",
-        this._onPointerUp
-      );
-
-      this.canvas.addEventListener(
-        "pointercancel",
-        this._onPointerUp
-      );
-
-      this.canvas.addEventListener(
-        "wheel",
-        this._onWheel,
-        {passive:false}
-      );
-
-      this.canvas.addEventListener(
-        "dblclick",
-        this._onDblClick
-      );
-
-      this.canvas.addEventListener(
-        "keydown",
-        this._onKeyDown
-      );
-
-      if(
-        !this.canvas.hasAttribute(
-          "tabindex"
-        )
-      ){
-        this.canvas.tabIndex=0;
-      }
-
-      if(
-        typeof ResizeObserver===
-        "function"
-      ){
-        this._resizeObserver=
-          new ResizeObserver(
-            ()=>this.resize()
-          );
-
-        this._resizeObserver.observe(
-          this.canvas.parentElement||
-          this.canvas
-        );
-      }
-    }
-
     destroy(){
-      if(this._destroyed)return;
-
-      this._destroyed=true;
-
-      W.removeEventListener(
-        "resize",
-        this._onResize
-      );
-
-      for(
-        const [name,handler]
-        of [
-          ["pointermove",this._onPointerMove],
-          ["pointerleave",this._onPointerLeave],
-          ["pointerdown",this._onPointerDown],
-          ["pointerup",this._onPointerUp],
-          ["pointercancel",this._onPointerUp],
-          ["wheel",this._onWheel],
-          ["dblclick",this._onDblClick],
-          ["keydown",this._onKeyDown]
-        ]
-      ){
-        this.canvas.removeEventListener(
-          name,
-          handler
-        );
-      }
-
-      this._resizeObserver
-        ?.disconnect?.();
-
-      if(this.tooltip){
-        this.tooltip.hidden=true;
-      }
+      if(this.destroyed)return;
+      this.destroyed=true;
+      this.resizeObserver?.disconnect?.();
+      this.abortController?.abort?.();
+      this.hideTooltip();
     }
 
     resize(){
-      if(this._destroyed)return;
-
-      const rect=
-        this.canvas.getBoundingClientRect();
-
-      const parentWidth=
-        this.canvas.parentElement
-          ?.clientWidth||
-        900;
-
-      const width=
-        Math.max(
-          280,
-          Math.floor(
-            rect.width||
-            parentWidth||
-            900
-          )
-        );
-
-      const height=
-        Math.max(
-          240,
-          Math.floor(
-            rect.height||
-            420
-          )
-        );
-
-      this.dpr=
-        Math.max(
-          1,
-          W.devicePixelRatio||1
-        );
-
-      this.canvas.width=
-        Math.max(
-          1,
-          Math.floor(
-            width*this.dpr
-          )
-        );
-
-      this.canvas.height=
-        Math.max(
-          1,
-          Math.floor(
-            height*this.dpr
-          )
-        );
-
-      this.ctx.setTransform(
-        this.dpr,
-        0,
-        0,
-        this.dpr,
-        0,
-        0
-      );
-
-      this.width=width;
-      this.height=height;
-
-      this.draw();
+      if(this.destroyed)return;
+      const rect=this.canvas.getBoundingClientRect();
+      const dpr=Math.max(1,Math.min(3,W.devicePixelRatio||1));
+      const width=Math.max(320,Math.round(rect.width||this.canvas.clientWidth||640));
+      const height=Math.max(260,Math.round(rect.height||this.canvas.clientHeight||420));
+      const pixelWidth=Math.round(width*dpr);
+      const pixelHeight=Math.round(height*dpr);
+      if(this.canvas.width!==pixelWidth)this.canvas.width=pixelWidth;
+      if(this.canvas.height!==pixelHeight)this.canvas.height=pixelHeight;
+      this.cssWidth=width;
+      this.cssHeight=height;
+      this.dpr=dpr;
+      this.render();
     }
 
-    visible(){
-      if(!this.points.length){
-        return [];
+    setData(points,{viewMode="range-price",preserveView=true,followRight=true}={}){
+      this.points=Array.isArray(points)?points.filter(Boolean):[];
+      this.viewMode=["range-price","range-only","high-low-lines"].includes(viewMode)?viewMode:"range-price";
+      this.followRight=followRight!==false;
+      if(!preserveView){
+        this.zoom=1;
+        this.pan=0;
+      }else if(this.followRight){
+        this.pan=0;
       }
-
-      const count=
-        this.points.length;
-
-      const start=
-        Math.max(
-          0,
-          Math.floor(
-            this.viewStart*
-            (count-1)
-          )
-        );
-
-      const end=
-        Math.min(
-          count,
-          Math.ceil(
-            this.viewEnd*
-            (count-1)
-          )+1
-        );
-
-      return this.points
-        .slice(start,end)
-        .map(
-          (point,index)=>({
-            ...point,
-            __index:
-              start+index
-          })
-        );
-    }
-
-    viewBounds(){
-      const visible=
-        this.visible();
-
-      if(!visible.length){
-        return null;
-      }
-
-      return {
-        from:visible[0].t,
-        to:visible.at(-1).t,
-        full:
-          this.viewStart<=0.000001 &&
-          this.viewEnd>=0.999999,
-        right:
-          this.viewEnd>=0.999999
-      };
-    }
-
-    restoreView(
-      bounds,
-      {followRight=false}={}
-    ){
-      if(
-        !bounds ||
-        !this.points.length
-      ){
-        this.viewStart=0;
-        this.viewEnd=1;
-        return;
-      }
-
-      if(bounds.full){
-        this.viewStart=0;
-        this.viewEnd=1;
-        return;
-      }
-
-      const first=
-        this.points[0].t;
-
-      const last=
-        this.points.at(-1).t;
-
-      const total=
-        Math.max(
-          1,
-          last-first
-        );
-
-      const span=
-        Math.max(
-          1,
-          bounds.to-bounds.from
-        );
-
-      if(
-        followRight &&
-        bounds.right
-      ){
-        this.viewEnd=1;
-        this.viewStart=
-          clamp(
-            1-span/total,
-            0,
-            1
-          );
-        return;
-      }
-
-      const start=
-        clamp(
-          (
-            bounds.from-first
-          )/
-          total,
-          0,
-          1
-        );
-
-      const end=
-        clamp(
-          (
-            bounds.to-first
-          )/
-          total,
-          start+0.000001,
-          1
-        );
-
-      this.viewStart=start;
-      this.viewEnd=end;
-    }
-
-    setData(
-      points,
-      recipe,
-      options={}
-    ){
-      const preserve=
-        options.preserveView===
-        true;
-
-      const bounds=
-        preserve
-          ? this.viewBounds()
-          : null;
-
-      this.points=
-        normalize(points);
-
-      if(recipe){
-        this.recipe={
-          ...this.recipe,
-          ...recipe
-        };
-      }
-
-      if(preserve){
-        this.restoreView(
-          bounds,
-          {
-            followRight:
-              options.followRight===
-              true
-          }
-        );
-      }else{
-        this.viewStart=0;
-        this.viewEnd=1;
-      }
-
-      this.hoverIndex=-1;
-
-      if(this.tooltip){
-        this.tooltip.hidden=true;
-      }
-
-      this.draw();
+      this.render();
     }
 
     resetZoom(){
-      this.viewStart=0;
-      this.viewEnd=1;
-      this.draw();
+      this.zoom=1;
+      this.pan=0;
+      this.render();
     }
 
-    wheel(event){
-      if(this.points.length<3){
-        return;
-      }
+    visibleSlice(){
+      const length=this.points.length;
+      if(!length)return {rows:[],start:0,end:0};
+      const visibleCount=clamp(Math.round(length/this.zoom),Math.min(length,24),length);
+      const maxStart=Math.max(0,length-visibleCount);
+      const end=clamp(length-Math.round(this.pan),visibleCount,length);
+      const start=clamp(end-visibleCount,0,maxStart);
+      return {rows:this.points.slice(start,end),start,end};
+    }
 
-      const dx=Number(event.deltaX)||0;
-      const dy=Number(event.deltaY)||0;
-      const horizontal=
-        event.shiftKey ||
-        Math.abs(dx)>Math.abs(dy)*0.65;
-
-      if(horizontal){
-        if((this.viewEnd-this.viewStart)>=1)return;
-        event.preventDefault();
-        const rect=this.canvas.getBoundingClientRect();
-        const pixels=event.shiftKey&&Math.abs(dx)<1?dy:dx;
-        this.panBy((pixels/Math.max(1,rect.width))*1.35);
-        return;
-      }
-
-      if(!dy)return;
+    onWheel(event){
+      if(!this.points.length)return;
       event.preventDefault();
+      if(Math.abs(event.deltaX)>Math.abs(event.deltaY)||event.shiftKey){
+        const step=Math.max(1,Math.round(this.points.length/35));
+        this.pan=clamp(this.pan+((event.deltaX||event.deltaY)>0?step:-step),0,Math.max(0,this.points.length-24));
+      }else{
+        const factor=event.deltaY<0?1.16:1/1.16;
+        this.zoom=clamp(this.zoom*factor,1,Math.max(1,this.points.length/24));
+        if(this.followRight)this.pan=0;
+      }
+      this.render();
+    }
 
+    onPointerDown(event){
+      if(event.button!==0)return;
+      this.dragging=true;
+      this.dragX=event.clientX;
+      this.canvas.setPointerCapture?.(event.pointerId);
+    }
+
+    onPointerMove(event){
+      if(this.dragging){
+        const dx=event.clientX-this.dragX;
+        this.dragX=event.clientX;
+        const {rows}=this.visibleSlice();
+        const plotWidth=Math.max(1,(this.cssWidth||640)-94);
+        const perPoint=plotWidth/Math.max(1,rows.length-1);
+        const delta=Math.round(-dx/Math.max(1,perPoint));
+        if(delta){
+          this.pan=clamp(this.pan+delta,0,Math.max(0,this.points.length-24));
+          this.followRight=this.pan===0;
+          this.render();
+        }
+        return;
+      }
+      this.showTooltip(event);
+    }
+
+    onPointerUp(event){
+      this.dragging=false;
+      try{this.canvas.releasePointerCapture?.(event.pointerId)}catch(_){}
+    }
+
+    showTooltip(event){
+      if(!this.tooltip||!this.points.length)return;
+      const {rows}=this.visibleSlice();
+      if(!rows.length)return;
       const rect=this.canvas.getBoundingClientRect();
-      const pad=this.padding();
+      const pad={l:68,r:26,t:28,b:34};
+      const x=event.clientX-rect.left;
       const plotWidth=Math.max(1,rect.width-pad.l-pad.r);
-      const cursor=clamp(
-        (event.clientX-rect.left-pad.l)/plotWidth,
-        0,
-        1
-      );
-
-      const span=this.viewEnd-this.viewStart;
-      const magnitude=Math.min(4,Math.max(.35,Math.abs(dy)/100));
-      const factor=dy>0
-        ? Math.pow(1.16,magnitude)
-        : Math.pow(.84,magnitude);
-      const next=clamp(span*factor,0.002,1);
-
-      let nextStart=this.viewStart+(span-next)*cursor;
-      nextStart=clamp(nextStart,0,1-next);
-      this.viewStart=nextStart;
-      this.viewEnd=nextStart+next;
-      this.draw();
-    }
-
-    panBy(fraction){
-      const span=
-        this.viewEnd-
-        this.viewStart;
-
-      if(span>=1)return;
-
-      const delta=
-        span*fraction;
-
-      const start=
-        clamp(
-          this.viewStart+
-          delta,
-          0,
-          1-span
-        );
-
-      this.viewStart=start;
-      this.viewEnd=
-        start+span;
-
-      this.draw();
-    }
-
-    zoomAround(
-      cursor,
-      factor
-    ){
-      const span=
-        this.viewEnd-
-        this.viewStart;
-
-      const next=
-        clamp(
-          span*factor,
-          0.002,
-          1
-        );
-
-      let start=
-        this.viewStart+
-        (
-          span-next
-        )*
-        cursor;
-
-      start=
-        clamp(
-          start,
-          0,
-          1-next
-        );
-
-      this.viewStart=start;
-      this.viewEnd=
-        start+next;
-
-      this.draw();
-    }
-
-    keyDown(event){
-      if(
-        event.key==="Escape" ||
-        event.key==="0"
-      ){
-        event.preventDefault();
-        this.resetZoom();
-        return;
-      }
-
-      if(
-        event.key==="ArrowLeft"
-      ){
-        event.preventDefault();
-        this.panBy(-0.12);
-        return;
-      }
-
-      if(
-        event.key==="ArrowRight"
-      ){
-        event.preventDefault();
-        this.panBy(0.12);
-        return;
-      }
-
-      if(
-        event.key==="+" ||
-        event.key==="="
-      ){
-        event.preventDefault();
-        this.zoomAround(
-          0.5,
-          0.82
-        );
-        return;
-      }
-
-      if(
-        event.key==="-" ||
-        event.key==="_"
-      ){
-        event.preventDefault();
-        this.zoomAround(
-          0.5,
-          1.18
-        );
-      }
-    }
-
-    pointerMove(event){
-      const rect=
-        this.canvas
-          .getBoundingClientRect();
-
-      if(this.drag){
-        const dx=
-          (
-            event.clientX-
-            this.drag.x
-          )/
-          Math.max(
-            1,
-            rect.width
-          );
-
-        const span=
-          this.drag.end-
-          this.drag.start;
-
-        let start=
-          this.drag.start-
-          dx*span;
-
-        start=
-          clamp(
-            start,
-            0,
-            1-span
-          );
-
-        this.viewStart=start;
-        this.viewEnd=
-          start+span;
-
-        this.draw();
-        return;
-      }
-
-      const visible=
-        this.visible();
-
-      if(!visible.length)return;
-
-      const pad=
-        this.padding();
-
-      const plotWidth=
-        Math.max(
-          1,
-          rect.width-
-          pad.l-
-          pad.r
-        );
-
-      const local=
-        clamp(
-          event.clientX-
-          rect.left-
-          pad.l,
-          0,
-          plotWidth
-        );
-
-      const index=
-        Math.round(
-          local/
-          plotWidth*
-          (visible.length-1)
-        );
-
-      const point=
-        visible[index];
-
-      this.hoverIndex=
-        point?.__index ??
-        -1;
-
-      this.draw();
-      this.showTooltip(
-        event,
-        point
-      );
-    }
-
-    clearHover(){
-      this.hoverIndex=-1;
-
-      if(this.tooltip){
-        this.tooltip.hidden=true;
-      }
-
-      this.draw();
-    }
-
-    showTooltip(
-      event,
-      point
-    ){
-      if(
-        !this.tooltip ||
-        !point
-      ){
-        return;
-      }
-
-      let rows=null;
-
-      if(
-        typeof this.options
-          .tooltipFormatter===
-        "function"
-      ){
-        try{
-          rows=
-            this.options
-              .tooltipFormatter(
-                point,
-                this.recipe
-              );
-        }catch(_){
-          rows=null;
-        }
-      }
-
-      if(!Array.isArray(rows)){
-        rows=[
-          new Date(
-            point.t
-          ).toLocaleString(),
-          `price ${priceLabel(point.price)}`,
-          `24h H ${priceLabel(point.high_24h)} · L ${priceLabel(point.low_24h)}`,
-          `volume ${volumeLabel(point.volume_24h_btc)}`
-        ];
-      }
-
+      const ratio=clamp((x-pad.l)/plotWidth,0,1);
+      const index=Math.round(ratio*Math.max(0,rows.length-1));
+      const point=rows[index];
+      if(!point)return;
+      const rowsText=this.tooltipFormatter
+        ? this.tooltipFormatter(point)
+        : [fullTime(point.t),`high ${money(point.high)}`,`low ${money(point.low)}`,`close ${money(point.close??point.price)}`];
       this.tooltip.replaceChildren();
-
-      for(const row of rows){
-        const element=
-          D.createElement(
-            "div"
-          );
-
-        element.textContent=
-          String(row);
-
-        this.tooltip
-          .appendChild(
-            element
-          );
-      }
-
-      const host=
-        this.canvas
-          .parentElement
-          .getBoundingClientRect();
-
-      const width=
-        Math.max(
-          235,
-          this.tooltip
-            .offsetWidth||
-          235
-        );
-
-      this.tooltip.style.left=
-        (
-          Math.min(
-            Math.max(
-              8,
-              host.width-
-              width-
-              8
-            ),
-            Math.max(
-              8,
-              event.clientX-
-              host.left+
-              12
-            )
-          )
-        )+
-        "px";
-
-      this.tooltip.style.top=
-        (
-          Math.max(
-            8,
-            event.clientY-
-            host.top-
-            100
-          )
-        )+
-        "px";
-
+      rowsText.filter(Boolean).forEach((text,index)=>{
+        const node=document.createElement(index===0?"strong":"span");
+        node.textContent=String(text);
+        this.tooltip.appendChild(node);
+      });
       this.tooltip.hidden=false;
+      const left=clamp(x+12,8,Math.max(8,rect.width-260));
+      const y=event.clientY-rect.top;
+      this.tooltip.style.left=`${left}px`;
+      this.tooltip.style.top=`${clamp(y+12,8,Math.max(8,rect.height-150))}px`;
     }
 
-    exportPNG(
-      filename="high-low-24h.png"
-    ){
-      return new Promise(
-        (resolve,reject)=>{
-          if(
-            !this.canvas?.toBlob
-          ){
-            reject(
-              new Error(
-                "canvas export unavailable"
-              )
-            );
-            return;
-          }
-
-          this.canvas.toBlob(
-            blob=>{
-              if(!blob){
-                reject(
-                  new Error(
-                    "canvas export failed"
-                  )
-                );
-                return;
-              }
-
-              const href=
-                URL.createObjectURL(
-                  blob
-                );
-
-              const link=
-                D.createElement(
-                  "a"
-                );
-
-              link.href=href;
-              link.download=
-                filename;
-
-              link.click();
-
-              W.setTimeout(
-                ()=>
-                  URL.revokeObjectURL(
-                    href
-                  ),
-                1000
-              );
-
-              resolve(blob);
-            },
-            "image/png"
-          );
-        }
-      );
+    hideTooltip(){
+      if(this.tooltip)this.tooltip.hidden=true;
     }
 
-    draw(){
-      if(this._destroyed)return;
+    exportPNG(filename="zzx-high-low-24h.png"){
+      return new Promise((resolve,reject)=>{
+        try{
+          this.canvas.toBlob(blob=>{
+            if(!blob){reject(new Error("PNG export failed"));return;}
+            const url=URL.createObjectURL(blob);
+            const link=document.createElement("a");
+            link.href=url;
+            link.download=filename;
+            link.click();
+            W.setTimeout(()=>URL.revokeObjectURL(url),1200);
+            resolve(true);
+          },"image/png");
+        }catch(error){reject(error)}
+      });
+    }
 
+    render(){
+      if(this.destroyed||!this.ctx)return;
       const ctx=this.ctx;
-      const width=this.width;
-      const height=this.height;
+      const width=this.cssWidth||640;
+      const height=this.cssHeight||420;
+      const dpr=this.dpr||1;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,width,height);
+      ctx.fillStyle="#090c0b";
+      ctx.fillRect(0,0,width,height);
 
-      ctx.clearRect(
-        0,
-        0,
-        width,
-        height
-      );
+      const {rows}=this.visibleSlice();
+      if(rows.length<2)return;
 
-      const visible=
-        this.visible();
+      const pad={l:68,r:26,t:28,b:34};
+      const plotWidth=Math.max(1,width-pad.l-pad.r);
+      const plotHeight=Math.max(1,height-pad.t-pad.b);
+      const highs=rows.map(row=>finite(row.high)).filter(Number.isFinite);
+      const lows=rows.map(row=>finite(row.low)).filter(Number.isFinite);
+      if(!highs.length||!lows.length)return;
 
-      if(!visible.length){
-        ctx.fillStyle="#777";
-        ctx.font=
-          '12px "IBM Plex Mono", monospace';
-        ctx.fillText(
-          "history unavailable",
-          12,
-          22
-        );
-        return;
-      }
-
-      const pad=
-        this.padding();
-
-      const plotWidth=
-        Math.max(
-          1,
-          width-
-          pad.l-
-          pad.r
-        );
-
-      const plotHeight=
-        Math.max(
-          1,
-          height-
-          pad.t-
-          pad.b
-        );
-
-      const priceValues=[];
-
-      for(const row of visible){
-        for(
-          const value
-          of [
-            row.price,
-            row.high_24h,
-            row.low_24h
-          ]
-        ){
-          if(
-            Number.isFinite(
-              finite(value)
-            )
-          ){
-            priceValues.push(
-              finite(value)
-            );
-          }
-        }
-      }
-
-      const volumeValues=[];
-
-      for(const row of visible){
-        const value=this.recipe.volumeMode==="interval-bars"
-          ? finite(row.interval_volume_btc)
-          : finite(row.volume_24h_btc??row.volume_close_24h_btc);
-        if(Number.isFinite(value)&&value>=0)volumeValues.push(value);
-      }
-
-      const priceRange=
-        scaleRange(
-          priceValues
-        );
-
-      const rawVolumeRange=scaleRange(volumeValues);
-      const volumeRange=rawVolumeRange&&this.recipe.volumeMode==="interval-bars"
-        ? {min:0,max:Math.max(1,Math.max(...volumeValues)*1.08)}
-        : rawVolumeRange;
-
-      if(!priceRange){
-        return;
-      }
-
-      const firstVisibleTime=visible[0].t;
-      const lastVisibleTime=visible.at(-1).t;
-      const visibleSpan=Math.max(
-        1,
-        lastVisibleTime-firstVisibleTime
-      );
-
-      const xFor=index=>
-        pad.l+
-        (
-          visible.length<=1
-            ? plotWidth/2
-            : (
-                visible[index].t-
-                firstVisibleTime
-              )/
-              visibleSpan*
-              plotWidth
-        );
-
-      const yPrice=value=>
-        pad.t+
-        (
-          priceRange.max-
-          value
-        )/
-        (
-          priceRange.max-
-          priceRange.min
-        )*
-        plotHeight;
-
-      const yVolume=value=>
-        !volumeRange
-          ? (
-              pad.t+
-              plotHeight/2
-            )
-          : (
-              pad.t+
-              (
-                volumeRange.max-
-                value
-              )/
-              (
-                volumeRange.max-
-                volumeRange.min
-              )*
-              plotHeight
-            );
+      let yMin=Math.min(...lows);
+      let yMax=Math.max(...highs);
+      const span=Math.max(1,yMax-yMin);
+      yMin-=span*.075;
+      yMax+=span*.075;
+      const ySpan=Math.max(1,yMax-yMin);
+      const xFor=index=>pad.l+(index/Math.max(1,rows.length-1))*plotWidth;
+      const yFor=value=>pad.t+(1-(value-yMin)/ySpan)*plotHeight;
 
       ctx.lineWidth=1;
-      ctx.font=
-        '10px "IBM Plex Mono", monospace';
-      ctx.textBaseline=
-        "alphabetic";
+      ctx.font='10px "IBM Plex Mono", monospace';
+      ctx.textBaseline="middle";
 
-      // Horizontal grid and dual axis labels.
-      for(
-        let index=0;
-        index<=4;
-        index+=1
-      ){
-        const y=
-          pad.t+
-          index/4*
-          plotHeight;
+      for(let index=0;index<=4;index+=1){
+        const ratio=index/4;
+        const y=pad.t+ratio*plotHeight;
+        const value=yMax-ratio*ySpan;
+        ctx.strokeStyle="rgba(192,214,116,.09)";
+        ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(width-pad.r,y);ctx.stroke();
+        ctx.fillStyle="#777";
+        ctx.textAlign="right";
+        ctx.fillText(money(value),pad.l-8,y);
+      }
 
-        ctx.strokeStyle=
-          "rgba(255,255,255,.07)";
+      for(let index=0;index<=4;index+=1){
+        const pointIndex=Math.round(index/4*(rows.length-1));
+        const point=rows[pointIndex];
+        const x=xFor(pointIndex);
+        ctx.strokeStyle="rgba(255,255,255,.035)";
+        ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+plotHeight);ctx.stroke();
+        ctx.fillStyle="#777";
+        ctx.textAlign="center";
+        ctx.fillText(timeLabel(point.t),x,height-14);
+      }
 
-        ctx.beginPath();
-        ctx.moveTo(
-          pad.l,
-          y
-        );
-        ctx.lineTo(
-          width-pad.r,
-          y
-        );
-        ctx.stroke();
-
-        const p=
-          priceRange.max-
-          (
-            priceRange.max-
-            priceRange.min
-          )*
-          index/4;
-
-        ctx.fillStyle=
-          "#6f7464";
-
-        ctx.fillText(
-          priceLabel(p),
-          4,
-          y+3
-        );
-
-        if(volumeRange){
-          const v=
-            volumeRange.max-
-            (
-              volumeRange.max-
-              volumeRange.min
-            )*
-            index/4;
-
-          const label=
-            volumeLabel(v);
-
-          const tw=
-            ctx.measureText(
-              label
-            ).width;
-
-          ctx.fillStyle=
-            "#8d8467";
-
-          ctx.fillText(
-            label,
-            width-
-            tw-
-            4,
-            y+3
-          );
+      const upper=[];
+      const lower=[];
+      rows.forEach((row,index)=>{
+        const high=finite(row.high);
+        const low=finite(row.low);
+        if(Number.isFinite(high)&&Number.isFinite(low)){
+          upper.push({index,value:high});
+          lower.push({index,value:low});
         }
-      }
+      });
 
-      // Axis identifiers.
-      ctx.fillStyle="#c0d674";
-      ctx.fillText(
-        "USD PRICE",
-        4,
-        12
-      );
-
-      if(volumeRange){
-        const label=
-          "BTC VOLUME";
-
-        const tw=
-          ctx.measureText(
-            label
-          ).width;
-
-        ctx.fillStyle="#e6a42b";
-        ctx.fillText(
-          label,
-          width-tw-4,
-          12
-        );
-      }
-
-      // Time grid.
-      const xTicks=
-        Math.min(
-          4,
-          Math.max(
-            1,
-            visible.length-1
-          )
-        );
-
-      for(
-        let index=0;
-        index<=xTicks;
-        index+=1
-      ){
-        const pointIndex=
-          Math.round(
-            index/
-            xTicks*
-            (
-              visible.length-1
-            )
-          );
-
-        const point=
-          visible[
-            pointIndex
-          ];
-
-        if(!point)continue;
-
-        const x=
-          xFor(
-            pointIndex
-          );
-
-        ctx.strokeStyle=
-          "rgba(255,255,255,.035)";
-
+      if(this.viewMode!=="high-low-lines"&&upper.length>=2&&lower.length>=2){
         ctx.beginPath();
-        ctx.moveTo(
-          x,
-          pad.t
-        );
-        ctx.lineTo(
-          x,
-          pad.t+
-          plotHeight
-        );
-        ctx.stroke();
-
-        const label=
-          timeLabel(
-            point.t
-          );
-
-        const tw=
-          ctx.measureText(
-            label
-          ).width;
-
-        ctx.fillStyle=
-          "#6f7464";
-
-        ctx.fillText(
-          label,
-          clamp(
-            x-tw/2,
-            pad.l,
-            width-
-            pad.r-
-            tw
-          ),
-          height-10
-        );
+        upper.forEach((row,index)=>{
+          const x=xFor(row.index),y=yFor(row.value);
+          if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+        });
+        for(let index=lower.length-1;index>=0;index-=1){
+          const row=lower[index];
+          ctx.lineTo(xFor(row.index),yFor(row.value));
+        }
+        ctx.closePath();
+        const gradient=ctx.createLinearGradient(0,pad.t,0,pad.t+plotHeight);
+        gradient.addColorStop(0,"rgba(230,164,43,.13)");
+        gradient.addColorStop(.5,"rgba(192,214,116,.055)");
+        gradient.addColorStop(1,"rgba(214,116,116,.10)");
+        ctx.fillStyle=gradient;
+        ctx.fill();
       }
 
-      const linePath=(
-        values,
-        yFor,
-        stroke,
-        widthPx=1.5,
-        dash=[]
-      )=>{
+      const line=(metric,stroke,widthPx=1.25,dash=[])=>{
         ctx.beginPath();
-
         let started=false;
-
-        values.forEach(
-          (value,index)=>{
-            const number=
-              finite(value);
-
-            if(
-              !Number.isFinite(
-                number
-              )
-            ){
-              started=false;
-              return;
-            }
-
-            const x=
-              xFor(index);
-
-            const y=
-              yFor(number);
-
-            const gap=
-              visible[index]
-                ?.gap_before===true;
-
-            if(
-              !started ||
-              gap
-            ){
-              ctx.moveTo(x,y);
-              started=true;
-            }else{
-              ctx.lineTo(x,y);
-            }
-          }
-        );
-
-        ctx.strokeStyle=
-          stroke;
-
-        ctx.lineWidth=
-          widthPx;
-
-        ctx.setLineDash(
-          dash
-        );
-
+        rows.forEach((row,index)=>{
+          const value=finite(row[metric]);
+          if(!Number.isFinite(value)){started=false;return;}
+          const x=xFor(index),y=yFor(value);
+          if(!started){ctx.moveTo(x,y);started=true}else ctx.lineTo(x,y);
+        });
+        ctx.strokeStyle=stroke;
+        ctx.lineWidth=widthPx;
+        ctx.setLineDash(dash);
         ctx.stroke();
-
         ctx.setLineDash([]);
       };
 
-      const highSeries=
-        visible.map(
-          row=>
-            finite(
-              row.high_24h
-            )
-        );
+      line("high","#e6a42b",1.15);
+      line("low","#d67474",1.15);
+      if(this.viewMode!=="range-only")line("close","#c0d674",1.65);
 
-      const lowSeries=
-        visible.map(
-          row=>
-            finite(
-              row.low_24h
-            )
-        );
-
-      const priceSeries=
-        visible.map(
-          row=>
-            finite(
-              row.price
-            )
-        );
-
-      // Price H/L range band.
-      if(
-        this.recipe
-          .showPriceRangeBand &&
-        !visible.some(
-          point=>
-            point.gap_before===true
-        )
-      ){
-        const upper=[];
-        const lower=[];
-
-        for(
-          let index=0;
-          index<visible.length;
-          index+=1
-        ){
-          const high=
-            finite(
-              visible[index]
-                .high_24h
-            );
-
-          const low=
-            finite(
-              visible[index]
-                .low_24h
-            );
-
-          if(
-            Number.isFinite(high) &&
-            Number.isFinite(low)
-          ){
-            upper.push({
-              index,
-              value:high
-            });
-
-            lower.push({
-              index,
-              value:low
-            });
-          }
-        }
-
-        if(
-          upper.length>=2 &&
-          lower.length>=2
-        ){
-          ctx.beginPath();
-
-          upper.forEach(
-            (row,index)=>{
-              const x=
-                xFor(row.index);
-
-              const y=
-                yPrice(row.value);
-
-              if(index===0){
-                ctx.moveTo(x,y);
-              }else{
-                ctx.lineTo(x,y);
-              }
-            }
-          );
-
-          for(
-            let index=
-              lower.length-1;
-            index>=0;
-            index-=1
-          ){
-            const row=
-              lower[index];
-
-            ctx.lineTo(
-              xFor(row.index),
-              yPrice(row.value)
-            );
-          }
-
-          ctx.closePath();
-
-          ctx.fillStyle=
-            this.recipe
-              .priceMode==="range"
-              ? "rgba(192,214,116,.13)"
-              : "rgba(192,214,116,.07)";
-
-          ctx.fill();
-        }
+      const current=finite(rows.at(-1)?.close??rows.at(-1)?.price);
+      if(Number.isFinite(current)){
+        const y=yFor(current);
+        ctx.strokeStyle="rgba(192,214,116,.36)";
+        ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(width-pad.r,y);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle="#c0d674";
+        ctx.beginPath();ctx.arc(xFor(rows.length-1),y,2.8,0,Math.PI*2);ctx.fill();
+        ctx.textAlign="right";
+        ctx.fillStyle="#c0d674";
+        ctx.fillText(money(current),width-pad.r,y-10);
       }
 
-      // Price area/line.
-      if(
-        this.recipe.priceMode===
-        "area"
-      ){
-        const hasGaps=
-          visible.some(
-            point=>
-              point.gap_before===true
-          );
-
-        if(hasGaps){
-          linePath(
-            priceSeries,
-            yPrice,
-            "#c0d674",
-            1.6
-          );
-        }else{
-        const validIndexes=
-          priceSeries
-            .map(
-              (value,index)=>({
-                value,
-                index
-              })
-            )
-            .filter(
-              row=>
-                Number.isFinite(
-                  row.value
-                )
-            );
-
-        if(validIndexes.length){
-          ctx.beginPath();
-
-          validIndexes.forEach(
-            (row,index)=>{
-              const x=
-                xFor(row.index);
-
-              const y=
-                yPrice(row.value);
-
-              if(index===0){
-                ctx.moveTo(x,y);
-              }else{
-                ctx.lineTo(x,y);
-              }
-            }
-          );
-
-          ctx.strokeStyle=
-            "#c0d674";
-
-          ctx.lineWidth=1.6;
-          ctx.stroke();
-
-          const first=
-            validIndexes[0];
-
-          const last=
-            validIndexes.at(-1);
-
-          ctx.lineTo(
-            xFor(last.index),
-            pad.t+
-            plotHeight
-          );
-
-          ctx.lineTo(
-            xFor(first.index),
-            pad.t+
-            plotHeight
-          );
-
-          ctx.closePath();
-
-          const gradient=
-            ctx.createLinearGradient(
-              0,
-              pad.t,
-              0,
-              pad.t+
-              plotHeight
-            );
-
-          gradient.addColorStop(
-            0,
-            "rgba(192,214,116,.12)"
-          );
-
-          gradient.addColorStop(
-            1,
-            "rgba(192,214,116,.008)"
-          );
-
-          ctx.fillStyle=
-            gradient;
-
-          ctx.fill();
-        }
-        }
-      }else{
-        linePath(
-          priceSeries,
-          yPrice,
-          "#c0d674",
-          this.recipe
-            .priceMode==="range"
-            ? 1.15
-            : 1.65
-        );
-      }
-
-      // Rolling price high and low lines.
-      if(
-        this.recipe
-          .showPriceHighLow
-      ){
-        linePath(
-          highSeries,
-          yPrice,
-          "#e6a42b",
-          1.25,
-          [5,3]
-        );
-
-        linePath(
-          lowSeries,
-          yPrice,
-          "#d67474",
-          1.25,
-          [5,3]
-        );
-      }
-
-      if(volumeRange){
-        // Actual BTC traded inside each returned history bucket. This is not
-        // rolling 24h volume and is intentionally rendered as bars, not fake
-        // OHLC candles of a rolling statistic.
-        if(this.recipe.showVolumeCandles){
-          const barWidth=Math.max(1,plotWidth/Math.max(1,visible.length)*0.64);
-          visible.forEach((point,index)=>{
-            const volume=finite(point.interval_volume_btc);
-            if(!Number.isFinite(volume)||volume<0)return;
-            const x=xFor(index);
-            const y=yVolume(volume);
-            const zero=yVolume(0);
-            ctx.fillStyle="rgba(230,164,43,.42)";
-            ctx.fillRect(x-barWidth/2,Math.min(y,zero),barWidth,Math.max(1,Math.abs(zero-y)));
-          });
-        }
-
-        // Closing rolling-volume line.
-        if(
-          this.recipe
-            .showVolumeLine
-        ){
-          linePath(
-            visible.map(
-              row=>
-                finite(
-                  row.volume_24h_btc??row.volume_close_24h_btc
-                )
-            ),
-            yVolume,
-            "#e6a42b",
-            1.45
-          );
-        }
-
-        const observedVolumeHigh=volumeValues.length?Math.max(...volumeValues):NaN;
-        const observedVolumeLow=volumeValues.length?Math.min(...volumeValues):NaN;
-
-        for(
-          const ref
-          of [
-            {
-              value:observedVolumeHigh,
-              label:"V H",
-              stroke:
-                "rgba(230,164,43,.58)"
-            },
-            {
-              value:observedVolumeLow,
-              label:"V L",
-              stroke:
-                "rgba(214,116,116,.56)"
-            }
-          ]
-        ){
-          if(
-            !Number.isFinite(
-              ref.value
-            )
-          ){
-            continue;
-          }
-
-          const y=
-            yVolume(
-              ref.value
-            );
-
-          ctx.strokeStyle=
-            ref.stroke;
-
-          ctx.lineWidth=1;
-          ctx.setLineDash(
-            [4,4]
-          );
-
-          ctx.beginPath();
-
-          ctx.moveTo(
-            pad.l,
-            y
-          );
-
-          ctx.lineTo(
-            width-pad.r,
-            y
-          );
-
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          ctx.fillStyle=
-            ref.stroke;
-
-          ctx.fillText(
-            ref.label,
-            width-pad.r+5,
-            Math.max(
-              pad.t+10,
-              y-3
-            )
-          );
-        }
-      }
-
-      // Hover crosshair.
-      if(this.hoverIndex>=0){
-        const local=
-          visible.findIndex(
-            row=>
-              row.__index===
-              this.hoverIndex
-          );
-
-        if(local>=0){
-          const x=
-            xFor(local);
-
-          ctx.strokeStyle=
-            "rgba(255,255,255,.32)";
-
-          ctx.lineWidth=1;
-
-          ctx.beginPath();
-
-          ctx.moveTo(
-            x,
-            pad.t
-          );
-
-          ctx.lineTo(
-            x,
-            pad.t+
-            plotHeight
-          );
-
-          ctx.stroke();
-
-          const price=
-            finite(
-              visible[local]
-                .price
-            );
-
-          if(
-            Number.isFinite(price)
-          ){
-            ctx.fillStyle=
-              "#c0d674";
-
-            ctx.beginPath();
-
-            ctx.arc(
-              x,
-              yPrice(price),
-              3,
-              0,
-              Math.PI*2
-            );
-
-            ctx.fill();
-          }
-
-          const volume=
-            finite(
-              visible[local]
-                .volume_close_24h_btc
-            );
-
-          if(
-            volumeRange &&
-            Number.isFinite(volume)
-          ){
-            ctx.fillStyle=
-              "#e6a42b";
-
-            ctx.beginPath();
-
-            ctx.arc(
-              x,
-              yVolume(volume),
-              3,
-              0,
-              Math.PI*2
-            );
-
-            ctx.fill();
-          }
-        }
-      }
+      ctx.textAlign="left";
+      ctx.fillStyle="#777";
+      ctx.fillText("USD",4,12);
     }
   }
 
-  W.ZZXHighLow24HChart=
-    Object.freeze({
-      __version:3,
-      Chart,
-      normalize,
-      compact,
-      priceLabel,
-      volumeLabel
-    });
+  W.ZZXHighLow24HChart=Object.freeze({__version:4,Chart});
 })();
