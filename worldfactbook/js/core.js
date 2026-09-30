@@ -11,6 +11,7 @@
     try {
       await WFB.archive?.init?.();
       WFB.timeline?.init?.();
+      WFB.readingRoom?.init?.();
       await WFB.globe?.init?.();
       WFB.status?.init?.();
       WFB.search?.init?.();
