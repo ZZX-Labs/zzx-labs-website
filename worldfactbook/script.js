@@ -11,6 +11,7 @@
     "js/globe-config.js",
     "js/globe-renderer.js",
     "js/globe.js",
+    "js/reading-room.js",
     "js/status.js",
     "js/leaders.js",
     "js/daily-fact.js",
