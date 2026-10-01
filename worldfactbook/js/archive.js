@@ -10,15 +10,12 @@
     WFB.state.referencePages = archive.referencePages;
 
     const evidenced = archive.evidencedYears.length;
-    const indexed = archive.indexedYears.length;
     const total = archive.end - archive.start + 1;
 
     const summary = WFB.$("[data-wfb-archive-summary]");
     if (summary) {
-      summary.textContent =
-        evidenced + " of " + total +
-        " year slots currently have source evidence in this checkout" +
-        (indexed ? "; " + indexed + " have full portal-index coverage." : ". Full crawler output will upgrade this automatically.");
+      summary.textContent = evidenced + " of " + total +
+        " year slots have source candidates. Country and edition assignments require review; this count does not establish complete profiles.";
     }
 
     const generated = WFB.$("[data-wfb-generated]");
