@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-09-30T15:40:16.218863Z",
+  "generated_at": "2026-10-01T00:14:12.746515Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "node_id": "C_kwDOABII59oAKGQ0YjBlMWU0YjA3OGRiYjRhYjU3ODg2ZDI4ODQ3MDY4NGRlYzU3MTg",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-30T22:06:48Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-30T22:06:48Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35833: log: prevent user input from injecting fake log lines\n\nd93d366e204e95e873ef0b89425f84a520f8fabd log: escape newlines in messages (Lőrinc)\n960dcdb62529a6498d1397e1cf1077fe3cb19d9f test: characterize RPC and wallet input logs (Lőrinc)\n\nPull request description:\n\n  **Problem:** Restricted RPC users and callers of `createwallet` or `restorewallet` can inject newlines through rejected methods or wallet names, and [global log escaping preserves them](https://github.com/bitcoin/bitcoin/pull/17095), making forged lines look like node messages.\n\n  **Fix:** Escape embedded newlines in log messages.\n\n  <details>\n  <summary>Manual reproducer</summary>\n\n  ```bash\n  DATADIR=\"$(mktemp -d /tmp/bitcoin-log-injection.XXXXXX)\"\n  M=\"$(date -u +%Y-%m-%dT%H:%M:%SZ) ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\"\n  cmake -B build >/dev/null 2>&1 && cmake --build build -j >/dev/null 2>&1\n  build/bin/bitcoind -regtest -daemonwait -datadir=\"$DATADIR\" -rpcwhitelist=__cookie__:getblock,stop >/dev/null 2>&1\n  build/bin/bitcoin-cli -regtest -datadir=\"$DATADIR\" $'getblock\\n'\"$M\" >/dev/null 2>&1; killall bitcoind >/dev/null\n  echo; grep -E 'ConnectTip|not allowed' \"$DATADIR/regtest/debug.log\"\n  ```\n\n  > Before\n\n  ```bash\n  2026-07-28T23:18:57Z [warning] RPC User __cookie__ not allowed to call method getblock\n  2026-07-28T23:18:55Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n\n  > After\n\n  ```bash\n  2026-07-28T23:19:45Z [warning] RPC User __cookie__ not allowed to call method getblock\\x0a2026-07-28T23:19:41Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n  </details>\n\nACKs for top commit:\n  achow101:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n  ryanofsky:\n    Code review ACK d93d366e204e95e873ef0b89425f84a520f8fabd. Fix is minimal now and tests have been expanded to ensure that newlines can't sneak into log messages through `InitWarning` or `InitError` calls by testing the `load_on_startup` case w0xlt reported https://github.com/bitcoin/bitcoin/pull/35833#issuecomment-5849713749.\n  w0xlt:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n\nTree-SHA512: 6a19f937a2d362fd4dd2960d1551d7e630dc61e4200bd1f61eb65fd02286b2500ac5eb4fee01c1f1aed5fb4899daa56c11e800ccb4572a3372b180f8ec44c6db",
+        "tree": {
+          "sha": "73d72fb67ede3520a7edc942a803be2adf10ee02",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/73d72fb67ede3520a7edc942a803be2adf10ee02"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq9h/kACgkQF1ZXMuCO\nXkFdbA//chNmmqI8yAGRuHbdY9OwCV4/5tywBeGFk3oAttAIoyDXkBoWaQ7avDxy\neCKreA4UMEv/9Jn2sBOZrLZOU5l55zZDI/Au/Csmz283UNack80hRk9SKr6WmsJT\nkar9D4BNcBQ9IeG/0mFOib3Qa4gc3AKhQ4OGNdq/a2VMHaEcFuLINJsuZesWrvvN\naKYalVAMQKiufS4zdjBZJvJjkDvOEeJ2i57MsZVuOYYpNn79hXzs/5gSCy3YCF+W\nZ69NabV6wH8d8JTWSioI/d1TY1/vbRPkaYSeGc9pQUvAIseFCN6kMFl/pXxErliX\nDTEQXCz6ErS7dFCpG6CtUWuZaSNwpgqX4+ri23y+5qvE1P8ZLe5VyTfqistu+CY7\n7pDVP3TUSmhssVt3MmzMP5FyI4+6Dqt63WWhhJvRfXRT/BYyC69dAAAWQo8Zq5/1\nJKxVIYz2/ZRgK4JfuztuyHBwcVjI/iqyZxvKnLDrz8YAcssuCUBKF5q2Pzwzoyi6\n2Ls3yfe2SDU0Pzd9USWa8YPe7pLNuMKEHSrGpmM9WlKO2KVHMKTzF7+1/nATXGO4\n9PCnoB2O75Vl0oCWYHbItj4wB+WCZ8KBHV4KjwoZvTBmTh86DDtJDAIAEV9P/WjK\nfWNaTeOSNdr4zAB5jR2T3Prm9yTGcrrtFr0sM6pi39zhUO4G1Lg=\n=PWJU\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIKZiH/Jdg58UjhAhI6AdbE90ZJY/9KPwjxwEWETuHuG0CP/wEERIz2x1wNQA\nOgcswk+gxZYI8CBihKf4pNQkKk6nbAAsCVXPeBgdXrhp4deyKoGYr+TEsAjxIBfq\nuqOnymYn/jsbPiVRBBHlnHwtlwYjXL8X31EsdEfLCPAg2S3MRQEl37A1rOD+PkNa\nEtxLN7h0P9UvOYdxOvDv7cQI8QRqvYgA8AjuKJA6m7zGZQCD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wCE/HaDFpK3Sz\nCPAg+zoxJHhjIDOGTywlQf+nDxRWbGx5VbYj6vUYA1hmndkI8BAQoaazvy5okZGT\ncqD4OiVBCPAglOu71BjN95xYYJLuxCfncNpxksBEdqqFCGNFERKk3qMI8QRqvYgA\n8AggSEc62ViWGwCD3+MNLvkMji4taHR0cHM6Ly9hbGljZS5idGMuY2FsZW5kYXIu\nb3BlbnRpbWVzdGFtcHMub3Jn//AQXmXi76Dd951frrCi04GWPwjxIEL2toOyEHxj\nWZQtuFx0KQucN77WwjLwMVKZWmklxfp+CPEEar2H//AIcUfByjIWf+MAg9/jDS75\nDI4jImh0dHBzOi8vYnRjLmNhbGVuZGFyLmNhdGFsbGF4eS5jb23wCOLkX4KNtIP/\nCPAga6LMnCGE9MD8u88BUFOS/jStuI3LubCtdFTPgHkoO0AI8BBqLvXhqf9CFPxL\nmEXJTIJRCPEgfRLTIAmEkmHBuaPhZIVwgwWAjAcxg2//ppspdGtqeFcI8CC6zxZO\nlUS2PqO2GSplHiUpbKGqSo/wgvQ8UJ7l+WoFFgjxBGq9iADwCIhSAZI4DnHnAIPf\n4w0u+QyOLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMu\nb3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 73d72fb67ede3520a7edc942a803be2adf10ee02\nparent 4b612c6bf8cfa319a9df130d4b3d0523fddb6579\nparent d93d366e204e95e873ef0b89425f84a520f8fabd\nauthor Ava Chow <github@achow101.com> 1790806008 -0700\ncommitter Ava Chow <github@achow101.com> 1790806008 -0700\n\nMerge bitcoin/bitcoin#35833: log: prevent user input from injecting fake log lines\n\nd93d366e204e95e873ef0b89425f84a520f8fabd log: escape newlines in messages (Lőrinc)\n960dcdb62529a6498d1397e1cf1077fe3cb19d9f test: characterize RPC and wallet input logs (Lőrinc)\n\nPull request description:\n\n  **Problem:** Restricted RPC users and callers of `createwallet` or `restorewallet` can inject newlines through rejected methods or wallet names, and [global log escaping preserves them](https://github.com/bitcoin/bitcoin/pull/17095), making forged lines look like node messages.\n\n  **Fix:** Escape embedded newlines in log messages.\n\n  <details>\n  <summary>Manual reproducer</summary>\n\n  ```bash\n  DATADIR=\"$(mktemp -d /tmp/bitcoin-log-injection.XXXXXX)\"\n  M=\"$(date -u +%Y-%m-%dT%H:%M:%SZ) ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\"\n  cmake -B build >/dev/null 2>&1 && cmake --build build -j >/dev/null 2>&1\n  build/bin/bitcoind -regtest -daemonwait -datadir=\"$DATADIR\" -rpcwhitelist=__cookie__:getblock,stop >/dev/null 2>&1\n  build/bin/bitcoin-cli -regtest -datadir=\"$DATADIR\" $'getblock\\n'\"$M\" >/dev/null 2>&1; killall bitcoind >/dev/null\n  echo; grep -E 'ConnectTip|not allowed' \"$DATADIR/regtest/debug.log\"\n  ```\n\n  > Before\n\n  ```bash\n  2026-07-28T23:18:57Z [warning] RPC User __cookie__ not allowed to call method getblock\n  2026-07-28T23:18:55Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n\n  > After\n\n  ```bash\n  2026-07-28T23:19:45Z [warning] RPC User __cookie__ not allowed to call method getblock\\x0a2026-07-28T23:19:41Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n  </details>\n\nACKs for top commit:\n  achow101:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n  ryanofsky:\n    Code review ACK d93d366e204e95e873ef0b89425f84a520f8fabd. Fix is minimal now and tests have been expanded to ensure that newlines can't sneak into log messages through `InitWarning` or `InitError` calls by testing the `load_on_startup` case w0xlt reported https://github.com/bitcoin/bitcoin/pull/35833#issuecomment-5849713749.\n  w0xlt:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n\nTree-SHA512: 6a19f937a2d362fd4dd2960d1551d7e630dc61e4200bd1f61eb65fd02286b2500ac5eb4fee01c1f1aed5fb4899daa56c11e800ccb4572a3372b180f8ec44c6db\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4b612c6bf8cfa319a9df130d4b3d0523fddb6579"
+        },
+        {
+          "sha": "d93d366e204e95e873ef0b89425f84a520f8fabd",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d93d366e204e95e873ef0b89425f84a520f8fabd",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/d93d366e204e95e873ef0b89425f84a520f8fabd"
+        }
+      ]
+    },
     {
       "sha": "4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
       "node_id": "C_kwDOABII59oAKDRiNjEyYzZiZjhjZmEzMTlhOWRmMTMwZDRiM2QwNTIzZmRkYjY1Nzk",
@@ -1613,88 +1700,6 @@
           "sha": "90374132737e5f3bd6a0b36e0ded662935552b61",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/90374132737e5f3bd6a0b36e0ded662935552b61",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/90374132737e5f3bd6a0b36e0ded662935552b61"
-        }
-      ]
-    },
-    {
-      "sha": "df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "node_id": "C_kwDOABII59oAKGRmMjk5NGIxNGE0YmEyNmM0Y2NlYmQ2ZGY0YzI0ZDhhYWYyMmQ4NTE",
-      "commit": {
-        "author": {
-          "name": "FlashW",
-          "email": "flashwayne00@gmail.com",
-          "date": "2026-09-28T19:48:32Z"
-        },
-        "committer": {
-          "name": "GitHub",
-          "email": "noreply@github.com",
-          "date": "2026-09-28T19:48:32Z"
-        },
-        "message": "wallet: accept uppercase addresses without amount in sendall\n\nsendall remembers the recipients given without an amount as the strings\nthe user passed, and later finds their outputs by comparing against\nEncodeDestination of each output script, which is the canonical\nlowercase form for bech32. An address given in uppercase, which is\nvalid bech32 and accepted by the rest of the wallet, never matches. Its\noutput then keeps the placeholder amount of 0 and sendall fails with\n\"Specified output amount to bcrt1q... is below dust threshold.\"\n\nStore the decoded destinations of those addresses instead and compare\nthem with the destinations of the outputs, so the match no longer\ndepends on how the address was written.",
-        "tree": {
-          "sha": "d03974e765a7d08cc0135a140fcf55d2ef106ac4",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d03974e765a7d08cc0135a140fcf55d2ef106ac4"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqusSQCRC1aQ7uu5UhlAAAKc0QAIEIlUVk8zg7XHRvudx/alaN\n63tA8d9mfs3G19AJ1m7DUFe8Mwviw4yCSU6VPrcc0d/lyK3NOAmZfXZbJTUyyAWu\nsVM0Q8rGp8JOvbcd826c8LtYJTkuKb117nrtrbm31n378ugNoCzSxXEvc5pjaF8B\ndxN0nlFz5rOwfRSx4BomBYk544NOLZ9fBdUOc0dv8qddXnp7Js22ggANWyPvTGyA\nmuJ/N2HUctk31lO+Y88AW3WkCa3GBncsaSYPlr/k7yvcJnTA61MzYQQlzuVEcGvG\nOfX8yEpBmyMIsNL3i+QAOAKdWqUdpRpzHUoSs10ruTK8/zAWEsB1uoeUw94uAGnI\nfMprfXaffXo+IeQMrYENNsKPLX7TjuVpLO97mBb6XmROzQw3STiAb5xcMDchhR/k\nJssE8xveiKDJ5whqJOU5XQcWxQ0K2ARuOusSfaA0ZK98r5NvWfnpMri0sjdFrpwq\noaDgvmNC7DUJZaRCsVnlgiqT46Gq7OQkNP2Y1U4aS6PtuQ8094XC4qPZvn2g/1/X\nEU62RH056Kqa95IcxRFb6Vkg0snVBRL7vdgY1oCyRXtvuKNeiH6pzMk2MQWU0aGS\nfkDvAEpnfumMQWK24z5YhwUbw914uX87H+3hgXaO+KnNbYRLQU6/mq+MMNwUdRnD\ncd3T+2pHHdVZ7a+LPAAI\n=pCcA\n-----END PGP SIGNATURE-----\n",
-          "payload": "tree d03974e765a7d08cc0135a140fcf55d2ef106ac4\nparent 05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940\nauthor FlashW <flashwayne00@gmail.com> 1790624912 -0300\ncommitter GitHub <noreply@github.com> 1790624912 -0300\n\nwallet: accept uppercase addresses without amount in sendall\n\nsendall remembers the recipients given without an amount as the strings\nthe user passed, and later finds their outputs by comparing against\nEncodeDestination of each output script, which is the canonical\nlowercase form for bech32. An address given in uppercase, which is\nvalid bech32 and accepted by the rest of the wallet, never matches. Its\noutput then keeps the placeholder amount of 0 and sendall fails with\n\"Specified output amount to bcrt1q... is below dust threshold.\"\n\nStore the decoded destinations of those addresses instead and compare\nthem with the destinations of the outputs, so the match no longer\ndepends on how the address was written.",
-          "verified_at": "2026-09-28T19:48:33Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851/comments",
-      "author": {
-        "login": "FlashWayne",
-        "id": 332458478,
-        "node_id": "U_kgDOE9Dp7g",
-        "avatar_url": "https://avatars.githubusercontent.com/u/332458478?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/FlashWayne",
-        "html_url": "https://github.com/FlashWayne",
-        "followers_url": "https://api.github.com/users/FlashWayne/followers",
-        "following_url": "https://api.github.com/users/FlashWayne/following{/other_user}",
-        "gists_url": "https://api.github.com/users/FlashWayne/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/FlashWayne/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/FlashWayne/subscriptions",
-        "organizations_url": "https://api.github.com/users/FlashWayne/orgs",
-        "repos_url": "https://api.github.com/users/FlashWayne/repos",
-        "events_url": "https://api.github.com/users/FlashWayne/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/FlashWayne/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "web-flow",
-        "id": 19864447,
-        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
-        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/web-flow",
-        "html_url": "https://github.com/web-flow",
-        "followers_url": "https://api.github.com/users/web-flow/followers",
-        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
-        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
-        "organizations_url": "https://api.github.com/users/web-flow/orgs",
-        "repos_url": "https://api.github.com/users/web-flow/repos",
-        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/web-flow/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940"
         }
       ]
     }
