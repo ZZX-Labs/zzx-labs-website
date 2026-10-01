@@ -27,8 +27,8 @@
     const dot = WFB.$("[data-wfb-live-dot]");
     if (label) {
       label.textContent = archive.portal
-        ? "Full WorldFactbook portal index loaded"
-        : "Compatibility archive loaded · full portal index pending";
+        ? "Source catalog loaded · country and edition review in progress"
+        : "Reference catalog loaded · portal index pending";
     }
     dot?.classList.add("is-ready");
   }
