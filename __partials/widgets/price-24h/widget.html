@@ -1,27 +1,52 @@
 <!-- __partials/widgets/price-24h/widget.html -->
-<div class="btc-card mini-history mini-history--price-24h">
-  <div class="mini-history__head">
-    <div>
-      <div class="mini-history__title">Price · 24h</div>
-      <div class="mini-history__eyebrow" data-price24-eyebrow>
+<div class="btc-card price24">
+  <header class="price24__header">
+    <div class="price24__heading">
+      <div class="btc-card__title">Price · 24h</div>
+      <div class="price24__eyebrow" data-price24-eyebrow>
         canonical BitAvg BTC / USD · rolling 24h
       </div>
     </div>
+    <span class="btc-card__status price24__status" data-mini-status data-status="offline" aria-live="polite">history idle</span>
+  </header>
 
-    <div class="mini-history__actions">
-      <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset zoom</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
+  <section class="price24__hero" aria-label="Current 24 hour Bitcoin price">
+    <div class="price24__hero-price">
+      <span>current BTC / USD</span>
+      <strong data-price24-current>—</strong>
+    </div>
+    <div class="price24__hero-change">
+      <span>24h change</span>
+      <strong data-price24-change data-tone="flat">—</strong>
+    </div>
+  </section>
+
+  <div class="price24__metrics" aria-label="24 hour price statistics">
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h open</span>
+      <strong class="btc-card__metric-value" data-price24-open>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h high</span>
+      <strong class="btc-card__metric-value" data-price24-high>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h low</span>
+      <strong class="btc-card__metric-value" data-price24-low>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h range</span>
+      <strong class="btc-card__metric-value" data-price24-range>—</strong>
     </div>
   </div>
 
-  <div class="mini-history__toolbar">
-    <div class="mini-history__source">
+  <section class="price24__controls" aria-label="Price chart controls">
+    <div class="price24__source">
       <span>BitAvg mode</span>
       <strong data-price24-source>—</strong>
     </div>
 
-    <label>
+    <label class="price24__field">
       <span>resolution</span>
       <select data-price24-resolution aria-label="Price history resolution">
         <option value="auto">auto</option>
@@ -33,59 +58,29 @@
       </select>
     </label>
 
-    <label>
+    <label class="price24__field">
       <span>chart</span>
       <select data-price24-renderer aria-label="Price chart style">
-        <option value="line" selected>line</option>
-        <option value="area">area</option>
+        <option value="area" selected>area</option>
+        <option value="line">line</option>
         <option value="candles">candles</option>
       </select>
     </label>
 
-    <label class="mini-history__check">
-      <input type="checkbox" data-price24-sma>
-      <span>SMA 20</span>
-    </label>
+    <div class="price24__checks">
+      <label><input type="checkbox" data-price24-sma checked><span>SMA 20</span></label>
+      <label><input type="checkbox" data-price24-ema><span>EMA 50</span></label>
+      <label><input type="checkbox" data-price24-follow checked><span>follow</span></label>
+    </div>
 
-    <label class="mini-history__check">
-      <input type="checkbox" data-price24-ema>
-      <span>EMA 50</span>
-    </label>
+    <div class="price24__actions">
+      <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
+    </div>
+  </section>
 
-    <label class="mini-history__check">
-      <input type="checkbox" data-price24-follow checked>
-      <span>follow live edge</span>
-    </label>
-  </div>
-
-  <div class="mini-history__stats" aria-label="24 hour price statistics">
-    <div>
-      <span>current</span>
-      <strong data-price24-current>—</strong>
-    </div>
-    <div>
-      <span>24h open</span>
-      <strong data-price24-open>—</strong>
-    </div>
-    <div>
-      <span>24h change</span>
-      <strong data-price24-change data-tone="flat">—</strong>
-    </div>
-    <div>
-      <span>24h high</span>
-      <strong data-price24-high>—</strong>
-    </div>
-    <div>
-      <span>24h low</span>
-      <strong data-price24-low>—</strong>
-    </div>
-    <div>
-      <span>24h range</span>
-      <strong data-price24-range>—</strong>
-    </div>
-  </div>
-
-  <div class="mini-history__stage" data-price24-stage>
+  <div class="price24__stage" data-price24-stage>
     <canvas
       data-mini-canvas
       tabindex="0"
@@ -94,33 +89,31 @@
       aria-describedby="price24-help"
     ></canvas>
 
-    <div class="mini-history__legend" aria-hidden="true">
-      <span><i class="mini-history__legend-price"></i>price</span>
-      <span data-price24-sma-legend hidden><i class="mini-history__legend-sma"></i>SMA 20</span>
-      <span data-price24-ema-legend hidden><i class="mini-history__legend-ema"></i>EMA 50</span>
+    <div class="price24__legend" aria-hidden="true">
+      <span><i class="price24__legend-price"></i>price</span>
+      <span data-price24-sma-legend><i class="price24__legend-sma"></i>SMA 20</span>
+      <span data-price24-ema-legend hidden><i class="price24__legend-ema"></i>EMA 50</span>
     </div>
 
-    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+    <div class="price24__tooltip" data-mini-tooltip hidden></div>
 
-    <div class="mini-history__empty" data-price24-empty hidden>
+    <div class="price24__empty" data-price24-empty hidden>
       <strong>No 24h history yet</strong>
       <span data-price24-empty-detail>Waiting for BitAvg history collector data.</span>
     </div>
   </div>
 
-  <div class="mini-history__diagnostics">
-    <span data-price24-points>0 points</span>
-    <span data-price24-coverage>0% coverage</span>
-    <span data-price24-cadence>cadence —</span>
-    <span data-price24-age>edge —</span>
-  </div>
+  <footer class="price24__footer">
+    <div class="price24__diagnostics">
+      <span data-price24-points>0 points</span>
+      <span data-price24-coverage>0% coverage</span>
+      <span data-price24-cadence>cadence —</span>
+      <span data-price24-age>edge —</span>
+    </div>
+    <span class="price24__transport" data-price24-transport>transport —</span>
+  </footer>
 
-  <div class="mini-history__footer">
-    <span class="mini-history__status" data-mini-status aria-live="polite">history idle</span>
-    <span class="mini-history__transport" data-price24-transport>transport —</span>
-  </div>
-
-  <span class="mini-history__sr" id="price24-help">
-    Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset zoom restores the rolling 24 hour view.
+  <span class="price24__sr" id="price24-help">
+    Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset restores the rolling 24 hour view.
   </span>
 </div>
