@@ -12,16 +12,11 @@
       await WFB.archive?.init?.();
       WFB.timeline?.init?.();
       WFB.readingRoom?.init?.();
+      await WFB.dailyArchive?.init?.();
       await WFB.globe?.init?.();
       WFB.status?.init?.();
       WFB.search?.init?.();
       WFB.provenance?.init?.();
-
-      await Promise.all([
-        WFB.leaders?.init?.(),
-        WFB.dailyFact?.init?.(),
-        WFB.dailyImage?.init?.()
-      ]);
 
       WFB.hybrid?.init?.();
       WFB.dispatch("wfb:ready", { archive: WFB.state.archive });
