@@ -101,6 +101,14 @@ CATEGORIES = {
  "TERRORISM":"terrorism", "MILITARY AND SECURITY":"military-and-security",
  "PEOPLE AND SOCIETY":"people-and-society", "ENERGY":"energy",
 }
+# Keep the archive in the Factbook's reading order. The database ordinal remains
+# the source order within each chapter; an unknown chapter follows the known ones.
+CATEGORY_SEQUENCE = (
+    "introduction", "geography", "people-and-society", "environment",
+    "government", "economy", "energy", "communications", "transportation",
+    "military-and-security", "space", "terrorism", "transnational-issues", "raw",
+)
+CATEGORY_RANK = {category: index for index, category in enumerate(CATEGORY_SEQUENCE)}
 IMAGE_TOKEN = re.compile(r"^\[\[WFB_IMAGE:(.*?)\]\]$")
 FIELD_RE = re.compile(r"^([A-Za-z][A-Za-z0-9 /(),.'\u2019\u2013\u2014+\-]{1,85}):\s*(.*)$")
 YEAR_RE = re.compile(r"\b(?:18|19|20)\d{2}\b")
@@ -817,8 +825,10 @@ def export(db_path, root, registry_path, max_json_bytes=512_000, max_sql_bytes=2
         for country,year in sorted(keys):
             source=selections[year]
             fields=[dict(r) for r in con.execute(
-                "SELECT * FROM fields WHERE country=? AND source_id=? ORDER BY category,ordinal,id",
+                "SELECT * FROM fields WHERE country=? AND source_id=? ORDER BY ordinal,id",
                 (country,source["id"]))]
+            fields.sort(key=lambda row: (CATEGORY_RANK.get(row["category"], len(CATEGORY_RANK)),
+                                         row["ordinal"], row["id"]))
             media=[dict(r) for r in con.execute(
                 "SELECT * FROM media WHERE country=? AND source_id=? ORDER BY locator,id",
                 (country,source["id"]))]
