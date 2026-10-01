@@ -44,6 +44,12 @@ CATEGORY_ALIASES = {
     "transnational-issues": {"transnational issues", "transnational-issues"},
     "space": {"space"},
 }
+FACTBOOK_CHAPTERS = (
+    "introduction", "geography", "people-and-society", "environment",
+    "government", "economy", "energy", "communications", "transportation",
+    "military-and-security", "space", "terrorism", "transnational-issues",
+)
+FACTBOOK_CHAPTER_RANK = {chapter: rank for rank, chapter in enumerate(FACTBOOK_CHAPTERS)}
 
 @dataclass(frozen=True)
 class Candidate:
@@ -632,7 +638,9 @@ def write_portal(
             public = {k: row[k] for k in keys if k in row}
             cats.setdefault(row["category"], []).append(public)
         category_meta = []
-        for cat, cat_rows in sorted(cats.items()):
+        for cat, cat_rows in sorted(cats.items(),
+                                    key=lambda item: (FACTBOOK_CHAPTER_RANK.get(item[0],
+                                        len(FACTBOOK_CHAPTER_RANK)), item[0])):
             path = root / "editions" / str(year) / f"{cat}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             payload = {"schema": "zzx-worldfactbook-category-v1", "edition_year": year, "category": cat, "chunks": cat_rows}
