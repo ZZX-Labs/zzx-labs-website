@@ -4,6 +4,17 @@
   const WFB = window.WFB;
   if (!WFB) return;
 
+  const CHAPTERS = ["introduction", "geography", "people and society", "environment",
+    "government", "economy", "energy", "communications", "transportation",
+    "military and security", "space", "terrorism", "transnational issues",
+    "raw", "images charts and diagrams", "india imports exports and trade balance"];
+  function chapterRank(section) {
+    const title = section.querySelector(":scope > h4")?.textContent?.toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ").trim() || "";
+    const index = CHAPTERS.indexOf(title);
+    return index < 0 ? CHAPTERS.length : index;
+  }
+
   function init() {
     const profile = document.querySelector("[data-wfb-country-profile]");
     const nav = document.querySelector("[data-wfb-reading-nav]");
@@ -17,11 +28,22 @@
     const year = document.querySelector("[data-wfb-reading-year]");
     const code = document.querySelector("[data-wfb-reading-code]");
     const chapters = document.querySelector("[data-wfb-reading-chapters]");
+    const chapterLabel = document.querySelector("[data-wfb-reading-chapter-label]");
     const fields = document.querySelector("[data-wfb-reading-fields]");
     const countLabel = document.querySelector("[data-wfb-reading-count-label]");
+    const integrity = document.querySelector("[data-wfb-reading-integrity]");
     let scheduled = false;
     let previousSections = [];
     let previousCode = null;
+    let expandedEvidence = false;
+    let evidenceNotice = null;
+    let previousUnreviewed = null;
+    let previousExpanded = null;
+
+    function toggleEvidence() {
+      expandedEvidence = !expandedEvidence;
+      schedule();
+    }
 
     function refresh() {
       scheduled = false;
@@ -31,13 +53,49 @@
       year.textContent = selectedYear;
       code.textContent = selectedCode || "—";
 
-      const sections = Array.from(profile.children).filter(node =>
+      const unsorted = Array.from(profile.children).filter(node =>
         node.classList?.contains("wfb-country-section"));
+      const sections = unsorted.map((node, index) => ({ node, index }))
+        .sort((a, b) => chapterRank(a.node) - chapterRank(b.node) || a.index - b.index)
+        .map(item => item.node);
+      if (sections.some((node, index) => node !== unsorted[index])) {
+        // Reorder the existing source nodes. No text, citations, or media are recreated.
+        profile.append(...sections);
+      }
+      const notice = Array.from(profile.children).find(node =>
+        node.classList?.contains("wfb-country-notice") &&
+        node.textContent.includes("Provisional legacy transcription"));
+      const unreviewed = Boolean(notice);
+      if (notice !== evidenceNotice) {
+        expandedEvidence = false;
+        evidenceNotice = notice || null;
+      }
+      profile.classList.toggle("wfb-reading-unreviewed", unreviewed);
+      profile.classList.toggle("is-open", unreviewed && expandedEvidence);
       const fieldCount = profile.querySelectorAll(".wfb-country-field").length;
       const excerptCount = profile.querySelectorAll(".wfb-country-section > pre").length;
       chapters.textContent = sections.length ? String(sections.length) : "—";
-      countLabel.textContent = excerptCount && !fieldCount ? "Excerpts" : "Fields";
+      if (chapterLabel) chapterLabel.textContent = unreviewed ? "Candidate sections" : "Sections";
+      countLabel.textContent = unreviewed ? "Unreviewed fragments" : "Fields";
       fields.textContent = fieldCount || excerptCount ? String(fieldCount || excerptCount) : "—";
+      if (integrity) {
+        integrity.hidden = !unreviewed;
+        integrity.textContent = unreviewed ?
+          "Source fragments only. Country and edition assignments have not been verified; do not treat these as facts for the selected year." : "";
+      }
+      if (unreviewed && notice && !notice.querySelector("[data-wfb-evidence-toggle]")) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("data-wfb-evidence-toggle", "");
+        button.addEventListener("click", toggleEvidence);
+        notice.append(button);
+      }
+      const evidenceButton = notice?.querySelector("[data-wfb-evidence-toggle]");
+      if (evidenceButton) {
+        evidenceButton.textContent = expandedEvidence ? "Hide source fragments" :
+          `Inspect ${excerptCount} unreviewed source fragment${excerptCount === 1 ? "" : "s"}`;
+        evidenceButton.setAttribute("aria-expanded", String(expandedEvidence));
+      }
 
       empty.hidden = profile.childElementCount > 0;
       if (!empty.hidden) {
@@ -47,21 +105,26 @@
           : "Select a location on the globe or from the location list. Then move the year fader to read the available country record.";
       }
 
-      // The globe owns the record. This component only adds navigation and typography.
-      // Avoid rebuilding the rail when a separate India trade request appends a section.
-      if (selectedCode === previousCode && sections.length === previousSections.length &&
-          sections.every((node, i) => node === previousSections[i])) return;
+      const visible = unreviewed && !expandedEvidence ?
+        sections.filter(section => section.classList.contains("wfb-trade")) : sections;
+      // The globe owns each record. Only its existing chapter nodes move here.
+      if (selectedCode === previousCode && unreviewed === previousUnreviewed &&
+          expandedEvidence === previousExpanded && visible.length === previousSections.length &&
+          visible.every((node, i) => node === previousSections[i])) return;
       previousCode = selectedCode;
-      previousSections = sections;
+      previousUnreviewed = unreviewed;
+      previousExpanded = expandedEvidence;
+      previousSections = visible;
       nav.replaceChildren();
-      if (!sections.length) {
+      if (!visible.length) {
         const hint = document.createElement("p");
-        hint.textContent = selectedCode ? "Sections appear here when source material is available." :
+        hint.textContent = unreviewed ? "Use Inspect source fragments to examine unverified material." :
+          selectedCode ? "Sections appear here when source material is available." :
           "Choose a location to browse its sections.";
         nav.append(hint);
         return;
       }
-      sections.forEach((section, index) => {
+      visible.forEach((section, index) => {
         const heading = section.querySelector(":scope > h4");
         if (!heading) return;
         section.id = `wfb-record-section-${index + 1}`;
