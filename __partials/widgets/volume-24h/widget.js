@@ -9,9 +9,9 @@
   const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
-    resolution:"zzx.widget.volume-24h.resolution.v3",
-    mode:"zzx.widget.volume-24h.mode.v3",
-    follow:"zzx.widget.volume-24h.follow-live.v3"
+    resolution:"zzx.widget.volume-24h.resolution.v4",
+    mode:"zzx.widget.volume-24h.mode.v4",
+    follow:"zzx.widget.volume-24h.follow-live.v4"
   });
 
   const MODULES=Object.freeze([
