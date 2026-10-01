@@ -1676,13 +1676,22 @@
 .bitcoin-ticker__control>span,
 .bitcoin-ticker__unit,
 .bitcoin-ticker__stat>span,
-.bitcoin-ticker__denom-label,
 .bitcoin-ticker__section-kicker,
 .bitcoin-ticker__chart-controls label>span{
   color:var(--ticker-dim);
   font-size:.67rem;
   letter-spacing:.055em;
   text-transform:uppercase;
+}
+
+/* Denomination symbols are canonical units, not prose labels. Preserve case:
+   KBTC → BTC → mBTC → Ksat → μBTC → sat → msat → μsat. */
+.bitcoin-ticker__denom-label{
+  color:var(--ticker-dim);
+  font-size:.67rem;
+  letter-spacing:.035em;
+  text-transform:none;
+  font-variant-caps:normal;
 }
 
 .bitcoin-ticker__eyebrow{margin-bottom:.08rem}
