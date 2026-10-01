@@ -1,27 +1,52 @@
 <!-- __partials/widgets/volume-24h/widget.html -->
-<div class="btc-card mini-history mini-history--volume-24h">
-  <div class="mini-history__head">
-    <div>
-      <div class="mini-history__title">Volume · 24h</div>
-      <div class="mini-history__eyebrow" data-volume24-eyebrow>
+<div class="btc-card volume24">
+  <header class="volume24__header">
+    <div class="volume24__heading">
+      <div class="btc-card__title">Volume · 24h</div>
+      <div class="volume24__eyebrow" data-volume24-eyebrow>
         canonical BitAvg market volume · rolling 24h
       </div>
     </div>
+    <span class="btc-card__status volume24__status" data-mini-status data-status="offline" aria-live="polite">history idle</span>
+  </header>
 
-    <div class="mini-history__actions">
-      <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset zoom</button>
-      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
+  <section class="volume24__hero" aria-label="Current 24 hour Bitcoin market volume">
+    <div class="volume24__hero-volume">
+      <span>current 24h BTC volume</span>
+      <strong data-volume24-current>—</strong>
+    </div>
+    <div class="volume24__hero-change">
+      <span>24h change</span>
+      <strong data-volume24-change data-tone="flat">—</strong>
+    </div>
+  </section>
+
+  <div class="volume24__metrics" aria-label="24 hour BTC volume statistics">
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h ago</span>
+      <strong class="btc-card__metric-value" data-volume24-open>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">highest</span>
+      <strong class="btc-card__metric-value" data-volume24-high>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">lowest</span>
+      <strong class="btc-card__metric-value" data-volume24-low>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">average</span>
+      <strong class="btc-card__metric-value" data-volume24-average>—</strong>
     </div>
   </div>
 
-  <div class="mini-history__toolbar">
-    <div class="mini-history__source">
-      <span>source</span>
+  <section class="volume24__controls" aria-label="Volume chart controls">
+    <div class="volume24__source">
+      <span>BitAvg mode</span>
       <strong data-volume24-source>—</strong>
     </div>
 
-    <label>
+    <label class="volume24__field">
       <span>resolution</span>
       <select data-volume24-resolution aria-label="Volume history resolution">
         <option value="auto" selected>auto</option>
@@ -33,54 +58,30 @@
       </select>
     </label>
 
-    <label>
-      <span>plot</span>
+    <label class="volume24__field">
+      <span>chart</span>
       <select data-volume24-mode aria-label="Volume chart plotting mode">
-        <option value="interval-bars" selected>actual interval volume bars</option>
-        <option value="rolling-bars">rolling 24h volume bars</option>
-        <option value="rolling-line">rolling 24h volume line</option>
+        <option value="interval-bars" selected>interval bars</option>
+        <option value="rolling-bars">24h bars</option>
+        <option value="rolling-line">24h line</option>
       </select>
     </label>
 
-    <label class="mini-history__check">
-      <input type="checkbox" data-volume24-follow checked>
-      <span>follow live edge</span>
-    </label>
-  </div>
-
-  <div class="mini-history__stats" aria-label="24 hour BTC volume statistics">
-    <div>
-      <span>current 24h</span>
-      <strong data-volume24-current>—</strong>
+    <div class="volume24__checks">
+      <label>
+        <input type="checkbox" data-volume24-follow checked>
+        <span>follow</span>
+      </label>
     </div>
 
-    <div>
-      <span>24h ago</span>
-      <strong data-volume24-open>—</strong>
+    <div class="volume24__actions">
+      <button type="button" class="zzx-widgets__btn" data-mini-refresh>Refresh</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-reset>Reset</button>
+      <button type="button" class="zzx-widgets__btn" data-mini-export>PNG</button>
     </div>
+  </section>
 
-    <div>
-      <span>change</span>
-      <strong data-volume24-change data-tone="flat">—</strong>
-    </div>
-
-    <div>
-      <span>highest</span>
-      <strong data-volume24-high>—</strong>
-    </div>
-
-    <div>
-      <span>lowest</span>
-      <strong data-volume24-low>—</strong>
-    </div>
-
-    <div>
-      <span>average</span>
-      <strong data-volume24-average>—</strong>
-    </div>
-  </div>
-
-  <div class="mini-history__stage" data-volume24-stage>
+  <div class="volume24__stage" data-volume24-stage>
     <canvas
       data-mini-canvas
       tabindex="0"
@@ -89,41 +90,31 @@
       aria-describedby="volume24-help"
     ></canvas>
 
-    <div class="mini-history__legend" aria-hidden="true">
-      <span>
-        <i class="mini-history__legend-volume"></i>
-        <span data-volume24-legend-label>rolling 24h BTC volume</span>
-      </span>
-      <span>
-        <i class="mini-history__legend-average"></i>
-        average
-      </span>
+    <div class="volume24__legend" aria-hidden="true">
+      <span><i class="volume24__legend-volume"></i><span data-volume24-legend-label>interval BTC volume</span></span>
+      <span><i class="volume24__legend-average"></i>average</span>
     </div>
 
-    <div class="mini-history__tooltip" data-mini-tooltip hidden></div>
+    <div class="volume24__tooltip" data-mini-tooltip hidden></div>
 
-    <div class="mini-history__empty" data-volume24-empty hidden>
+    <div class="volume24__empty" data-volume24-empty hidden>
       <strong>No 24h volume history yet</strong>
-      <span data-volume24-empty-detail>
-        Waiting for canonical BitAvg volume history.
-      </span>
+      <span data-volume24-empty-detail>Waiting for canonical BitAvg volume history.</span>
     </div>
   </div>
 
-  <div class="mini-history__diagnostics">
-    <span data-volume24-points>0 points</span>
-    <span data-volume24-coverage>0% coverage</span>
-    <span data-volume24-cadence>cadence —</span>
-    <span data-volume24-age>edge —</span>
-    <span data-volume24-interval>interval buckets —</span>
-  </div>
+  <footer class="volume24__footer">
+    <div class="volume24__diagnostics">
+      <span data-volume24-points>0 points</span>
+      <span data-volume24-coverage>0% coverage</span>
+      <span data-volume24-cadence>cadence —</span>
+      <span data-volume24-age>edge —</span>
+      <span data-volume24-interval>interval buckets —</span>
+    </div>
+    <span class="volume24__transport" data-volume24-transport>transport —</span>
+  </footer>
 
-  <div class="mini-history__footer">
-    <span class="mini-history__status" data-mini-status aria-live="polite">history idle</span>
-    <span class="mini-history__transport" data-volume24-transport>transport —</span>
-  </div>
-
-  <span class="mini-history__sr" id="volume24-help">
-    The default bars are actual BTC volume traded in each history interval for the same Unweighted, BPI Weighted, or Global BPI Weighted source selected by BitAvg. Actual interval-volume bars are used only when the history API supplies interval_volume_btc; the widget never invents interval volume from changes in a rolling 24 hour statistic. Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset zoom restores the rolling 24 hour view.
+  <span class="volume24__sr" id="volume24-help">
+    The default bars are actual BTC volume traded in each history interval for the same Unweighted, BPI Weighted, or Global BPI Weighted source selected by BitAvg. Actual interval-volume bars are used only when the history API supplies interval_volume_btc; the widget never invents interval volume from changes in a rolling 24 hour statistic. Mouse wheel zooms at the cursor. Horizontal or shift-wheel pans through time. Drag or left/right arrows pan. Double click, Escape, or Reset restores the rolling 24 hour view.
   </span>
 </div>
