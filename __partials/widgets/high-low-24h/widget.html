@@ -1,28 +1,67 @@
 <!-- __partials/widgets/high-low-24h/widget.html -->
 <div class="btc-card highlow24">
-  <div class="highlow24__header">
-    <div>
-      <div class="highlow24__title">High / Low · 24h</div>
-      <div class="highlow24__eyebrow" data-hl24-eyebrow>canonical BitAvg 24h price envelope</div>
+  <header class="highlow24__header">
+    <div class="highlow24__heading">
+      <div class="btc-card__title">High / Low · 24h</div>
+      <div class="highlow24__eyebrow" data-hl24-eyebrow>
+        canonical BitAvg BTC / USD · rolling 24h range
+      </div>
     </div>
+    <span class="btc-card__status highlow24__status" data-hl24-status data-status="offline" aria-live="polite">history idle</span>
+  </header>
 
-    <div class="highlow24__actions">
-      <button type="button" class="zzx-widgets__btn" data-hl24-refresh>Refresh</button>
-      <button type="button" class="zzx-widgets__btn" data-hl24-reset>Reset zoom</button>
-      <button type="button" class="zzx-widgets__btn" data-hl24-export>PNG</button>
+  <section class="highlow24__hero" aria-label="Current Bitcoin position inside the 24 hour price range">
+    <div class="highlow24__hero-price">
+      <span>current BTC / USD</span>
+      <strong data-hl24-current>—</strong>
+    </div>
+    <div class="highlow24__hero-position">
+      <span>range position</span>
+      <strong data-hl24-position>—</strong>
+    </div>
+  </section>
+
+  <div class="highlow24__metrics" aria-label="24 hour Bitcoin high low statistics">
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h high</span>
+      <strong class="btc-card__metric-value highlow24__metric-high" data-hl24-high>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h low</span>
+      <strong class="btc-card__metric-value highlow24__metric-low" data-hl24-low>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h range</span>
+      <strong class="btc-card__metric-value" data-hl24-range>—</strong>
+    </div>
+    <div class="btc-card__metric">
+      <span class="btc-card__metric-label">24h change</span>
+      <strong class="btc-card__metric-value" data-hl24-change data-tone="flat">—</strong>
     </div>
   </div>
 
-  <div class="highlow24__toolbar">
+  <section class="highlow24__range" aria-label="Current price position inside the 24 hour high low range">
+    <div class="highlow24__range-labels">
+      <span>LOW <strong data-hl24-range-low>—</strong></span>
+      <span data-hl24-range-current>CURRENT —</span>
+      <span>HIGH <strong data-hl24-range-high>—</strong></span>
+    </div>
+    <div class="highlow24__range-track">
+      <span class="highlow24__range-fill" aria-hidden="true"></span>
+      <span class="highlow24__range-marker" data-hl24-range-marker aria-hidden="true"></span>
+    </div>
+  </section>
+
+  <section class="highlow24__controls" aria-label="High low chart controls">
     <div class="highlow24__source">
-      <span>source</span>
+      <span>BitAvg mode</span>
       <strong data-hl24-source>—</strong>
     </div>
 
-    <label>
+    <label class="highlow24__field">
       <span>resolution</span>
       <select data-hl24-resolution aria-label="High low 24 hour history resolution">
-        <option value="auto">auto</option>
+        <option value="auto" selected>auto</option>
         <option value="15s">15 sec</option>
         <option value="30s">30 sec</option>
         <option value="1m">1 min</option>
@@ -30,41 +69,28 @@
       </select>
     </label>
 
-    <label>
-      <span>view</span>
+    <label class="highlow24__field">
+      <span>chart</span>
       <select data-hl24-view aria-label="High low chart view">
-        <option value="range-price">range + price</option>
+        <option value="range-price" selected>range + price</option>
         <option value="range-only">range only</option>
         <option value="high-low-lines">high / low lines</option>
       </select>
     </label>
 
-    <label class="highlow24__check">
-      <input type="checkbox" data-hl24-follow checked>
-      <span>follow live edge</span>
-    </label>
-  </div>
-
-  <div class="highlow24__metrics">
-    <div><span>current</span><strong data-hl24-current>—</strong></div>
-    <div><span>24h high</span><strong data-hl24-high>—</strong></div>
-    <div><span>24h low</span><strong data-hl24-low>—</strong></div>
-    <div><span>range</span><strong data-hl24-range>—</strong></div>
-    <div><span>range position</span><strong data-hl24-position>—</strong></div>
-    <div><span>24h change</span><strong data-hl24-change data-tone="flat">—</strong></div>
-  </div>
-
-  <div class="highlow24__range" aria-label="Current price position inside the 24 hour high low range">
-    <div class="highlow24__range-labels">
-      <span>LOW <strong data-hl24-range-low>—</strong></span>
-      <span data-hl24-range-current>CURRENT —</span>
-      <span>HIGH <strong data-hl24-range-high>—</strong></span>
+    <div class="highlow24__checks">
+      <label>
+        <input type="checkbox" data-hl24-follow checked>
+        <span>follow</span>
+      </label>
     </div>
-    <div class="highlow24__range-track">
-      <span class="highlow24__range-fill" data-hl24-range-fill></span>
-      <span class="highlow24__range-marker" data-hl24-range-marker></span>
+
+    <div class="highlow24__actions">
+      <button type="button" class="zzx-widgets__btn" data-hl24-refresh>Refresh</button>
+      <button type="button" class="zzx-widgets__btn" data-hl24-reset>Reset</button>
+      <button type="button" class="zzx-widgets__btn" data-hl24-export>PNG</button>
     </div>
-  </div>
+  </section>
 
   <div class="highlow24__stage" data-hl24-stage>
     <canvas
@@ -84,24 +110,22 @@
     <div class="highlow24__tooltip" data-hl24-tooltip hidden></div>
 
     <div class="highlow24__empty" data-hl24-empty hidden>
-      <strong>High / Low history unavailable</strong>
+      <strong>No 24h range history yet</strong>
       <span data-hl24-empty-detail>Waiting for canonical BitAvg range history.</span>
     </div>
   </div>
 
-  <div class="highlow24__diagnostics">
-    <span data-hl24-points>0 points</span>
-    <span data-hl24-coverage>0% of 24h covered</span>
-    <span data-hl24-cadence>cadence —</span>
-    <span data-hl24-age>edge —</span>
-  </div>
-
-  <div class="highlow24__footer">
-    <span data-hl24-status aria-live="polite">history idle</span>
-    <span data-hl24-transport>transport —</span>
-  </div>
+  <footer class="highlow24__footer">
+    <div class="highlow24__diagnostics">
+      <span data-hl24-points>0 points</span>
+      <span data-hl24-coverage>0% coverage</span>
+      <span data-hl24-cadence>cadence —</span>
+      <span data-hl24-age>edge —</span>
+    </div>
+    <span class="highlow24__transport" data-hl24-transport>transport —</span>
+  </footer>
 
   <span class="highlow24__sr" id="hl24-help">
-    This chart uses the active BitAvg price mode. Gold is the observed interval high, red is the observed interval low, and green is the canonical price. The shaded envelope is the traded range. Mouse wheel zooms, horizontal or shift-wheel pans, drag pans, and double click resets.
+    This chart follows the active BitAvg price mode. Gold is the observed interval high, red is the observed interval low, and green is the canonical BTC/USD price. Mouse wheel zooms, horizontal or shift-wheel pans, drag pans, and double click or Reset restores the rolling 24 hour view.
   </span>
 </div>
