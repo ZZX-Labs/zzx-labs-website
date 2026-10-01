@@ -1,94 +1,148 @@
 /* __partials/widgets/price-24h/widget.css
-   BitAvg-aligned 24h price chart skin.  Local CSS only.
+   Price · 24h
+   Shared HUD/BitAvg visual language with a widget-local namespace.
+   Deliberately avoids the old global .mini-history selectors so the three
+   24h chart widgets cannot overwrite one another by stylesheet load order.
 */
-.mini-history--price-24h{
+.price24{
   --p24-green:var(--zzx-accent,#c0d674);
   --p24-gold:var(--zzx-accent-alt,#e6a42b);
   --p24-red:var(--zzx-error,#d67474);
   --p24-muted:var(--zzx-muted,#b7bf9a);
   --p24-dim:var(--zzx-dim,#777);
-  --p24-line:rgba(255,255,255,.09);
+  --p24-line:var(--zzx-border-soft,rgba(255,255,255,.07));
   --p24-panel:rgba(255,255,255,.018);
-  --p24-bg:#090c0b;
+  --p24-deep:var(--zzx-bg-deep,#070707);
   display:grid;
   gap:.5rem;
   width:100%;
   min-width:0;
   color:var(--p24-muted);
-  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-family:var(--zzx-font-mono,"IBMPlexMono",ui-monospace,monospace);
 }
-.mini-history--price-24h *{box-sizing:border-box}
-.mini-history--price-24h .mini-history__head,
-.mini-history--price-24h .mini-history__footer,
-.mini-history--price-24h .mini-history__diagnostics{
+.price24 *{box-sizing:border-box}
+
+.price24__header{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
   gap:.6rem;
   min-width:0;
 }
-.mini-history--price-24h .mini-history__head{align-items:flex-start}
-.mini-history--price-24h .mini-history__title{
-  color:var(--p24-green);
-  font-family:var(--zzx-font-display,"AdultSwimFont",monospace);
-  font-size:1rem;
-  letter-spacing:.035em;
-}
-.mini-history--price-24h .mini-history__eyebrow,
-.mini-history--price-24h .mini-history__source span,
-.mini-history--price-24h .mini-history__toolbar label>span,
-.mini-history--price-24h .mini-history__diagnostics,
-.mini-history--price-24h .mini-history__footer{
+.price24__heading{min-width:0}
+.price24 .btc-card__title{margin-bottom:.08rem}
+.price24__eyebrow,
+.price24__hero span,
+.price24__source>span,
+.price24__field>span,
+.price24__checks span,
+.price24__diagnostics,
+.price24__transport{
   color:var(--p24-dim);
   font-size:.67rem;
   letter-spacing:.055em;
 }
-.mini-history--price-24h .mini-history__eyebrow,
-.mini-history--price-24h .mini-history__source span,
-.mini-history--price-24h .mini-history__toolbar label>span{
+.price24__eyebrow,
+.price24__hero span,
+.price24__source>span,
+.price24__field>span{
   text-transform:uppercase;
 }
-.mini-history--price-24h .mini-history__actions{
-  display:flex;
-  gap:.38rem;
-  flex-wrap:wrap;
+.price24__eyebrow{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
-.mini-history--price-24h .zzx-widgets__btn,
-.mini-history--price-24h select{
-  min-height:30px;
-  border:1px solid #343434;
-  border-radius:6px;
-  outline:none;
-  background:#080808;
-  color:var(--p24-green);
-  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
-  font-size:.69rem;
+.price24__status{
+  flex:0 0 auto;
+  white-space:nowrap;
 }
-.mini-history--price-24h .zzx-widgets__btn{
-  padding:.32rem .5rem;
-  cursor:pointer;
-}
-.mini-history--price-24h .zzx-widgets__btn:hover,
-.mini-history--price-24h select:hover{border-color:#414141}
-.mini-history--price-24h .zzx-widgets__btn:focus-visible,
-.mini-history--price-24h select:focus-visible{
-  border-color:var(--p24-gold);
-  outline:2px solid rgba(230,164,43,.15);
-  outline-offset:1px;
-}
-.mini-history--price-24h .mini-history__toolbar{
+
+.price24__hero{
   display:grid;
-  grid-template-columns:minmax(170px,1.2fr) repeat(2,minmax(110px,.45fr)) repeat(3,max-content);
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:end;
-  gap:.42rem;
-  padding:.48rem .52rem;
-  border:1px solid var(--p24-line);
-  border-radius:7px;
-  background:linear-gradient(90deg,rgba(192,214,116,.025),transparent 54%),var(--p24-panel);
+  gap:.75rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--p24-line);
+  border-bottom:1px solid var(--p24-line);
 }
-.mini-history--price-24h .mini-history__toolbar label,
-.mini-history--price-24h .mini-history__source{display:grid;gap:.18rem;min-width:0}
-.mini-history--price-24h .mini-history__source strong{
+.price24__hero-price,
+.price24__hero-change{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+.price24__hero-price strong{
+  color:var(--p24-green);
+  font-size:1.45rem;
+  line-height:1;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.price24__hero-change{
+  text-align:right;
+}
+.price24__hero-change strong{
+  color:var(--p24-muted);
+  font-size:.78rem;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.price24__hero-change strong[data-tone="up"]{color:var(--p24-green)}
+.price24__hero-change strong[data-tone="down"]{color:var(--p24-red)}
+
+.price24__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+}
+.price24 .btc-card__metric{
+  padding:.38rem .42rem;
+  background:var(--p24-panel);
+  border:1px solid var(--p24-line);
+  border-radius:6px;
+}
+.price24 .btc-card__metric-label{
+  margin-bottom:.1rem;
+  color:var(--p24-dim);
+  font-size:.67rem;
+  letter-spacing:.055em;
+}
+.price24 .btc-card__metric-value{
+  color:var(--p24-green);
+  font-size:.74rem;
+  font-weight:500;
+  line-height:1.25;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.price24__controls{
+  display:grid;
+  grid-template-columns:minmax(155px,1fr) minmax(90px,.42fr) minmax(90px,.42fr);
+  gap:.4rem;
+  align-items:end;
+  padding:.46rem .5rem;
+  border:1px solid var(--p24-line);
+  border-radius:6px;
+  background:var(--p24-panel);
+}
+.price24__source,
+.price24__field{
+  display:grid;
+  gap:.15rem;
+  min-width:0;
+}
+.price24__source strong{
+  min-width:0;
   color:var(--p24-gold);
   font-size:.7rem;
   font-weight:500;
@@ -96,105 +150,124 @@
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.mini-history--price-24h .mini-history__toolbar select{
-  width:100%;
-  min-width:0;
-  padding:.3rem 1.6rem .3rem .4rem;
-}
-.mini-history--price-24h .mini-history__check{
-  display:flex!important;
-  align-items:center!important;
-  gap:.32rem!important;
+.price24__field select{
   min-height:30px;
-  padding:0 .15rem;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  background:#080808;
+  color:var(--p24-green);
+  font-family:inherit;
+  font-size:.69rem;
+}
+.price24__field select:focus{border-color:var(--p24-gold)}
+.price24__checks{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.3rem .72rem;
+  min-width:0;
+  padding-top:.08rem;
+}
+.price24__checks label{
+  display:inline-flex;
+  align-items:center;
+  gap:.3rem;
+  min-width:0;
+  cursor:pointer;
+}
+.price24__checks input{
+  width:auto;
+  min-width:0;
+  margin:0;
+  padding:0;
+  accent-color:var(--p24-green);
+}
+.price24__checks span{
+  color:var(--p24-muted);
+  letter-spacing:.025em;
   white-space:nowrap;
 }
-.mini-history--price-24h .mini-history__check input{accent-color:var(--p24-green)}
-.mini-history--price-24h .mini-history__stats{
-  display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
-  gap:.38rem;
-}
-.mini-history--price-24h .mini-history__stats>div{
+.price24__actions{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:.3rem;
   min-width:0;
-  padding:.38rem .42rem;
+}
+.price24__actions .zzx-widgets__btn{
+  min-height:30px;
+  padding:.32rem .55rem;
+}
+
+.price24__stage{
+  position:relative;
+  width:100%;
+  min-width:0;
+  height:clamp(240px,26vw,310px);
+  min-height:240px;
+  overflow:hidden;
   border:1px solid var(--p24-line);
   border-radius:6px;
-  background:var(--p24-panel);
+  background:#080a09;
 }
-.mini-history--price-24h .mini-history__stats span,
-.mini-history--price-24h .mini-history__stats strong{
-  display:block;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.mini-history--price-24h .mini-history__stats span{
-  color:var(--p24-dim);
-  font-size:.67rem;
-  letter-spacing:.055em;
-  text-transform:uppercase;
-}
-.mini-history--price-24h .mini-history__stats strong{
-  margin-top:.1rem;
-  color:var(--p24-green);
-  font-size:.74rem;
-  font-weight:500;
-  font-variant-numeric:tabular-nums;
-}
-.mini-history--price-24h strong[data-tone="down"]{color:var(--p24-red)}
-.mini-history--price-24h strong[data-tone="up"]{color:var(--p24-green)}
-.mini-history--price-24h .mini-history__stage{
-  position:relative;
-  min-height:390px;
-  height:min(50vh,520px);
-  overflow:hidden;
-  border:1px solid var(--p24-line);
-  border-radius:7px;
-  background:var(--p24-bg);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.015);
-}
-.mini-history--price-24h .mini-history__stage canvas{
-  display:block;
-  width:100%;
-  height:100%;
+.price24__stage canvas{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
   outline:none;
   touch-action:none;
   cursor:crosshair;
 }
-.mini-history--price-24h .mini-history__stage canvas:focus-visible{
+.price24__stage canvas:focus-visible{
   box-shadow:inset 0 0 0 1px var(--p24-gold);
 }
-.mini-history--price-24h .mini-history__legend{
+.price24__legend{
   position:absolute;
-  left:72px;
-  top:9px;
+  top:.45rem;
+  left:.5rem;
   z-index:2;
   display:flex;
-  gap:.65rem;
+  align-items:center;
   flex-wrap:wrap;
+  gap:.35rem .7rem;
+  max-width:calc(100% - 1rem);
   padding:.28rem .38rem;
-  border:1px solid rgba(255,255,255,.06);
-  border-radius:6px;
-  background:rgba(8,8,8,.82);
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:5px;
+  background:rgba(8,10,9,.82);
   color:var(--p24-dim);
   font-size:.62rem;
   pointer-events:none;
 }
-.mini-history--price-24h .mini-history__legend span{display:flex;align-items:center;gap:.28rem}
-.mini-history--price-24h .mini-history__legend i{display:inline-block;width:14px;height:2px;background:var(--p24-green)}
-.mini-history--price-24h .mini-history__legend-sma{background:var(--p24-gold)!important}
-.mini-history--price-24h .mini-history__legend-ema{background:#9aa67a!important}
-.mini-history--price-24h .mini-history__tooltip{
+.price24__legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:.28rem;
+  white-space:nowrap;
+}
+.price24__legend i{
+  display:inline-block;
+  width:14px;
+  height:2px;
+  background:var(--p24-green);
+}
+.price24__legend-sma{background:var(--p24-gold)!important}
+.price24__legend-ema{background:#9aa67a!important}
+.price24__legend [hidden]{display:none!important}
+
+.price24__tooltip{
   position:absolute;
   z-index:6;
-  min-width:210px;
-  max-width:330px;
   display:grid;
   gap:.22rem;
-  padding:.48rem .52rem;
-  border:1px solid rgba(230,164,43,.4);
+  min-width:190px;
+  max-width:min(310px,calc(100% - 1rem));
+  padding:.42rem .48rem;
+  border:1px solid rgba(230,164,43,.38);
   border-radius:6px;
   background:rgba(6,8,7,.96);
   box-shadow:0 10px 28px rgba(0,0,0,.32);
@@ -202,8 +275,10 @@
   font-size:.67rem;
   pointer-events:none;
 }
-.mini-history--price-24h .mini-history__tooltip strong{color:var(--p24-gold);font-weight:500}
-.mini-history--price-24h .mini-history__empty{
+.price24__tooltip strong{color:var(--p24-gold);font-weight:500}
+.price24__tooltip[hidden]{display:none!important}
+
+.price24__empty{
   position:absolute;
   inset:0;
   z-index:5;
@@ -212,31 +287,38 @@
   gap:.3rem;
   padding:1rem;
   text-align:center;
-  background:rgba(7,10,8,.88);
+  background:rgba(7,10,8,.9);
   color:var(--p24-dim);
   font-size:.69rem;
 }
-.mini-history--price-24h .mini-history__empty strong{color:var(--p24-muted);font-weight:500}
-.mini-history--price-24h .mini-history__diagnostics{
-  justify-content:flex-start;
-  gap:.75rem;
-  padding:0 .08rem;
-}
-.mini-history--price-24h .mini-history__footer{
-  margin-top:0;
+.price24__empty strong{color:var(--p24-muted);font-weight:500}
+.price24__empty[hidden]{display:none!important}
+
+.price24__footer{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:.4rem .75rem;
   padding-top:.42rem;
   border-top:1px solid var(--p24-line);
-  font-size:.68rem;
-}
-.mini-history--price-24h .mini-history__status{color:var(--p24-green)}
-.mini-history--price-24h .mini-history__transport{
-  margin-left:auto;
   min-width:0;
+}
+.price24__diagnostics{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.25rem .75rem;
+  min-width:0;
+}
+.price24__transport{
+  min-width:0;
+  max-width:280px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
+  text-align:right;
 }
-.mini-history--price-24h .mini-history__sr{
+.price24__sr{
   position:absolute!important;
   width:1px!important;
   height:1px!important;
@@ -247,24 +329,26 @@
   white-space:nowrap!important;
   border:0!important;
 }
-@media(max-width:980px){
-  .mini-history--price-24h .mini-history__toolbar{
-    grid-template-columns:minmax(160px,1fr) repeat(2,minmax(110px,.55fr));
-  }
-  .mini-history--price-24h .mini-history__stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+@media(max-width:760px){
+  .price24__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .price24__controls{grid-template-columns:minmax(0,1fr) minmax(90px,.55fr)}
+  .price24__source{grid-column:1/-1}
+  .price24__actions{justify-content:flex-start}
+  .price24__stage{height:300px;min-height:260px}
+  .price24__footer{grid-template-columns:1fr}
+  .price24__transport{max-width:none;text-align:left}
 }
-@media(max-width:620px){
-  .mini-history--price-24h .mini-history__head{display:grid}
-  .mini-history--price-24h .mini-history__toolbar{grid-template-columns:1fr 1fr}
-  .mini-history--price-24h .mini-history__source{grid-column:1/-1}
-  .mini-history--price-24h .mini-history__stats{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .mini-history--price-24h .mini-history__stage{height:420px;min-height:340px}
-  .mini-history--price-24h .mini-history__legend{left:8px;right:8px}
-  .mini-history--price-24h .mini-history__footer{align-items:flex-start;flex-direction:column}
-  .mini-history--price-24h .mini-history__transport{margin-left:0}
-}
-@media(max-width:420px){
-  .mini-history--price-24h .mini-history__toolbar{grid-template-columns:1fr}
-  .mini-history--price-24h .mini-history__source{grid-column:auto}
-  .mini-history--price-24h .mini-history__stats{grid-template-columns:1fr}
+
+@media(max-width:460px){
+  .price24__header{display:grid}
+  .price24__status{justify-self:start}
+  .price24__hero{grid-template-columns:1fr}
+  .price24__hero-change{text-align:left}
+  .price24__metrics{grid-template-columns:1fr 1fr}
+  .price24__controls{grid-template-columns:1fr}
+  .price24__source{grid-column:auto}
+  .price24__checks,
+  .price24__actions{grid-column:auto}
+  .price24__stage{height:270px;min-height:240px}
 }
