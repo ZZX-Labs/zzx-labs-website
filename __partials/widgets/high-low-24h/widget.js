@@ -9,9 +9,9 @@
   const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
-    resolution:"zzx.widget.high-low-24h.resolution.v4",
-    view:"zzx.widget.high-low-24h.view.v4",
-    follow:"zzx.widget.high-low-24h.follow-live.v4"
+    resolution:"zzx.widget.high-low-24h.resolution.v5",
+    view:"zzx.widget.high-low-24h.view.v5",
+    follow:"zzx.widget.high-low-24h.follow-live.v5"
   });
 
   const MODULES=Object.freeze([
@@ -36,6 +36,13 @@
   function set(root,selector,value){
     const element=q(root,selector);
     if(element)element.textContent=value==null?"—":String(value);
+  }
+
+  function setStatus(root,text,status="offline"){
+    const element=q(root,"[data-hl24-status]");
+    if(!element)return;
+    element.textContent=text==null?"—":String(text);
+    element.dataset.status=status;
   }
 
   function finite(value){
@@ -305,12 +312,12 @@
         resetView:sourceChanged||resetView
       });
 
-      set(
+      setStatus(
         root,
-        "[data-hl24-status]",
         state.points.length>=2
           ? `live · ${descriptor.label} · ${money(result.stats.current)}`
-          : `waiting · ${descriptor.label}`
+          : `waiting · ${descriptor.label}`,
+        state.points.length>=2?"ok":"warn"
       );
       set(root,"[data-hl24-transport]",`${data.transport||"history"} · canonical BitAvg mode`);
 
@@ -322,7 +329,7 @@
         );
       }
     }catch(error){
-      set(root,"[data-hl24-status]",`history error: ${String(error?.message||error)}`);
+      setStatus(root,`history error: ${String(error?.message||error)}`,"error");
       set(root,"[data-hl24-transport]","transport error");
       showEmpty(root,true,String(error?.message||error));
     }finally{
@@ -347,7 +354,7 @@
     const result=paint(root,state,{preserveView:true,resetView:false});
     set(root,"[data-hl24-source]",descriptor.label);
     set(root,"[data-hl24-eyebrow]",`${descriptor.label} · canonical BitAvg 24h high / low envelope`);
-    set(root,"[data-hl24-status]",`live · ${descriptor.label} · ${money(result.stats.current)}`);
+    setStatus(root,`live · ${descriptor.label} · ${money(result.stats.current)}`,"ok");
     return true;
   }
 
@@ -406,7 +413,7 @@
         try{
           await state.chart.exportPNG(`zzx-${state.sourceId||"bitavg"}-high-low-24h.png`);
         }catch(error){
-          set(root,"[data-hl24-status]",`export error: ${String(error?.message||error)}`);
+          setStatus(root,`export error: ${String(error?.message||error)}`,"error");
         }
       },options);
 
@@ -455,7 +462,7 @@
       }
       state.timer=W.setTimeout(loop,HISTORY_REFRESH_MS);
     }catch(error){
-      set(root,"[data-hl24-status]",`boot error: ${String(error?.message||error)}`);
+      setStatus(root,`boot error: ${String(error?.message||error)}`,"error");
       showEmpty(root,true,String(error?.message||error));
     }
   }
