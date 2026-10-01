@@ -1,0 +1,93 @@
+name: World Factbook Daily Fact Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_captures:
+        description: "Wayback captures to examine this run"
+        default: "120"
+        required: false
+        type: string
+  schedule:
+    - cron: "27 3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: worldfactbook-daily-facts
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      PRIVATE_REPO: ${{ vars.WORLDFACTBOOK_DAILY_STORE_REPO }}
+      PRIVATE_TOKEN: ${{ secrets.WORLDFACTBOOK_PRIVATE_DATA_TOKEN }}
+      PUBLIC_TOKEN: ${{ github.token }}
+      MAX_CAPTURES: ${{ inputs.max_captures || '120' }}
+    steps:
+      - name: Load public checkout with native Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${PUBLIC_TOKEN}" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
+          git fetch --no-tags origin main
+          git checkout -B main origin/main
+
+      - name: Load private recovery checkpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${PRIVATE_REPO}" || -z "${PRIVATE_TOKEN}" ]]; then
+            printf '%s\n' 'Configure WORLDFACTBOOK_DAILY_STORE_REPO (owner/repo) and WORLDFACTBOOK_PRIVATE_DATA_TOKEN before enabling this recovery job.'
+            exit 1
+          fi
+          PRIVATE_DIR="${RUNNER_TEMP}/worldfactbook-daily-private"
+          AUTH="$(printf 'x-access-token:%s' "${PRIVATE_TOKEN}" | base64 | tr -d '\n')"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH}" \
+            clone "https://github.com/${PRIVATE_REPO}.git" "${PRIVATE_DIR}"
+          printf 'PRIVATE_DIR=%s\n' "${PRIVATE_DIR}" >> "${GITHUB_ENV}"
+
+      - name: Recover in reverse capture order and export reviewed date labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          STORE="${PRIVATE_DIR}/daily-facts-private-store"
+          python3 tests/test_daily_fact_recovery.py
+          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" bootstrap \
+            --api worldfactbook/api/daily-archive
+          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" recover \
+            --first-year 1994 --final-year 2026 --max-captures "${MAX_CAPTURES}" --wait 0.5
+          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" export \
+            --api worldfactbook/api/daily-archive \
+            --training "${PRIVATE_DIR}/training/cia_daily_facts.jsonl"
+          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" verify
+
+      - name: Commit source evidence to private repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${PRIVATE_DIR}"
+          git config user.name worldfactbook-recovery-bot
+          git config user.email actions@github.com
+          git add -- daily-facts-private-store training/cia_daily_facts.jsonl
+          if ! git diff --cached --quiet; then
+            git commit -m "Backfill dated Fact of the Day source captures"
+            AUTH="$(printf 'x-access-token:%s' "${PRIVATE_TOKEN}" | base64 | tr -d '\n')"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH}" push origin HEAD:main
+          fi
+
+      - name: Publish only small static daily contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name worldfactbook-recovery-bot
+          git config user.email actions@github.com
+          python3 tools/bpi/bpi_git_publish.py \
+            --root . --message "Backfill sourced World Factbook daily facts" \
+            --path worldfactbook/api/daily-archive --attempts 8 --sleep-seconds 6
