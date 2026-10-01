@@ -85,12 +85,28 @@ The public `complete_historical_run` flag stays false until all gates pass.
   automatically a historic Flag of the Day.
 
 The workflow `.github/workflows/zzx-worldfactbook-daily-recovery.yml` runs
-this backfill daily. Set `WORLDFACTBOOK_DAILY_STORE_REPO` to a **private**
-`owner/repo` repository, and give `WORLDFACTBOOK_PRIVATE_DATA_TOKEN` access
-to that repo. It copies the small public seed into a private checkpoint store
-on the first run, pushes raw evidence and the JSONL corpus only to the
-private repository, then publishes only the bounded static JSON to Pages.
-The existing private chain rollover tool should govern that repository when
-it approaches its capacity. The public output contains no private URL or token.
+this backfill daily after a private-repository credential is configured. Set
+the Actions secret `WORLDFACTBOOK_PRIVATE_DATA_TOKEN` to a GitHub token that
+can create a private repository in the site owner's account or organization
+and read/write its Contents. GitHub documents the organization creation
+permission as Repository creation (write) or Administration (write) for a
+fine-grained token; a classic personal access token with `repo` scope can
+create a private repository. The token must also have access to the newly
+created repository. The default name is
+`<site-owner>/zzx-worldfactbook-daily-part-0001`. Optionally set the Actions
+variable `WORLDFACTBOOK_DAILY_STORE_REPO` to another private `owner/repo`.
 
-Run the focused check with `python tests/test_daily_fact_recovery.py`.
+The job checks the configured repository's visibility and refuses to clone
+or push if it is public. If the name does not exist, it creates a **private**
+repository, then loads checkpoints from its actual default branch. With no
+private token, the scheduled job records a visible skipped notice before
+checkout and does no recovery; a green workflow in that case does **not**
+mean the historical corpus is complete. The workflow copies the small public
+seed into a private checkpoint store on the first run, pushes raw evidence
+and the JSONL corpus only to the private repository, then publishes only the
+bounded static JSON to Pages. The existing private chain rollover tool should
+govern that repository when it approaches its capacity. The public output
+contains no private URL or token.
+
+Run the focused checks with `python tests/test_daily_fact_recovery.py` and
+`python tests/test_private_daily_repo.py`.
