@@ -9,11 +9,11 @@
   const MAX_POINTS_DETAIL=12000;
 
   const STORE=Object.freeze({
-    resolution:"zzx.widget.price-24h.resolution.v3",
-    renderer:"zzx.widget.price-24h.renderer.v3",
-    sma:"zzx.widget.price-24h.sma20.v3",
-    ema:"zzx.widget.price-24h.ema50.v3",
-    follow:"zzx.widget.price-24h.follow-live.v3"
+    resolution:"zzx.widget.price-24h.resolution.v4",
+    renderer:"zzx.widget.price-24h.renderer.v4",
+    sma:"zzx.widget.price-24h.sma20.v4",
+    ema:"zzx.widget.price-24h.ema50.v4",
+    follow:"zzx.widget.price-24h.follow-live.v4"
   });
 
   const MODULES=Object.freeze([
@@ -59,6 +59,13 @@
   function set(root,selector,value){
     const element=q(root,selector);
     if(element)element.textContent=value==null?"—":String(value);
+  }
+
+  function setStatus(root,text,status="ok"){
+    const element=q(root,"[data-mini-status]");
+    if(!element)return;
+    element.textContent=text==null?"—":String(text);
+    element.dataset.status=status;
   }
 
   function finite(value){
@@ -193,7 +200,7 @@
   function controlState(root){
     return {
       resolution:q(root,"[data-price24-resolution]")?.value||"auto",
-      renderer:q(root,"[data-price24-renderer]")?.value||"line",
+      renderer:q(root,"[data-price24-renderer]")?.value||"area",
       sma:q(root,"[data-price24-sma]")?.checked===true,
       ema:q(root,"[data-price24-ema]")?.checked===true,
       follow:q(root,"[data-price24-follow]")?.checked!==false
@@ -392,12 +399,12 @@
         resetView:sourceChanged||resetView
       });
 
-      set(
+      setStatus(
         root,
-        "[data-mini-status]",
         state.points.length>=2
-          ? `live · ${descriptor.label} · ${stats.points.toLocaleString()} points`
-          : `waiting · ${descriptor.label}`
+          ? `live · ${descriptor.label}`
+          : `waiting · ${descriptor.label}`,
+        state.points.length>=2?"ok":"warn"
       );
       set(
         root,
@@ -414,7 +421,7 @@
         );
       }
     }catch(error){
-      set(root,"[data-mini-status]",`history error: ${String(error?.message||error)}`);
+      setStatus(root,`history error: ${String(error?.message||error)}`,"error");
       set(root,"[data-price24-transport]","transport error");
       showEmpty(root,true,String(error?.message||error));
     }finally{
@@ -445,7 +452,7 @@
 
     set(root,"[data-price24-source]",descriptor.label);
     set(root,"[data-price24-eyebrow]",`${descriptor.label} · canonical BitAvg BTC / USD · rolling 24h`);
-    set(root,"[data-mini-status]",`live · ${descriptor.label} · canonical ${money(quote.price_usd??quote.priceUsd)}`);
+    setStatus(root,`live · ${descriptor.label}`,"ok");
     return true;
   }
 
@@ -526,7 +533,7 @@
           try{
             await state.chart.exportPNG(`zzx-${state.sourceId||"bitavg"}-price-24h.png`);
           }catch(error){
-            set(root,"[data-mini-status]",`export error: ${String(error?.message||error)}`);
+            setStatus(root,`export error: ${String(error?.message||error)}`,"error");
           }
         },
         options
@@ -588,7 +595,7 @@
 
       state.timer=W.setTimeout(loop,HISTORY_REFRESH_MS);
     }catch(error){
-      set(root,"[data-mini-status]",`boot error: ${String(error?.message||error)}`);
+      setStatus(root,`boot error: ${String(error?.message||error)}`,"error");
       showEmpty(root,true,String(error?.message||error));
     }
   }
