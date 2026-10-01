@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-09-30T20:32:28.984878Z",
+  "generated_at": "2026-10-01T00:07:52.297381Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "node_id": "C_kwDOABII59oAKGQ0YjBlMWU0YjA3OGRiYjRhYjU3ODg2ZDI4ODQ3MDY4NGRlYzU3MTg",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-30T22:06:48Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-09-30T22:06:48Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35833: log: prevent user input from injecting fake log lines\n\nd93d366e204e95e873ef0b89425f84a520f8fabd log: escape newlines in messages (L\u0151rinc)\n960dcdb62529a6498d1397e1cf1077fe3cb19d9f test: characterize RPC and wallet input logs (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** Restricted RPC users and callers of `createwallet` or `restorewallet` can inject newlines through rejected methods or wallet names, and [global log escaping preserves them](https://github.com/bitcoin/bitcoin/pull/17095), making forged lines look like node messages.\n\n  **Fix:** Escape embedded newlines in log messages.\n\n  <details>\n  <summary>Manual reproducer</summary>\n\n  ```bash\n  DATADIR=\"$(mktemp -d /tmp/bitcoin-log-injection.XXXXXX)\"\n  M=\"$(date -u +%Y-%m-%dT%H:%M:%SZ) ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\"\n  cmake -B build >/dev/null 2>&1 && cmake --build build -j >/dev/null 2>&1\n  build/bin/bitcoind -regtest -daemonwait -datadir=\"$DATADIR\" -rpcwhitelist=__cookie__:getblock,stop >/dev/null 2>&1\n  build/bin/bitcoin-cli -regtest -datadir=\"$DATADIR\" $'getblock\\n'\"$M\" >/dev/null 2>&1; killall bitcoind >/dev/null\n  echo; grep -E 'ConnectTip|not allowed' \"$DATADIR/regtest/debug.log\"\n  ```\n\n  > Before\n\n  ```bash\n  2026-07-28T23:18:57Z [warning] RPC User __cookie__ not allowed to call method getblock\n  2026-07-28T23:18:55Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n\n  > After\n\n  ```bash\n  2026-07-28T23:19:45Z [warning] RPC User __cookie__ not allowed to call method getblock\\x0a2026-07-28T23:19:41Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n  </details>\n\nACKs for top commit:\n  achow101:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n  ryanofsky:\n    Code review ACK d93d366e204e95e873ef0b89425f84a520f8fabd. Fix is minimal now and tests have been expanded to ensure that newlines can't sneak into log messages through `InitWarning` or `InitError` calls by testing the `load_on_startup` case w0xlt reported https://github.com/bitcoin/bitcoin/pull/35833#issuecomment-5849713749.\n  w0xlt:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n\nTree-SHA512: 6a19f937a2d362fd4dd2960d1551d7e630dc61e4200bd1f61eb65fd02286b2500ac5eb4fee01c1f1aed5fb4899daa56c11e800ccb4572a3372b180f8ec44c6db",
+        "tree": {
+          "sha": "73d72fb67ede3520a7edc942a803be2adf10ee02",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/73d72fb67ede3520a7edc942a803be2adf10ee02"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmq9h/kACgkQF1ZXMuCO\nXkFdbA//chNmmqI8yAGRuHbdY9OwCV4/5tywBeGFk3oAttAIoyDXkBoWaQ7avDxy\neCKreA4UMEv/9Jn2sBOZrLZOU5l55zZDI/Au/Csmz283UNack80hRk9SKr6WmsJT\nkar9D4BNcBQ9IeG/0mFOib3Qa4gc3AKhQ4OGNdq/a2VMHaEcFuLINJsuZesWrvvN\naKYalVAMQKiufS4zdjBZJvJjkDvOEeJ2i57MsZVuOYYpNn79hXzs/5gSCy3YCF+W\nZ69NabV6wH8d8JTWSioI/d1TY1/vbRPkaYSeGc9pQUvAIseFCN6kMFl/pXxErliX\nDTEQXCz6ErS7dFCpG6CtUWuZaSNwpgqX4+ri23y+5qvE1P8ZLe5VyTfqistu+CY7\n7pDVP3TUSmhssVt3MmzMP5FyI4+6Dqt63WWhhJvRfXRT/BYyC69dAAAWQo8Zq5/1\nJKxVIYz2/ZRgK4JfuztuyHBwcVjI/iqyZxvKnLDrz8YAcssuCUBKF5q2Pzwzoyi6\n2Ls3yfe2SDU0Pzd9USWa8YPe7pLNuMKEHSrGpmM9WlKO2KVHMKTzF7+1/nATXGO4\n9PCnoB2O75Vl0oCWYHbItj4wB+WCZ8KBHV4KjwoZvTBmTh86DDtJDAIAEV9P/WjK\nfWNaTeOSNdr4zAB5jR2T3Prm9yTGcrrtFr0sM6pi39zhUO4G1Lg=\n=PWJU\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIKZiH/Jdg58UjhAhI6AdbE90ZJY/9KPwjxwEWETuHuG0CP/wEERIz2x1wNQA\nOgcswk+gxZYI8CBihKf4pNQkKk6nbAAsCVXPeBgdXrhp4deyKoGYr+TEsAjxIBfq\nuqOnymYn/jsbPiVRBBHlnHwtlwYjXL8X31EsdEfLCPAg2S3MRQEl37A1rOD+PkNa\nEtxLN7h0P9UvOYdxOvDv7cQI8QRqvYgA8AjuKJA6m7zGZQCD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wCE/HaDFpK3Sz\nCPAg+zoxJHhjIDOGTywlQf+nDxRWbGx5VbYj6vUYA1hmndkI8BAQoaazvy5okZGT\ncqD4OiVBCPAglOu71BjN95xYYJLuxCfncNpxksBEdqqFCGNFERKk3qMI8QRqvYgA\n8AggSEc62ViWGwCD3+MNLvkMji4taHR0cHM6Ly9hbGljZS5idGMuY2FsZW5kYXIu\nb3BlbnRpbWVzdGFtcHMub3Jn//AQXmXi76Dd951frrCi04GWPwjxIEL2toOyEHxj\nWZQtuFx0KQucN77WwjLwMVKZWmklxfp+CPEEar2H//AIcUfByjIWf+MAg9/jDS75\nDI4jImh0dHBzOi8vYnRjLmNhbGVuZGFyLmNhdGFsbGF4eS5jb23wCOLkX4KNtIP/\nCPAga6LMnCGE9MD8u88BUFOS/jStuI3LubCtdFTPgHkoO0AI8BBqLvXhqf9CFPxL\nmEXJTIJRCPEgfRLTIAmEkmHBuaPhZIVwgwWAjAcxg2//ppspdGtqeFcI8CC6zxZO\nlUS2PqO2GSplHiUpbKGqSo/wgvQ8UJ7l+WoFFgjxBGq9iADwCIhSAZI4DnHnAIPf\n4w0u+QyOLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMu\nb3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 73d72fb67ede3520a7edc942a803be2adf10ee02\nparent 4b612c6bf8cfa319a9df130d4b3d0523fddb6579\nparent d93d366e204e95e873ef0b89425f84a520f8fabd\nauthor Ava Chow <github@achow101.com> 1790806008 -0700\ncommitter Ava Chow <github@achow101.com> 1790806008 -0700\n\nMerge bitcoin/bitcoin#35833: log: prevent user input from injecting fake log lines\n\nd93d366e204e95e873ef0b89425f84a520f8fabd log: escape newlines in messages (L\u0151rinc)\n960dcdb62529a6498d1397e1cf1077fe3cb19d9f test: characterize RPC and wallet input logs (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** Restricted RPC users and callers of `createwallet` or `restorewallet` can inject newlines through rejected methods or wallet names, and [global log escaping preserves them](https://github.com/bitcoin/bitcoin/pull/17095), making forged lines look like node messages.\n\n  **Fix:** Escape embedded newlines in log messages.\n\n  <details>\n  <summary>Manual reproducer</summary>\n\n  ```bash\n  DATADIR=\"$(mktemp -d /tmp/bitcoin-log-injection.XXXXXX)\"\n  M=\"$(date -u +%Y-%m-%dT%H:%M:%SZ) ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\"\n  cmake -B build >/dev/null 2>&1 && cmake --build build -j >/dev/null 2>&1\n  build/bin/bitcoind -regtest -daemonwait -datadir=\"$DATADIR\" -rpcwhitelist=__cookie__:getblock,stop >/dev/null 2>&1\n  build/bin/bitcoin-cli -regtest -datadir=\"$DATADIR\" $'getblock\\n'\"$M\" >/dev/null 2>&1; killall bitcoind >/dev/null\n  echo; grep -E 'ConnectTip|not allowed' \"$DATADIR/regtest/debug.log\"\n  ```\n\n  > Before\n\n  ```bash\n  2026-07-28T23:18:57Z [warning] RPC User __cookie__ not allowed to call method getblock\n  2026-07-28T23:18:55Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n\n  > After\n\n  ```bash\n  2026-07-28T23:19:45Z [warning] RPC User __cookie__ not allowed to call method getblock\\x0a2026-07-28T23:19:41Z ERROR: ConnectTip: ConnectBlock 0000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef failed, bad-txns-inputs-missingorspent\n  ```\n  </details>\n\nACKs for top commit:\n  achow101:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n  ryanofsky:\n    Code review ACK d93d366e204e95e873ef0b89425f84a520f8fabd. Fix is minimal now and tests have been expanded to ensure that newlines can't sneak into log messages through `InitWarning` or `InitError` calls by testing the `load_on_startup` case w0xlt reported https://github.com/bitcoin/bitcoin/pull/35833#issuecomment-5849713749.\n  w0xlt:\n    ACK d93d366e204e95e873ef0b89425f84a520f8fabd\n\nTree-SHA512: 6a19f937a2d362fd4dd2960d1551d7e630dc61e4200bd1f61eb65fd02286b2500ac5eb4fee01c1f1aed5fb4899daa56c11e800ccb4572a3372b180f8ec44c6db\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d4b0e1e4b078dbb4ab57886d288470684dec5718",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d4b0e1e4b078dbb4ab57886d288470684dec5718/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4b612c6bf8cfa319a9df130d4b3d0523fddb6579"
+        },
+        {
+          "sha": "d93d366e204e95e873ef0b89425f84a520f8fabd",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d93d366e204e95e873ef0b89425f84a520f8fabd",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/d93d366e204e95e873ef0b89425f84a520f8fabd"
+        }
+      ]
+    },
     {
       "sha": "4b612c6bf8cfa319a9df130d4b3d0523fddb6579",
       "node_id": "C_kwDOABII59oAKDRiNjEyYzZiZjhjZmEzMTlhOWRmMTMwZDRiM2QwNTIzZmRkYjY1Nzk",
@@ -1855,6 +1942,170 @@
         "repos_url": "https://api.github.com/users/torkelrogstad/repos",
         "events_url": "https://api.github.com/users/torkelrogstad/events{/privacy}",
         "received_events_url": "https://api.github.com/users/torkelrogstad/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ed7dd7cf4e1561a97edf72eba29a67b14e28c717"
+        }
+      ]
+    },
+    {
+      "sha": "d93d366e204e95e873ef0b89425f84a520f8fabd",
+      "node_id": "C_kwDOABII59oAKGQ5M2QzNjZlMjA0ZTk1ZTg3M2VmMGI4OTQyNWY4NGE1MjBmOGZhYmQ",
+      "commit": {
+        "author": {
+          "name": "L\u0151rinc",
+          "email": "pap.lorinc@gmail.com",
+          "date": "2026-09-27T16:52:21Z"
+        },
+        "committer": {
+          "name": "L\u0151rinc",
+          "email": "pap.lorinc@gmail.com",
+          "date": "2026-09-28T01:44:32Z"
+        },
+        "message": "log: escape newlines in messages\n\nEscape embedded newlines as \\x0a in the logger so untrusted input cannot forge additional log lines. Preserve printable method characters, UTF-8, and wallet naming behavior.\n\nRemove one conventional trailing newline before escaping and append the log terminator centrally.\n\nCover rejected RPC methods, wallet creation, and the startup warning for a persisted wallet path that has disappeared.\n\nCo-authored-by: Ryan Ofsky <ryan@ofsky.org>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>",
+        "tree": {
+          "sha": "48501ed5be0b8bad9ce555e7f2cfeae4faf33f36",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/48501ed5be0b8bad9ce555e7f2cfeae4faf33f36"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d93d366e204e95e873ef0b89425f84a520f8fabd",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQQiU97U54YbP0PlTVgnCd/LLYEwhwUCarnGgBsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQJwnfyy2BMIethgD8CB/i7qOhjuRJEyGnk0Nh\nMWHlTp0Fy15VVZZeBYZYG88BAM1bEU02qAl8FMQ+2kLRXCvS4mP4IBEKlNoQ09A3\nZAAD\n=ZjL+\n-----END PGP SIGNATURE-----",
+          "payload": "tree 48501ed5be0b8bad9ce555e7f2cfeae4faf33f36\nparent 960dcdb62529a6498d1397e1cf1077fe3cb19d9f\nauthor L\u0151rinc <pap.lorinc@gmail.com> 1790527941 -0700\ncommitter L\u0151rinc <pap.lorinc@gmail.com> 1790559872 -0700\n\nlog: escape newlines in messages\n\nEscape embedded newlines as \\x0a in the logger so untrusted input cannot forge additional log lines. Preserve printable method characters, UTF-8, and wallet naming behavior.\n\nRemove one conventional trailing newline before escaping and append the log terminator centrally.\n\nCover rejected RPC methods, wallet creation, and the startup warning for a persisted wallet path that has disappeared.\n\nCo-authored-by: Ryan Ofsky <ryan@ofsky.org>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>\n",
+          "verified_at": "2026-09-28T01:44:41Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d93d366e204e95e873ef0b89425f84a520f8fabd",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/d93d366e204e95e873ef0b89425f84a520f8fabd",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d93d366e204e95e873ef0b89425f84a520f8fabd/comments",
+      "author": {
+        "login": "l0rinc",
+        "id": 1841944,
+        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/l0rinc",
+        "html_url": "https://github.com/l0rinc",
+        "followers_url": "https://api.github.com/users/l0rinc/followers",
+        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
+        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
+        "repos_url": "https://api.github.com/users/l0rinc/repos",
+        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "l0rinc",
+        "id": 1841944,
+        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/l0rinc",
+        "html_url": "https://github.com/l0rinc",
+        "followers_url": "https://api.github.com/users/l0rinc/followers",
+        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
+        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
+        "repos_url": "https://api.github.com/users/l0rinc/repos",
+        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/960dcdb62529a6498d1397e1cf1077fe3cb19d9f"
+        }
+      ]
+    },
+    {
+      "sha": "960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+      "node_id": "C_kwDOABII59oAKDk2MGRjZGI2MjUyOWE2NDk4ZDEzOTdlMWNmMTA3N2ZlM2NiMTlkOWY",
+      "commit": {
+        "author": {
+          "name": "L\u0151rinc",
+          "email": "pap.lorinc@gmail.com",
+          "date": "2026-07-28T20:23:37Z"
+        },
+        "committer": {
+          "name": "L\u0151rinc",
+          "email": "pap.lorinc@gmail.com",
+          "date": "2026-09-28T01:44:32Z"
+        },
+        "message": "test: characterize RPC and wallet input logs\n\nCo-authored-by: Ryan Ofsky <ryan@ofsky.org>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>",
+        "tree": {
+          "sha": "81d011045115f35618ca78e6d35a769747a4137f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/81d011045115f35618ca78e6d35a769747a4137f"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQQiU97U54YbP0PlTVgnCd/LLYEwhwUCarnGgBsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQJwnfyy2BMIfcZgEAlfwgGRwJWKm40TN1hCm5\n6nyx3A+ivCgDAHTi+4RfmO0BAKMCHE1YA3cjhlypvuvbNVxHfkV2wzvxCfbiGtGK\nJ/0P\n=Em5s\n-----END PGP SIGNATURE-----",
+          "payload": "tree 81d011045115f35618ca78e6d35a769747a4137f\nparent ed7dd7cf4e1561a97edf72eba29a67b14e28c717\nauthor L\u0151rinc <pap.lorinc@gmail.com> 1785270217 -0700\ncommitter L\u0151rinc <pap.lorinc@gmail.com> 1790559872 -0700\n\ntest: characterize RPC and wallet input logs\n\nCo-authored-by: Ryan Ofsky <ryan@ofsky.org>\nCo-authored-by: w0xlt <94266259+w0xlt@users.noreply.github.com>\n",
+          "verified_at": "2026-09-28T01:44:41Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/960dcdb62529a6498d1397e1cf1077fe3cb19d9f",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/960dcdb62529a6498d1397e1cf1077fe3cb19d9f/comments",
+      "author": {
+        "login": "l0rinc",
+        "id": 1841944,
+        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/l0rinc",
+        "html_url": "https://github.com/l0rinc",
+        "followers_url": "https://api.github.com/users/l0rinc/followers",
+        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
+        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
+        "repos_url": "https://api.github.com/users/l0rinc/repos",
+        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "l0rinc",
+        "id": 1841944,
+        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/l0rinc",
+        "html_url": "https://github.com/l0rinc",
+        "followers_url": "https://api.github.com/users/l0rinc/followers",
+        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
+        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
+        "repos_url": "https://api.github.com/users/l0rinc/repos",
+        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
         "type": "User",
         "user_view_type": "public",
         "site_admin": false
@@ -8184,252 +8435,6 @@
           "sha": "20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/20307f0ac0e17c6e478e2e11318dc7a9b18fc5d1"
-        }
-      ]
-    },
-    {
-      "sha": "6d2414542b86ff7d6eae0f4c873e47bc4e57a57c",
-      "node_id": "C_kwDOABII59oAKDZkMjQxNDU0MmI4NmZmN2Q2ZWFlMGY0Yzg3M2U0N2JjNGU1N2E1N2M",
-      "commit": {
-        "author": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-08-19T22:58:25Z"
-        },
-        "committer": {
-          "name": "L\u0151rinc",
-          "email": "pap.lorinc@gmail.com",
-          "date": "2026-09-17T22:49:00Z"
-        },
-        "message": "wallet: reuse unlock and passphrase change errors\n\nRPC and GUI callers still report database and encryption failures as incorrect passphrases.\nUse the structured wallet errors in RPC, GUI, and migration callers to report the specific failure and share passphrase error messages.\nMap `WalletErrorCode::PassphraseIncorrect` to `RPC_WALLET_PASSPHRASE_INCORRECT` in `HandleWalletErrorCode()` so the passphrase RPCs reuse the shared error mapping.",
-        "tree": {
-          "sha": "1a786cd282ecca9ba7bd989121a9aec957f12253",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1a786cd282ecca9ba7bd989121a9aec957f12253"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/6d2414542b86ff7d6eae0f4c873e47bc4e57a57c",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQQiU97U54YbP0PlTVgnCd/LLYEwhwUCaqxuXBsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQJwnfyy2BMIdInwEAi/r+Jdch01A+XpauEIlA\nv2uTcpwzeReV2f6vi5sVFUkBAPf/kHsvw0z5ENCEMjfhg9qW03/Fc51jMaJOOy1+\nPH4L\n=8FzK\n-----END PGP SIGNATURE-----",
-          "payload": "tree 1a786cd282ecca9ba7bd989121a9aec957f12253\nparent 593554622e2ced30eb5c2b2fbc642e31c66b2bb8\nauthor Ava Chow <github@achow101.com> 1787180305 -0700\ncommitter L\u0151rinc <pap.lorinc@gmail.com> 1789685340 -0700\n\nwallet: reuse unlock and passphrase change errors\n\nRPC and GUI callers still report database and encryption failures as incorrect passphrases.\nUse the structured wallet errors in RPC, GUI, and migration callers to report the specific failure and share passphrase error messages.\nMap `WalletErrorCode::PassphraseIncorrect` to `RPC_WALLET_PASSPHRASE_INCORRECT` in `HandleWalletErrorCode()` so the passphrase RPCs reuse the shared error mapping.\n",
-          "verified_at": "2026-09-17T22:50:46Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6d2414542b86ff7d6eae0f4c873e47bc4e57a57c",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/6d2414542b86ff7d6eae0f4c873e47bc4e57a57c",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6d2414542b86ff7d6eae0f4c873e47bc4e57a57c/comments",
-      "author": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "l0rinc",
-        "id": 1841944,
-        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/l0rinc",
-        "html_url": "https://github.com/l0rinc",
-        "followers_url": "https://api.github.com/users/l0rinc/followers",
-        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
-        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
-        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
-        "repos_url": "https://api.github.com/users/l0rinc/repos",
-        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/593554622e2ced30eb5c2b2fbc642e31c66b2bb8"
-        }
-      ]
-    },
-    {
-      "sha": "593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-      "node_id": "C_kwDOABII59oAKDU5MzU1NDYyMmUyY2VkMzBlYjVjMmIyZmJjNjQyZTMxYzY2YjJiYjg",
-      "commit": {
-        "author": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-08-19T22:58:25Z"
-        },
-        "committer": {
-          "name": "L\u0151rinc",
-          "email": "pap.lorinc@gmail.com",
-          "date": "2026-09-17T22:45:09Z"
-        },
-        "message": "wallet: return passphrase errors with Expected\n\nChange wallet unlock and passphrase methods from `bool` to `util::Expected<void, WalletError>` so they can return specific error codes and messages.\nAdd `WalletErrorCode::PassphraseIncorrect` for a passphrase that does not decrypt the wallet, since `UnlockNeeded` describes a locked wallet that callers can unlock and retry.\nUpdate the wallet interfaces while callers continue to use the success state.",
-        "tree": {
-          "sha": "0c2fea5556451e5ccda6cbefd63630c2035b515d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0c2fea5556451e5ccda6cbefd63630c2035b515d"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQQiU97U54YbP0PlTVgnCd/LLYEwhwUCaqxtdRsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQJwnfyy2BMIeOKAEAzOMYP1jfLaWEuVJaOUts\nOVCBmHluQSOqh/jXX0yS7AYA/j6GJQ3DYu/lBSASxfc07WtK1Yo8AFwq+e44510C\ngEUJ\n=h0Pd\n-----END PGP SIGNATURE-----",
-          "payload": "tree 0c2fea5556451e5ccda6cbefd63630c2035b515d\nparent f949b3ba2ad78eed70540a31564032ab3efefda6\nauthor Ava Chow <github@achow101.com> 1787180305 -0700\ncommitter L\u0151rinc <pap.lorinc@gmail.com> 1789685109 -0700\n\nwallet: return passphrase errors with Expected\n\nChange wallet unlock and passphrase methods from `bool` to `util::Expected<void, WalletError>` so they can return specific error codes and messages.\nAdd `WalletErrorCode::PassphraseIncorrect` for a passphrase that does not decrypt the wallet, since `UnlockNeeded` describes a locked wallet that callers can unlock and retry.\nUpdate the wallet interfaces while callers continue to use the success state.\n",
-          "verified_at": "2026-09-17T22:46:13Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/593554622e2ced30eb5c2b2fbc642e31c66b2bb8",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/593554622e2ced30eb5c2b2fbc642e31c66b2bb8/comments",
-      "author": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "l0rinc",
-        "id": 1841944,
-        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/l0rinc",
-        "html_url": "https://github.com/l0rinc",
-        "followers_url": "https://api.github.com/users/l0rinc/followers",
-        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
-        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
-        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
-        "repos_url": "https://api.github.com/users/l0rinc/repos",
-        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f949b3ba2ad78eed70540a31564032ab3efefda6",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f949b3ba2ad78eed70540a31564032ab3efefda6",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f949b3ba2ad78eed70540a31564032ab3efefda6"
-        }
-      ]
-    },
-    {
-      "sha": "f949b3ba2ad78eed70540a31564032ab3efefda6",
-      "node_id": "C_kwDOABII59oAKGY5NDliM2JhMmFkNzhlZWQ3MDU0MGEzMTU2NDAzMmFiM2VmZWZkYTY",
-      "commit": {
-        "author": {
-          "name": "L\u0151rinc",
-          "email": "pap.lorinc@gmail.com",
-          "date": "2026-08-18T02:48:49Z"
-        },
-        "committer": {
-          "name": "L\u0151rinc",
-          "email": "pap.lorinc@gmail.com",
-          "date": "2026-09-17T22:15:58Z"
-        },
-        "message": "wallet: publish descriptor keys after writes\n\n`AddDescriptorKeyWithDB()` publishes plaintext and encrypted keys before writing their database records.\nA failed write leaves a live-only key, and the duplicate check prevents a retry from persisting it.\n\nWrite each key record first and update the corresponding live key map only after the write succeeds.\nA failed insertion then leaves no key behind and can be retried.",
-        "tree": {
-          "sha": "48e5c872540666bf95aac341cac74398687375a5",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/48e5c872540666bf95aac341cac74398687375a5"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/f949b3ba2ad78eed70540a31564032ab3efefda6",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQQiU97U54YbP0PlTVgnCd/LLYEwhwUCaqxmnhsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQJwnfyy2BMIe2ggEA2FbAsdlhNZ46wVt0art3\nD+09GBt3479HPGv7WTUZVf8BAP3PXvQ1pQVRk96ABoqBRfFsN4G9BKWlQCac6Wzm\nc0IA\n=uMLl\n-----END PGP SIGNATURE-----",
-          "payload": "tree 48e5c872540666bf95aac341cac74398687375a5\nparent e3712b7d492fc72a763c9e5c73a5a174be59dd21\nauthor L\u0151rinc <pap.lorinc@gmail.com> 1787021329 -0700\ncommitter L\u0151rinc <pap.lorinc@gmail.com> 1789683358 -0700\n\nwallet: publish descriptor keys after writes\n\n`AddDescriptorKeyWithDB()` publishes plaintext and encrypted keys before writing their database records.\nA failed write leaves a live-only key, and the duplicate check prevents a retry from persisting it.\n\nWrite each key record first and update the corresponding live key map only after the write succeeds.\nA failed insertion then leaves no key behind and can be retried.\n",
-          "verified_at": "2026-09-17T22:46:13Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f949b3ba2ad78eed70540a31564032ab3efefda6",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/f949b3ba2ad78eed70540a31564032ab3efefda6",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f949b3ba2ad78eed70540a31564032ab3efefda6/comments",
-      "author": {
-        "login": "l0rinc",
-        "id": 1841944,
-        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/l0rinc",
-        "html_url": "https://github.com/l0rinc",
-        "followers_url": "https://api.github.com/users/l0rinc/followers",
-        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
-        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
-        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
-        "repos_url": "https://api.github.com/users/l0rinc/repos",
-        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "l0rinc",
-        "id": 1841944,
-        "node_id": "MDQ6VXNlcjE4NDE5NDQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/1841944?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/l0rinc",
-        "html_url": "https://github.com/l0rinc",
-        "followers_url": "https://api.github.com/users/l0rinc/followers",
-        "following_url": "https://api.github.com/users/l0rinc/following{/other_user}",
-        "gists_url": "https://api.github.com/users/l0rinc/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/l0rinc/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/l0rinc/subscriptions",
-        "organizations_url": "https://api.github.com/users/l0rinc/orgs",
-        "repos_url": "https://api.github.com/users/l0rinc/repos",
-        "events_url": "https://api.github.com/users/l0rinc/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/l0rinc/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "e3712b7d492fc72a763c9e5c73a5a174be59dd21",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e3712b7d492fc72a763c9e5c73a5a174be59dd21",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/e3712b7d492fc72a763c9e5c73a5a174be59dd21"
         }
       ]
     }
