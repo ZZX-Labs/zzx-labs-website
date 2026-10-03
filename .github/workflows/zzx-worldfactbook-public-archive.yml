@@ -8,6 +8,8 @@ on:
       - 'worldfactbook/manual/reviews/**'
       - 'worldfactbook/boundaries/**'
       - 'worldfactbook/js/globe*.js'
+      - 'worldfactbook/js/water-boundaries.js'
+      - 'worldfactbook/js/reading-room.js'
       - 'worldfactbook/css/globe.css'
       - 'worldfactbook/index.html'
       - 'worldfactbook/globe-preview/index.html'
@@ -15,6 +17,11 @@ on:
       - 'tools/worldfactbook/install_globe_layer.py'
       - 'tools/worldfactbook/verify_public_archive.py'
       - 'tools/worldfactbook/verify_globe_assets.py'
+      - 'tools/worldfactbook/build_water_boundaries.py'
+      - 'tools/worldfactbook/render_water_layer.py'
+      - 'tools/worldfactbook/verify_water_boundaries.py'
+      - 'tools/worldfactbook/data/water-sources.json'
+      - 'tests/test_water_boundaries.py'
   workflow_dispatch:
 
 permissions:
@@ -59,6 +66,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/worldfactbook/verify_globe_assets.py --repo .
+          python3 tools/worldfactbook/verify_water_boundaries.py --repo .
+          python3 tests/test_water_boundaries.py
 
       - name: Commit status changes only after verification
         shell: bash
