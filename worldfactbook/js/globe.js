@@ -10,6 +10,8 @@
     imageCache:new Map(), lastTexture:null, rotationSeconds:20, playing:true,
     dragging:false, lastFrame:0, boundaryManifest:null, boundaries:null,
     boundaryVersion:0, lookup:null, selectedRings:[], shapeVersion:0,
+    water:null, waterFeature:null, waterAnchor:null, waterVersion:0,
+    selectionVersion:0,
     zoom:1, axis:0, pitchOffset:0, flat:false, rate:1, direction:1,
     theme:window.WFBGlobeConfig?.themes?.[0]||null, portal:null };
   const TAU=Math.PI*2, RAD=Math.PI/180, SIDEREAL_DAY=86164.0905;
@@ -146,6 +148,45 @@
   function boundaryStatus(text){
     const node=$("[data-wfb-boundary-status]");if(node)node.textContent=text;
   }
+  function waterStatus(text){
+    const node=$("[data-wfb-water-status]");if(node)node.textContent=text;
+  }
+  async function loadWater(year){
+    const token=++state.waterVersion;
+    try{
+      const dataset=await window.WFBWaterBoundaries.open(root,year);
+      if(token!==state.waterVersion)return;
+      state.water=dataset;
+      waterStatus(dataset.historical?`Water: ${year} source geometry (${dataset.index.status})`:
+        `Water: ${dataset.features.length.toLocaleString()} reference features · historical year unavailable`);
+      const select=$("[data-wfb-water-body]");
+      const version=`${dataset.index.kind}:${dataset.index.year??"reference"}`;
+      if(select.dataset.version!==version){
+        const fragment=document.createDocumentFragment();
+        const placeholder=document.createElement("option");placeholder.value="";
+        placeholder.textContent="Choose water geography";fragment.append(placeholder);
+        for(const feature of dataset.features.slice().sort((a,b)=>a.name.localeCompare(b.name))){
+          const option=document.createElement("option");option.value=String(feature.id);
+          option.textContent=`${feature.name} · ${feature.kind}`;fragment.append(option);
+        }
+        select.replaceChildren(fragment);select.dataset.version=version;
+      }
+      if(state.waterFeature){
+        const active=dataset.features.find(feature=>feature.source_id===state.waterFeature.source_id);
+        if(active){state.waterFeature=active;
+          const groups=await dataset.geometry(active);
+          if(token!==state.waterVersion||state.waterFeature?.source_id!==active.source_id)return;
+          state.selectedRings=groups.flat();
+          select.value=String(active.id);draw();loadProfile();
+        }else{state.waterFeature=null;state.waterAnchor=null;select.value="";draw();loadProfile();}
+      }
+    }catch(error){
+      if(token!==state.waterVersion)return;
+      console.warn("Water reference geometry unavailable",error);
+      state.water=null;
+      waterStatus("Water geometry unavailable; reinstall the cited water index");
+    }
+  }
   async function loadBoundaries(year){
     const generation=++state.boundaryVersion;
     const catalog=state.boundaryManifest;
@@ -176,11 +217,13 @@
       boundaryStatus(index.kind==="historical"?
         `Boundaries: ${year} source geometry (${index.status})`:
         `Boundaries: present-day reference · ${year} historical geometry unavailable`);
-      loadSelectedShape(Boolean(state.country));setLayer(state.layer);draw();
+      if(state.country)loadSelectedShape(true);
+      setLayer(state.layer);draw();
     }catch(error){
       if(generation!==state.boundaryVersion)return;
       console.warn("Local boundary layer unavailable",error);
-      state.lookup=null;state.boundaries=null;state.selectedRings=[];
+      state.lookup=null;state.boundaries=null;
+      if(state.country)state.selectedRings=[];
       boundaryStatus("Boundaries unavailable; use location markers or the selector");
       setLayer(state.layer);draw();
     }
@@ -223,8 +266,7 @@
       draw();
     }catch(error){if(token===state.shapeVersion)console.warn("Selected outline unavailable",error);}
   }
-  function regionAt(x,y,width,height){
-    const lookup=state.lookup;if(!lookup)return null;
+  function coordinatesAt(x,y,width,height){
     let longitude,latitude;
     if(state.flat){
       longitude=(x/width-.5)*TAU/state.zoom+state.yaw;
@@ -240,15 +282,19 @@
       longitude=Math.atan2(nx,gz)+state.yaw;
       latitude=Math.asin(Math.max(-1,Math.min(1,gy)));
     }
-    const u=((longitude/(2*Math.PI)+.5)%1+1)%1;
-    const v=Math.min(1-Number.EPSILON,Math.max(0,.5-latitude/Math.PI));
+    return {lon:((longitude/RAD+540)%360+360)%360-180,lat:latitude/RAD};
+  }
+  function regionAt(x,y,width,height,position=coordinatesAt(x,y,width,height)){
+    const lookup=state.lookup;if(!lookup||!position)return null;
+    const u=((position.lon/360+.5)%1+1)%1;
+    const v=Math.min(1-Number.EPSILON,Math.max(0,.5-position.lat/180));
     const offset=(Math.floor(v*lookup.height)*lookup.width+Math.floor(u*lookup.width))*4;
     const id=lookup.bytes[offset]+256*lookup.bytes[offset+1]+65536*lookup.bytes[offset+2];
     return lookup.features.get(id)||null;
   }
   function drawOutline(ctx,width,height){
     if(!state.selectedRings.length)return;
-    ctx.save();ctx.strokeStyle=state.theme.gold;ctx.lineWidth=1.8;
+    ctx.save();ctx.strokeStyle=state.waterFeature?"#82d1dc":state.theme.gold;ctx.lineWidth=1.8;
     ctx.shadowColor="#0c1814";ctx.shadowBlur=2;
     for(const ring of state.selectedRings){
       let before=null;
@@ -305,9 +351,17 @@
       if(selected){ctx.font="12px monospace";ctx.fillStyle=state.theme.accent;ctx.fillText(point.name,p.x+9,p.y-8);}
       state.candidates.push({...point,x:p.x,y:p.y});
     }
+    const waterPoint=state.waterFeature&&state.waterAnchor?
+      project(state.waterAnchor,width,height):null;
+    if(waterPoint){
+      ctx.beginPath();ctx.arc(waterPoint.x,waterPoint.y,5,0,TAU);
+      ctx.fillStyle="#82d1dc";ctx.fill();
+      ctx.font="12px monospace";ctx.fillText(state.waterFeature.name,
+        waterPoint.x+9,waterPoint.y-8);
+    }
     ctx.setTransform(1,0,0,1,0,0);
     const callout=$("[data-wfb-globe-callout]");
-    const anchor=state.candidates.find(point=>point.code===state.country);
+    const anchor=waterPoint||state.candidates.find(point=>point.code===state.country);
     callout.hidden=!anchor;
     if(anchor){callout.style.left=`${Math.max(165,Math.min(width-165,anchor.x))}px`;
       callout.style.top=`${Math.max(115,anchor.y)}px`;}
@@ -319,14 +373,49 @@
   };
   function status(text){$("[data-wfb-country-status]").textContent=text;}
   function choose(code){
+    state.selectionVersion++;
+    state.waterFeature=null;state.waterAnchor=null;
+    $("[data-wfb-water-body]").value="";
     state.country=code;$("[data-wfb-globe-country]").value=code;
     const point=state.points.find(x=>x.code===code);
     if(point&&Number.isFinite(point.lon))state.yaw=point.lon*RAD;
     loadSelectedShape(true);draw();loadProfile();
   }
+  async function chooseWater(feature,anchor,readyPaths){
+    const token=++state.selectionVersion;
+    let groups=readyPaths;
+    if(!groups){
+      try{groups=await state.water.geometry(feature);}
+      catch(error){waterStatus(`Unable to load water outline: ${error.message}`);return;}
+    }
+    if(token!==state.selectionVersion)return;
+    ++state.shapeVersion;
+    state.waterFeature=feature;
+    state.waterAnchor=anchor||{lon:feature.lon,lat:feature.lat};
+    state.country="";$("[data-wfb-globe-country]").value="";
+    $("[data-wfb-water-body]").value=String(feature.id);
+    state.selectedRings=groups.flat();
+    state.yaw=state.waterAnchor.lon*RAD;
+    if(!anchor){
+      const [west,south,east,north]=feature.bbox;
+      const span=Math.max(east-west,north-south);
+      setZoom(Math.min(6,Math.max(1,125/Math.max(span,5))));
+    }
+    draw();loadProfile();
+  }
   let request=0;
   function callout(rows,statusLabel){
     const box=$("[data-wfb-globe-callout]");box.replaceChildren();
+    if(state.waterFeature){
+      const feature=state.waterFeature;
+      const title=document.createElement("strong");title.textContent=feature.name;
+      const subtitle=document.createElement("small");
+      subtitle.textContent=`${feature.kind} · ${state.water?.historical?state.year+" source":"present-day reference"}`;
+      box.append(title,subtitle);
+      const source=document.createElement("small");
+      source.textContent=state.water?.sources.get(feature.source)?.id||feature.source;
+      box.append(source);box.hidden=false;return;
+    }
     const point=state.points.find(item=>item.code===state.country);
     if(!point){box.hidden=true;return;}
     const title=document.createElement("strong");title.textContent=`${point.name} · ${state.year}`;
@@ -441,6 +530,38 @@
   async function loadProfile(){
     const current=++request,code=state.country,year=state.year;
     const panel=$("[data-wfb-country-profile]");panel.replaceChildren();
+    panel.dataset.waterCode=state.waterFeature?.source_id||"";
+    if(state.waterFeature){
+      const feature=state.waterFeature,source=state.water?.sources.get(feature.source);
+      $("[data-wfb-country-heading]").textContent=feature.name;
+      status(`${feature.kind} · ${state.water?.historical?year+" sourced boundary":"present-day reference boundary"}`);
+      callout([],"Water boundary");
+      const note=document.createElement("p");note.className="wfb-country-notice";
+      note.textContent=state.water?.historical?
+        `${year} water geometry is source-dated and awaits review against that edition.`:
+        `The ${year} slider selects Factbook country data. This water geometry is a current map reference and makes no claim about the ${year} shoreline or water extent.`;
+      panel.append(note);
+      const section=document.createElement("section");section.className="wfb-country-section wfb-water-section";
+      const title=document.createElement("h4");title.textContent="Water body / source record";section.append(title);
+      const dl=document.createElement("dl");
+      for(const [label,value] of [["Feature class",feature.kind],
+        ["Geometry",feature.geometry==="line"?"mapped centerline · select within the highlighted path":"mapped area · exact vector outline"],
+        ["Source identifier",feature.source_id],
+        ["Reference coordinates",`${feature.lat.toFixed(5)}°, ${feature.lon.toFixed(5)}°`],
+        ["Rights",source?.license||"See source"]]){
+        const row=document.createElement("div");row.className="wfb-country-field";
+        const dt=document.createElement("dt"),dd=document.createElement("dd");
+        dt.textContent=label;dd.textContent=value;row.append(dt,dd);dl.append(row);
+      }
+      section.append(dl);
+      const cite=document.createElement("p");cite.className="wfb-country-source";
+      cite.append("Geography: ");
+      const link=document.createElement("a");link.href=source?.url||"https://www.naturalearthdata.com/";
+      link.target="_blank";link.rel="noopener noreferrer";link.textContent=source?.id||"Natural Earth";
+      cite.append(link,` · source SHA-256 ${source?.sha256||"not recorded"}`);
+      section.append(cite);panel.append(section);
+      return;
+    }
     const selected=state.catalogue?.countries?.find(row=>row.code===code);
     $("[data-wfb-country-heading]").textContent=selected?.name||state.points.find(x=>x.code===code)?.name||"Select a location";
     if(!code){status("Choose a place to view an edition.");return;}
@@ -515,17 +636,19 @@
     }catch(error){if(current===request)status(`Source data unavailable: ${error.message}`);}
   }
   function setYear(year){
+    state.selectionVersion++;
     state.year=Number(year);$("[data-wfb-globe-year]").textContent=year;
     $("[data-wfb-globe-slider]").value=year;
     state.available=new Set((state.catalogue?.countries||[])
       .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code));
     boundaryStatus(`Boundaries: loading geometry for ${year}…`);
     loadBoundaries(state.year);
+    loadWater(state.year);
     draw();
     loadProfile();
   }
   function connect(canvas){
-    let down=null;
+    let down=null,hover=0;
     canvas.addEventListener("pointerdown",event=>{
       if(event.button!==0&&event.button!==1)return;
       event.preventDefault();
@@ -539,8 +662,22 @@
         const bounds=canvas.getBoundingClientRect();
         const x=event.clientX-bounds.left,y=event.clientY-bounds.top;
         const near=state.candidates.find(point=>Math.hypot(x-point.x,y-point.y)<10);
-        const unit=near||regionAt(x,y,bounds.width,bounds.height);
+        const geo=coordinatesAt(x,y,bounds.width,bounds.height);
+        const land=regionAt(x,y,bounds.width,bounds.height,geo);
+        const unit=near||land;
         canvas.title=unit?`${unit.label||unit.name} · click to read ${state.year}`:"Drag to rotate Earth";
+        const token=++hover;
+        if(!near&&geo&&state.water){
+          setTimeout(async()=>{
+            if(token!==hover||down)return;
+            try{
+              const water=await state.water.hit(geo.lon,geo.lat,x,y,
+                point=>project(point,bounds.width,bounds.height),
+                bounds.width,bounds.height,state.zoom,Boolean(land));
+              if(token===hover&&water)canvas.title=`${water.feature.name} · ${water.feature.kind} · click to inspect`;
+            }catch(error){console.warn("Water hover unavailable",error);}
+          },120);
+        }
         return;
       }
       const dx=event.clientX-down.x;
@@ -551,19 +688,30 @@
         draw();
       }
     });
-    canvas.addEventListener("pointerup",event=>{
+    canvas.addEventListener("pointerup",async event=>{
       if(!down)return;
-      if(!down.moved&&down.button===0){
+      const pick=!down.moved&&down.button===0;
+      down=null;state.dragging=false;
+      if(pick){
         const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
         const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
         if(near&&near.d<14)choose(near.code);
         else{
-          const region=regionAt(x,y,rect.width,rect.height);
-          if(region)choose(region.code);
+          const geo=coordinatesAt(x,y,rect.width,rect.height);
+          const land=regionAt(x,y,rect.width,rect.height,geo);
+          const token=++state.selectionVersion;
+          if(geo&&state.water){
+            try{
+              const water=await state.water.hit(geo.lon,geo.lat,x,y,
+                point=>project(point,rect.width,rect.height),
+                rect.width,rect.height,state.zoom,Boolean(land));
+              if(token!==state.selectionVersion)return;
+              if(water){chooseWater(water.feature,geo,water.paths);return;}
+            }catch(error){console.warn("Water click unavailable",error);}
+          }
+          if(token===state.selectionVersion&&land)choose(land.code);
         }
       }
-      down=null;
-      state.dragging=false;
     });
     canvas.addEventListener("pointercancel",()=>{down=null;state.dragging=false;});
     canvas.addEventListener("wheel",event=>{
@@ -648,6 +796,11 @@
     showRenderer();
     connect(canvas);
     select.addEventListener("change",()=>choose(select.value));
+    $("[data-wfb-water-body]").addEventListener("change",event=>{
+      const feature=state.water?.features.find(item=>item.id===Number(event.target.value));
+      if(feature)chooseWater(feature);
+      else if(state.waterFeature)choose("");
+    });
     const slider=$("[data-wfb-globe-slider]");
     let yearTimer=0;
     slider.addEventListener("input",()=>{
