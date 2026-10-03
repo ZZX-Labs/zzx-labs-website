@@ -10,6 +10,7 @@
     "js/timeline.js",
     "js/globe-config.js",
     "js/globe-renderer.js",
+    "js/water-boundaries.js",
     "js/globe.js",
     "js/reading-room.js",
     "js/status.js",
