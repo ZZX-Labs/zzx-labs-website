@@ -24,13 +24,23 @@ class PrivateDailyRepoTests(unittest.TestCase):
     def test_existing_private_repo_uses_actual_default_branch(self):
         calls = []
         def request(method, path, token, body=None):
-            calls.append((method, path))
+            calls.append((method, path, body))
+            if path.endswith("/git/trees/trunk"):
+                return 200, {"sha": "abc123", "tree": [
+                    {"path": "README.md", "mode": "100644", "type": "blob", "sha": "def456"}]}
+            if method == "POST":
+                return 201, {"sha": "abc123"}
             return 200, {"full_name": "ZZX-Labs/daily-part-0001", "private": True,
                          "default_branch": "trunk"}
         result = repo.ensure("ZZX-Labs/daily-part-0001", "secret", request=request)
         self.assertEqual(result["default_branch"], "trunk")
         self.assertFalse(result["created"])
-        self.assertEqual(calls, [("GET", "/repos/ZZX-Labs/daily-part-0001")])
+        self.assertEqual([(method, path) for method, path, _ in calls], [
+            ("GET", "/repos/ZZX-Labs/daily-part-0001"),
+            ("GET", "/repos/ZZX-Labs/daily-part-0001/git/trees/trunk"),
+            ("POST", "/repos/ZZX-Labs/daily-part-0001/git/trees")])
+        self.assertEqual(calls[-1][2]["base_tree"], "abc123")
+        self.assertEqual(calls[-1][2]["tree"][0]["sha"], "def456")
 
     def test_public_repo_is_never_selected(self):
         def request(*_args):
@@ -49,7 +59,8 @@ class PrivateDailyRepoTests(unittest.TestCase):
     def test_public_checkout_header_is_not_sent_to_private_repo(self):
         workflow = (FILE.parents[2] / ".github/workflows/zzx-worldfactbook-daily-recovery.yml").read_text()
         self.assertIn('"http.https://github.com/${GITHUB_REPOSITORY}.git.extraheader"', workflow)
-        self.assertIn('git -C "${RUNNER_TEMP}" -c', workflow)
+        self.assertIn('GIT_ASKPASS="${PRIVATE_ASKPASS}"', workflow)
+        self.assertIn('git -C "${RUNNER_TEMP}" -c credential.helper= clone', workflow)
         self.assertNotIn('git config --local http.https://github.com/.extraheader ', workflow)
         with tempfile.TemporaryDirectory() as directory:
             subprocess.run(["git", "init", "-q", directory], check=True)
@@ -73,6 +84,8 @@ class PrivateDailyRepoTests(unittest.TestCase):
             (201, {"full_name": "ZZX-Labs/daily-part-0001", "private": True}),
             (200, {"full_name": "ZZX-Labs/daily-part-0001", "private": True,
                    "default_branch": "main"}),
+            (200, {"sha": "abc123", "tree": []}),
+            (201, {"sha": "other123"}),
         ]
         def request(method, path, token, body=None):
             calls.append((method, path, body))
@@ -83,7 +96,27 @@ class PrivateDailyRepoTests(unittest.TestCase):
         self.assertEqual(calls[2][1], "/orgs/ZZX-Labs/repos")
         self.assertIs(calls[2][2]["private"], True)
         self.assertIs(calls[2][2]["auto_init"], True)
+        self.assertEqual(calls[-1][2]["tree"][0]["path"], ".worldfactbook-permission-check")
         self.assertEqual(responses, [])
+
+    def test_metadata_only_token_fails_before_clone(self):
+        responses = iter([
+            (200, {"full_name": "ZZX-Labs/daily-part-0001", "private": True,
+                   "default_branch": "main"}),
+            (404, {"message": "Not Found"}),
+        ])
+        with self.assertRaisesRegex(repo.RepositoryError, "metadata is accessible but Git contents are not"):
+            repo.ensure("ZZX-Labs/daily-part-0001", "secret", request=lambda *_: next(responses))
+
+    def test_contents_read_without_write_fails_before_clone(self):
+        responses = iter([
+            (200, {"full_name": "ZZX-Labs/daily-part-0001", "private": True,
+                   "default_branch": "main"}),
+            (200, {"sha": "abc123", "tree": []}),
+            (403, {"message": "Resource not accessible by personal access token"}),
+        ])
+        with self.assertRaisesRegex(repo.RepositoryError, "Contents write check failed"):
+            repo.ensure("ZZX-Labs/daily-part-0001", "secret", request=lambda *_: next(responses))
 
     def test_wrong_permission_is_explicit_and_never_clones(self):
         responses = iter([(404, {}), (200, {"type": "Organization"}),
