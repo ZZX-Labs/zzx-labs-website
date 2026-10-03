@@ -7,7 +7,8 @@
       aspect:f32, yaw:f32, pitch:f32, zoom:f32,
       flat:f32, tactical:f32, relief:f32, realism:f32,
       sunLon:f32, sunDecl:f32, accentR:f32, accentG:f32,
-      accentB:f32, width:f32, height:f32, padding:f32
+      accentB:f32, width:f32, height:f32, padding:f32,
+      tintR:f32, tintG:f32, tintB:f32, tintStrength:f32
     };
     @group(0) @binding(0) var<uniform> globe: Globe;
     @group(0) @binding(1) var image: texture_2d<f32>;
@@ -46,6 +47,8 @@
       let u = fract(longitude / (2.0 * pi) + 0.5);
       let v=clamp(0.5-latitude/pi,0.0,1.0);
       var color=textureSampleLevel(image,imageSampler,vec2f(u,v),0.0).rgb;
+      let luminance=dot(color,vec3f(.299,.587,.114));
+      color=mix(color,luminance*vec3f(globe.tintR,globe.tintG,globe.tintB),globe.tintStrength);
       if (globe.tactical > 0.5) {
         let a = abs(fract((longitude + pi) / (pi / 12.0)) - 0.5);
         let b = abs(fract((latitude + pi * 0.5) / (pi / 12.0)) - 0.5);
@@ -99,6 +102,8 @@
     @fragment fn meshFragment(input:MeshVertex) -> @location(0) vec4f {
       let pi=3.141592653589793;
       var color=textureSampleLevel(image,imageSampler,input.uv,0.0).rgb;
+      let luminance=dot(color,vec3f(.299,.587,.114));
+      color=mix(color,luminance*vec3f(globe.tintR,globe.tintG,globe.tintB),globe.tintStrength);
       if(globe.tactical>.5){
         let a=abs(fract((input.geo.x+pi)/(pi/12.0))-.5);
         let b=abs(fract((input.geo.y+pi*.5)/(pi/12.0))-.5);
@@ -148,7 +153,7 @@
       primitive:{topology:"triangle-list",cullMode:"none"},
       depthStencil:{format:"depth24plus",depthWriteEnabled:true,depthCompare:"less"}
     });
-    const uniform = device.createBuffer({size:64, usage:GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST});
+    const uniform = device.createBuffer({size:80, usage:GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST});
     const sampler = device.createSampler({addressModeU:"repeat", addressModeV:"clamp-to-edge",
       magFilter:"linear", minFilter:"linear"});
     let texture = null, elevation = null, bindGroup = null, destroyed = false;
@@ -178,11 +183,12 @@
       setRelief(source){const next=textureFrom(source);elevation?.destroy();elevation=next;rebind();},
       draw(width, height, settings) {
         if (!bindGroup) return;
-        const a=settings.accent||[.75,.84,.45];
+        const a=settings.accent||[.75,.84,.45],t=settings.tint||[1,1,1];
         device.queue.writeBuffer(uniform,0,new Float32Array([
           width/height,settings.yaw,settings.pitch,settings.zoom,
           Number(settings.flat),Number(settings.tactical),settings.relief,settings.realism,
-          settings.sunLon,settings.sunDecl,a[0],a[1],a[2],width,height,0
+          settings.sunLon,settings.sunDecl,a[0],a[1],a[2],width,height,0,
+          t[0],t[1],t[2],settings.tintStrength||0
         ]));
         if(!settings.flat && depthSize!==`${width}:${height}`){
           depthTexture?.destroy();
@@ -235,6 +241,7 @@
         buffer.height=Math.max(1,Math.round(height*scale));
         const image = backing.createImageData(buffer.width,buffer.height);
         const out=image.data,tau=Math.PI*2,a=settings.accent||[.75,.84,.45];
+        const tint=settings.tint||[1,1,1],tintStrength=settings.tintStrength||0;
         for(let y=0;y<buffer.height;y++)for(let x=0;x<buffer.width;x++){
           const px=(x+.5)/buffer.width,py=(y+.5)/buffer.height;
           let lon,lat,light=1;
@@ -261,6 +268,12 @@
           const iy=Math.min(sourceHeight-1,Math.floor(v*sourceHeight));
           const src=(iy*sourceWidth+ix)*4,dst=(y*buffer.width+x)*4;
           let r=pixels[src],g=pixels[src+1],b=pixels[src+2];
+          if(tintStrength){
+            const l=.299*r+.587*g+.114*b;
+            r=r*(1-tintStrength)+l*tint[0]*tintStrength;
+            g=g*(1-tintStrength)+l*tint[1]*tintStrength;
+            b=b*(1-tintStrength)+l*tint[2]*tintStrength;
+          }
           if(settings.tactical){
             const grid=Math.min(Math.abs((((lon+Math.PI)/(Math.PI/12))%1+1)%1-.5),
               Math.abs((((lat+Math.PI/2)/(Math.PI/12))%1+1)%1-.5))<.012?69:0;
