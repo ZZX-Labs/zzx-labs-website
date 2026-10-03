@@ -1,5 +1,49 @@
 # Globe boundaries, offline map layers, and historical editions
 
+## Water boundaries
+
+The independent `water/` index covers 11,656 distinct published Natural Earth
+1:10m reference features in nine marine, lake, reservoir, and river source
+files, including its Australia, Europe, and North America supplements. Oceans,
+seas, gulfs, bays, straits, lakes, reservoirs, and river paths can be selected
+on the globe or from the water selector. Inland polygons and river centerlines
+take precedence over the underlying land hit map; marine polygons do not hide
+land. The selected outline, mapped class, feature identifier, source file URL,
+source digest, and rights appear in the record. Narrow rivers use vector
+distance at the current map zoom, rather than relying on a 2048-pixel image.
+
+The original country lookup and every globe texture remain intact. Water
+geometry is a **present-day cartographic reference**, not 1962–2027 hydrographic
+history. Source maps can have gaps or overlapping named marine areas, and
+Natural Earth generalizes or omits many small waters. No dataset can honestly
+promise every river, pond, or disputed sea boundary worldwide. A source with
+finer coverage may be added as a separately credited GeoJSON export; verify
+its reuse terms and source date before publishing it. OpenStreetMap extracts
+are under ODbL and require attribution and publication of any adapted database
+under its terms: https://www.openstreetmap.org/copyright .
+
+To rebuild the reference from the pinned public-domain GeoJSON digests:
+
+```bash
+python3 tools/worldfactbook/build_water_boundaries.py \
+  --sources tools/worldfactbook/data/water-sources.json \
+  --output worldfactbook/boundaries/water --download
+python3 tools/worldfactbook/render_water_layer.py \
+  --water worldfactbook/boundaries/water \
+  --base worldfactbook/boundaries/reference/tactical.png \
+  --layers worldfactbook/boundaries/layers.json
+python3 tools/worldfactbook/verify_water_boundaries.py --repo .
+```
+
+The builder writes bounded geometry and feature-index shards. The renderer
+adds an optional hydrographic imagery choice; the default tactical layer and
+country hit image are unchanged. The source
+GeoJSON files downloaded into `tools/worldfactbook/data/water-inputs/` are
+build inputs and do not need to be copied to Pages. For historical water
+outlines, provide a separate source manifest whose *every* entry cites that
+edition year, then run the builder with `--year YEAR`. Unreviewed historical
+geometry stays explicitly marked until independently checked.
+
 The globe never requests tiles from `tile.openstreetmap.org`, OpenTopoMap, or
 NASA during a visitor's session. The map, topographic relief, satellite
 texture, and geographic hit map are local files. A country or territory can
@@ -56,9 +100,10 @@ pixel are handled by location markers.
 
 ## Globe imagery and themes
 
-`layers.json` defines 27 source layers. Six are installed in this package:
+`layers.json` defines 28 source layers. Seven are installed in this package:
 tactical graphite, political map, topographic tint, shaded relief, NASA Blue
-Marble 2002, and Blue Marble with relief shading. Twenty-one optional layers
+Marble 2002, Blue Marble with relief shading, and hydrographic reference.
+Twenty-one optional layers
 are disabled until their distinct local rasters are installed. The included
 reference rasters are 2048 × 1024, not UHD. The interface does not silently
 upscale them and call them UHD. It retains the selected data edition year
