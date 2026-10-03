@@ -44,12 +44,12 @@ CATEGORY_ALIASES = {
     "transnational-issues": {"transnational issues", "transnational-issues"},
     "space": {"space"},
 }
-FACTBOOK_CHAPTERS = (
-    "introduction", "geography", "people-and-society", "environment",
-    "government", "economy", "energy", "communications", "transportation",
-    "military-and-security", "space", "terrorism", "transnational-issues",
-)
-FACTBOOK_CHAPTER_RANK = {chapter: rank for rank, chapter in enumerate(FACTBOOK_CHAPTERS)}
+FRONT_MATTER = {
+    "a brief history of basic intelligence and the world factbook",
+    "definitions and notes", "notes definitions and abbreviations",
+    "the evolution of the world factbook", "acknowledgments", "acknowledgements",
+    "table of contents", "contents", "appendixes", "appendices",
+}
 
 @dataclass(frozen=True)
 class Candidate:
@@ -562,43 +562,80 @@ def category_for(line: str) -> str | None:
     return None
 
 
+def explicit_book_years(candidate: Candidate) -> set[int]:
+    """Years printed next to the book's title, never upload or capture years."""
+    if candidate.provider == "wayback":
+        return set()  # A capture year is not a printed edition year.
+    for label in (candidate.name, candidate.source_title):
+        found = set()
+        label=label.replace("_", " ")
+        for match in re.finditer(r"\b(?:world|national\s+basic\s+intelligence)\s+fact\s*book\b",label,re.I):
+            nearby=label[max(0,match.start()-28):match.end()+28]
+            found.update(int(year) for year in re.findall(r"\b(?:19\d{2}|20\d{2})\b",nearby))
+        if found: return found
+    return set()
+
+
 def parse_chunks(text: str, year: int, entity_aliases: dict[str, tuple[str, str]]) -> list[dict]:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = [re.sub(r"\s+", " ", ln).strip() for ln in text.splitlines()]
     current_entity = ("", "")
-    current_category = "raw"
-    buffers: dict[tuple[str, str, str], list[str]] = {}
-    for line in lines:
+    current_category = "edition-front-matter"
+    buffers: list[tuple[tuple[str, str, str], list[str]]] = []
+    for index, line in enumerate(lines):
         if not line:
             continue
         lk = line.lower().strip()
         lk = re.sub(r"^(country|territory)\s*[:\-]\s*", "", lk)
         lk = re.sub(r"\s+", " ", lk)
-        if lk in entity_aliases and len(line) <= 120:
+        if lk in FRONT_MATTER:
+            current_entity = ("", "")
+            current_category = "edition-front-matter"
+            continue
+        # A country mention in the book's preface, glossary, or entity list is
+        # not a country heading. Require a nearby profile category before
+        # changing entity scope. Preserve source order rather than merging all
+        # distant paragraphs with the same (country, category) into one blob.
+        following = [part for part in lines[index + 1:index + 17] if part]
+        has_section = any(category_for(part) for part in following[:8])
+        if lk in entity_aliases and len(line) <= 120 and has_section:
             current_entity = entity_aliases[lk]
+            current_category = "raw"
             continue
         cat = category_for(line)
         if cat:
-            current_category = cat
+            current_category = cat if current_entity[0] else "edition-front-matter"
             continue
         key = (current_entity[0], current_entity[1], current_category)
-        buffers.setdefault(key, []).append(line)
+        if not buffers or buffers[-1][0] != key:
+            buffers.append((key, []))
+        buffers[-1][1].append(line)
 
     chunks = []
     ordinal = 0
-    for (code, name, cat), body in buffers.items():
+    for (code, name, cat), body in buffers:
         joined = "\n".join(body).strip()
-        if len(joined) < 80:
+        if len(joined) < (12 if code else 80):
             continue
         # Keep browser/database rows reasonably bounded.
-        for pos in range(0, len(joined), 24000):
-            piece = joined[pos:pos+24000].strip()
-            if len(piece) < 40:
+        pieces = []
+        piece_lines = []
+        for line in body:
+            for offset in range(0,len(line),22000):
+                segment=line[offset:offset+22000]
+                if piece_lines and len("\n".join(piece_lines)) + len(segment) > 23000:
+                    pieces.append("\n".join(piece_lines)); piece_lines = []
+                piece_lines.append(segment)
+        if piece_lines: pieces.append("\n".join(piece_lines))
+        for piece in pieces:
+            piece = piece.strip()
+            if len(piece) < (12 if code else 40):
                 continue
             ordinal += 1
             chunks.append({
                 "edition_year": year, "entity_code": code, "entity_name": name,
                 "category": cat, "ordinal": ordinal, "content": piece,
+                "scope": "entity" if code else "edition", "assignment_reviewed": False,
             })
     return chunks
 
@@ -634,13 +671,12 @@ def write_portal(
                 "chunk_id", "edition_year", "entity_code", "entity_name", "category", "ordinal",
                 "content", "content_sha256", "source_provider", "source_identifier", "source_format",
                 "source_sha256", "source_url", "extractor", "media_citation_key",
+                "scope", "assignment_reviewed",
             )
             public = {k: row[k] for k in keys if k in row}
             cats.setdefault(row["category"], []).append(public)
         category_meta = []
-        for cat, cat_rows in sorted(cats.items(),
-                                    key=lambda item: (FACTBOOK_CHAPTER_RANK.get(item[0],
-                                        len(FACTBOOK_CHAPTER_RANK)), item[0])):
+        for cat, cat_rows in sorted(cats.items()):
             path = root / "editions" / str(year) / f"{cat}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             payload = {"schema": "zzx-worldfactbook-category-v1", "edition_year": year, "category": cat, "chunks": cat_rows}
@@ -767,6 +803,25 @@ def main() -> int:
     for c in extras:
         extras_by_year.setdefault(c.year, []).append(c)
 
+    # Incremental runs must revisit old editions with an explicitly wrong
+    # book title. Otherwise the existing-available shortcut and later merge
+    # would reintroduce the mislabeled material after the new source guard.
+    invalid_existing_years: set[int] = set()
+    previous_sources = portal / "source-index.json"
+    if previous_sources.is_file():
+        try:
+            for source in json.loads(previous_sources.read_text(encoding="utf-8")).get("sources", []):
+                slot = int(source.get("edition_year") or 0)
+                candidate = Candidate(slot, str(source.get("provider") or ""),
+                    str(source.get("identifier") or ""), str(source.get("url") or ""),
+                    str(source.get("name") or ""), str(source.get("format") or ""),
+                    source_title=str(source.get("source_title") or ""))
+                title_years = explicit_book_years(candidate)
+                if title_years and slot not in title_years:
+                    invalid_existing_years.add(slot)
+        except (OSError, ValueError, TypeError):
+            pass
+
     providers = {p.strip() for p in args.providers.split(",") if p.strip()}
     all_rows: list[dict] = []
     source_rows: list[dict] = []
@@ -796,7 +851,7 @@ def main() -> int:
                 if media_existing.is_file():
                     m = json.loads(media_existing.read_text(encoding="utf-8"))
                     media_ready = m.get("schema") == "zzx-worldfactbook-media-year-v1"
-                if edition_ready and (args.media_mode == "none" or media_ready):
+                if year not in invalid_existing_years and edition_ready and (args.media_mode == "none" or media_ready):
                     processed_editions[year]["status"] = "existing-available"
                     processed_editions[year]["chunks"] = int(e.get("chunks") or 0)
                     print(f"{year}: requested corpus layer already available; keeping existing edition")
@@ -862,6 +917,9 @@ def main() -> int:
             cdir = cache / str(year) / c.provider
             local = cdir / (hashlib.sha256(c.url.encode()).hexdigest()[:16] + "-" + safe_name(c.name))
             try:
+                title_years = explicit_book_years(c)
+                if title_years and year not in title_years:
+                    raise RuntimeError(f"edition identity mismatch: {year} slot vs printed title year(s) {sorted(title_years)}")
                 if c.size and c.size > max_bytes:
                     raise RuntimeError(f"source too large ({c.size} bytes)")
                 if c.local_path:
@@ -1027,7 +1085,7 @@ def main() -> int:
                 continue
             try:
                 m = json.loads(idx.read_text(encoding="utf-8"))
-                if any(int(r.get("edition_year") or 0) == year for r in all_rows):
+                if year in invalid_existing_years or any(int(r.get("edition_year") or 0) == year for r in all_rows):
                     continue
                 for cat in m.get("categories") or []:
                     p = portal / cat["path"]
@@ -1042,7 +1100,7 @@ def main() -> int:
         existing_media = load_existing_media(portal, args.portal_start_year, args.portal_end_year)
         new_years = {int(r.get("edition_year") or 0) for r in media_rows}
         for row in existing_media:
-            if int(row.get("edition_year") or 0) not in new_years:
+            if int(row.get("edition_year") or 0) not in new_years and int(row.get("edition_year") or 0) not in invalid_existing_years:
                 media_rows.append(row)
 
     # Deduplicate exact chunk IDs, sources, and deterministic image citations.
