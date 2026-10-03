@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from html.parser import HTMLParser
 import io
 import json
 import math
@@ -35,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from PIL import Image, ImageChops, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageOps, ImageStat, PngImagePlugin
 
 try:
     import cv2  # type: ignore
@@ -53,6 +54,29 @@ IMAGE_EXTS = {
     ".png", ".jpg", ".jpeg", ".jpe", ".webp", ".gif", ".bmp", ".tif", ".tiff",
     ".jp2", ".j2k", ".ppm", ".pgm", ".pbm",
 }
+
+
+class _HTMLImageScanner(HTMLParser):
+    """Dependency-free extraction of img tags and adjacent figure credits."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.rows=[];self.figure_rows=[];self.figure_text=[];self.in_figure=False
+    def handle_starttag(self,tag,attrs):
+        data=dict(attrs)
+        if tag=="figure":
+            self.in_figure=True;self.figure_rows=[];self.figure_text=[]
+        if tag=="img":
+            row={"src":data.get("src") or data.get("data-src") or "",
+                 "context":"\n".join(x for x in (data.get("alt"),data.get("title")) if x)}
+            self.rows.append(row)
+            if self.in_figure:self.figure_rows.append(row)
+    def handle_endtag(self,tag):
+        if tag=="figure":
+            caption=" ".join(self.figure_text).strip()
+            for row in self.figure_rows:row["context"]+="\n"+caption
+            self.in_figure=False
+    def handle_data(self,data):
+        if self.in_figure:self.figure_text.append(data.strip())
 ARCHIVE_EXTS = {".zip", ".7z", ".tar", ".tgz", ".tbz", ".tbz2", ".txz", ".chm"}
 COMPRESSED_EXTS = {".gz", ".bz2", ".xz"}
 EBOOK_EXTS = {".epub", ".mobi", ".azw", ".azw3", ".prc"}
@@ -526,8 +550,28 @@ class MediaExtractor:
         category = _infer_category(combined_context + "\n" + ocr_text)
         visual_type, recognition_confidence, signals = _recognize(cropped, ocr_text, combined_context)
 
+        # Keep essential provenance in the PNG itself as well as its JSON
+        # sidecar. Empty rights-holder fields remain explicit unknowns; a
+        # printed photographer credit is not proof of copyright ownership.
+        png_info=PngImagePlugin.PngInfo()
+        for field, value in (
+            ("Title", caption or visual_type),
+            ("Description", caption),
+            ("Creator", credit),
+            ("CreditStatus", "explicit" if credit else "not-found"),
+            ("RightsHolder", ""),
+            ("RightsStatus", "source review required"),
+            ("FactbookEditionYear", str(source.edition_year)),
+            ("FactbookEntity", entity_name),
+            ("OriginalFilename", original_name),
+            ("SourceURL", source.source_url),
+            ("SourceIdentifier", source.identifier),
+            ("SourceSHA256", source.source_sha256),
+            ("SourcePage", str(page or 0)),
+        ):
+            png_info.add_text(field, str(value or ""))
         png = io.BytesIO()
-        cropped.convert("RGBA").save(png, format="PNG", optimize=True)
+        cropped.convert("RGBA").save(png, format="PNG", optimize=True, pnginfo=png_info)
         png_bytes = png.getvalue()
         # Keep every public media object below the repository's 24 MB artifact ceiling.
         # Downscaling is deterministic and only used when optimized PNG still exceeds it.
@@ -537,7 +581,7 @@ class MediaExtractor:
                 Image.Resampling.LANCZOS,
             )
             png = io.BytesIO()
-            cropped.convert("RGBA").save(png, format="PNG", optimize=True)
+            cropped.convert("RGBA").save(png, format="PNG", optimize=True, pnginfo=png_info)
             png_bytes = png.getvalue()
         if len(png_bytes) > 23_000_000:
             raise RuntimeError("normalized image exceeds 23 MB public media ceiling")
@@ -585,6 +629,8 @@ class MediaExtractor:
             "credit": credit,
             "credit_source": credit_source,
             "credit_status": "explicit" if credit else "not-found",
+            "rights_holder": "",
+            "rights_status": "source review required",
             "ocr_text": ocr_text,
             "ocr_confidence": ocr_conf,
             "visual_type": visual_type,
@@ -787,29 +833,31 @@ class MediaExtractor:
         return records
 
     def _html(self, path: Path, source: SourceContext) -> list[dict]:
-        if BeautifulSoup is None:
-            return []
         text = path.read_text(encoding="utf-8", errors="replace")
-        soup = BeautifulSoup(text, "html.parser")
+        if BeautifulSoup is None:
+            scanner=_HTMLImageScanner();scanner.feed(text)
+            image_specs=[(row["src"],row["context"][:1800]) for row in scanner.rows]
+        else:
+            soup = BeautifulSoup(text, "html.parser")
+            image_specs=[]
+            for img in soup.find_all("img"):
+                fig = img.find_parent("figure")
+                figcaption = fig.find("figcaption") if fig else None
+                context = "\n".join(
+                    x for x in (
+                        str(img.get("alt") or "").strip(),
+                        str(img.get("title") or "").strip(),
+                        figcaption.get_text(" ", strip=True) if figcaption else "",
+                        img.parent.get_text(" ", strip=True)[:900] if img.parent else "",
+                    ) if x
+                )[:1800]
+                image_specs.append((str(img.get("src") or img.get("data-src") or "").strip(),context))
         records: list[dict] = []
-        idx = 0
-        for img in soup.find_all("img"):
-            idx += 1
+        for idx,(src,context) in enumerate(image_specs,1):
             if idx > self.max_images_per_source:
                 break
-            src = str(img.get("src") or "").strip()
             if not src:
                 continue
-            fig = img.find_parent("figure")
-            figcaption = fig.find("figcaption") if fig else None
-            context = "\n".join(
-                x for x in (
-                    str(img.get("alt") or "").strip(),
-                    str(img.get("title") or "").strip(),
-                    figcaption.get_text(" ", strip=True) if figcaption else "",
-                    img.parent.get_text(" ", strip=True)[:900] if img.parent else "",
-                ) if x
-            )[:1800]
             try:
                 if src.startswith("data:image/"):
                     header, payload = src.split(",", 1)
