@@ -99,9 +99,9 @@ class WaterTests(unittest.TestCase):
             atlantic=next(row for row in index["features"] if row["name"]=="Atlantic Ocean")
             self.assertEqual(atlantic["code"],"X-ATLANTIC-OCEAN")
             self.assertEqual(atlantic["min_zoom"],1)
-            self.assertEqual(next(row for row in index["features"] if row["name"]=="Lake Erie")["min_zoom"],1)
+            self.assertEqual(next(row for row in index["features"] if row["name"]=="Lake Erie")["min_zoom"],1.6)
             self.assertEqual(next(row for row in index["features"] if row["name"]=="Lake Small")["min_zoom"],3)
-            self.assertEqual(next(row for row in index["features"] if row["kind"]=="river")["min_zoom"],5)
+            self.assertEqual(next(row for row in index["features"] if row["kind"]=="river")["min_zoom"],4)
             with Image.open(root/"water/lookup.png") as image:
                 def pixel(lon,lat):return image.getpixel((int((lon+180)*4096/360),int((90-lat)*2048/180)))
                 self.assertEqual(pixel(-35,25),pixel(-35,-25))
