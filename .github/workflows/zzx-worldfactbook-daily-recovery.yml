@@ -24,7 +24,6 @@ jobs:
     timeout-minutes: 300
     env:
       PRIVATE_TOKEN: ${{ secrets.WORLDFACTBOOK_PRIVATE_DATA_TOKEN }}
-      PUBLIC_TOKEN: ${{ github.token }}
       MAX_CAPTURES: ${{ inputs.max_captures || '120' }}
     steps:
       - name: Check private archive credential before checkout
@@ -50,6 +49,8 @@ jobs:
       - name: Load public checkout with native Git
         if: steps.gate.outputs.configured == 'true'
         shell: bash
+        env:
+          PUBLIC_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git init .
@@ -79,11 +80,23 @@ jobs:
         run: |
           set -euo pipefail
           PRIVATE_DIR="${RUNNER_TEMP}/worldfactbook-daily-private"
-          AUTH="$(printf 'x-access-token:%s' "${PRIVATE_TOKEN}" | base64 | tr -d '\n')"
-          # Clone outside the public checkout: Git extraheader is multi-valued,
-          # so adding a private header does not replace an inherited public one.
-          git -C "${RUNNER_TEMP}" -c "http.https://github.com/${PRIVATE_REPO}.git.extraheader=AUTHORIZATION: basic ${AUTH}" \
-            clone "https://github.com/${PRIVATE_REPO}.git" "${PRIVATE_DIR}"
+          PRIVATE_ASKPASS="$(mktemp "${RUNNER_TEMP}/worldfactbook-askpass.XXXXXX")"
+          cat > "${PRIVATE_ASKPASS}" <<'SH'
+          #!/usr/bin/env bash
+          case "${1:-}" in
+            *Username*) printf '%s\n' 'x-access-token' ;;
+            *Password*) printf '%s\n' "${PRIVATE_TOKEN:?}" ;;
+            *) exit 1 ;;
+          esac
+          SH
+          chmod 700 "${PRIVATE_ASKPASS}"
+          printf 'PRIVATE_ASKPASS=%s\n' "${PRIVATE_ASKPASS}" >> "${GITHUB_ENV}"
+          # Git receives the token through its prompt pipe, without a token URL
+          # or a second Authorization header from the public checkout.
+          GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
+            GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+            git -C "${RUNNER_TEMP}" -c credential.helper= clone \
+              "https://github.com/${PRIVATE_REPO}.git" "${PRIVATE_DIR}"
           printf 'PRIVATE_DIR=%s\n' "${PRIVATE_DIR}" >> "${GITHUB_ENV}"
 
       - name: Check private checkpoint write access
@@ -94,10 +107,10 @@ jobs:
           PRIVATE_BRANCH: ${{ steps.private.outputs.branch }}
         run: |
           set -euo pipefail
-          AUTH="$(printf 'x-access-token:%s' "${PRIVATE_TOKEN}" | base64 | tr -d '\n')"
-          if ! git -C "${PRIVATE_DIR}" \
-            -c "http.https://github.com/${PRIVATE_REPO}.git.extraheader=AUTHORIZATION: basic ${AUTH}" \
-            push --dry-run origin "HEAD:${PRIVATE_BRANCH}"; then
+          if ! GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
+            GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+            git -C "${PRIVATE_DIR}" -c credential.helper= \
+              push --dry-run origin "HEAD:${PRIVATE_BRANCH}"; then
             printf '%s\n' '::error title=Private archive write denied::Check WORLDFACTBOOK_PRIVATE_DATA_TOKEN repository access and Contents read/write permission, plus organization approval or SSO where required.'
             exit 1
           fi
@@ -132,8 +145,9 @@ jobs:
           git add -- daily-facts-private-store training/cia_daily_facts.jsonl
           if ! git diff --cached --quiet; then
             git commit -m "Backfill dated Fact of the Day source captures"
-            AUTH="$(printf 'x-access-token:%s' "${PRIVATE_TOKEN}" | base64 | tr -d '\n')"
-            git -c "http.https://github.com/${PRIVATE_REPO}.git.extraheader=AUTHORIZATION: basic ${AUTH}" push origin "HEAD:${PRIVATE_BRANCH}"
+            GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
+              GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+              git -c credential.helper= push origin "HEAD:${PRIVATE_BRANCH}"
           fi
 
       - name: Publish only small static daily contracts
@@ -146,3 +160,12 @@ jobs:
           python3 tools/bpi/bpi_git_publish.py \
             --root . --message "Backfill sourced World Factbook daily facts" \
             --path worldfactbook/api/daily-archive --attempts 8 --sleep-seconds 6
+
+      - name: Remove temporary private Git prompt
+        if: always() && steps.gate.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${PRIVATE_ASKPASS:-}" ]]; then
+            rm -f -- "${PRIVATE_ASKPASS}"
+          fi
