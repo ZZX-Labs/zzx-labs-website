@@ -7,19 +7,21 @@
   const root = client.root;
   const $ = (selector) => document.querySelector(selector);
   const state = { catalogue:null, points:[], country:"", year:2004, yaw:0.2,
-    layer:"tactical", layers:new Map(), renderer:null, candidates:[], version:0, available:new Set(),
+    layer:"tactical", layers:new Map(), renderer:null, candidates:[], version:0, available:new Set(), verifiedHTML:null,
     imageCache:new Map(), lastTexture:null, rotationSeconds:20, playing:true,
     dragging:false, lastFrame:0, boundaryManifest:null, boundaries:null,
     boundaryVersion:0, lookup:null, waterLookup:null, waterFeatures:new Map(), selectedRings:[], shapeVersion:0,
     zoom:1, axis:0, pitchOffset:0, flat:false, rate:1, direction:1,
     axialTilt:23.44, solarSync:100, seasonDay:172, simulatedMs:Date.now(),
+    clockEpochMs:Date.now(), sunOrbitSpeed:1, moonOrbitSpeed:1,
+    showSun:true, showMoon:true,
     theme:window.WFBGlobeConfig?.themes?.[0]||null, portal:null };
   const TAU=Math.PI*2, RAD=Math.PI/180, SIDEREAL_DAY=86164.0905;
   function orbitalDate(){
-    const base=new Date(state.simulatedMs);
+    const base=new Date(state.clockEpochMs+(state.simulatedMs-state.clockEpochMs)*state.sunOrbitSpeed);
     const start=Date.UTC(base.getUTCFullYear(),0,0);
     const day=(base.getTime()-start)/86400000;
-    return new Date(state.simulatedMs+(state.seasonDay-day)*(1-state.solarSync/100)*86400000);
+    return new Date(base.getTime()+(state.seasonDay-day)*(1-state.solarSync/100)*86400000);
   }
   function sunPosition(){
     const now=orbitalDate(),start=Date.UTC(now.getUTCFullYear(),0,0);
@@ -86,6 +88,16 @@
     if(name==="sync")output.textContent=`${Math.round(amount)}% · ${amount===100?"UTC":"manual blend"}`;
     if(name==="season")output.textContent=new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",timeZone:"UTC"})
       .format(new Date(Date.UTC(2025,0,Math.round(amount))));
+    draw();
+  }
+  function setBodySpeed(body,value){
+    const amount=Math.min(8,Math.max(.25,Number(value)||.25));
+    state[body==="sun"?"sunOrbitSpeed":"moonOrbitSpeed"]=amount;
+    const knob=$(`[data-wfb-knob="${body}-speed"]`);
+    knob.setAttribute("aria-valuenow",String(Math.round(amount*100)/100));
+    knob.style.setProperty("--knob-angle",`${(amount-.25)/7.75*270}deg`);
+    knob.classList.toggle("at-limit",amount===.25||amount===8);
+    $(`[data-wfb-${body}-speed-value]`).textContent=`${amount.toFixed(2)}×`;
     draw();
   }
   function bindKnob(selector,get,set,step){
@@ -283,11 +295,10 @@
   }
   function waterFits(feature){
     if(!feature||state.zoom<feature.min_zoom)return false;
-    if(feature.kind==="ocean")return true;
-    const [west,south,east,north]=feature.bounds;
-    const spanLon=Math.min(east-west,360-(east-west));
-    const visibleLon=360/state.zoom,visibleLat=180/state.zoom;
-    return spanLon<=visibleLon*.9 && north-south<=visibleLat*.9;
+    // The lookup pixel already proves that the selected water body occupies
+    // this screen location. A whole-river bounding box is not a click target:
+    // long rivers would be impossible to select even at maximum zoom.
+    return feature.kind==="ocean"||state.zoom>1;
   }
   function waterAt(position){
     const feature=featureAt(state.waterLookup,position);
@@ -317,21 +328,24 @@
     const r=Math.min(width,height)*.4*state.zoom;
     // The circular orbit is a visual approximation. Calendar and lunar phase
     // advance from the same simulation clock as the Earth rotation.
-    const days=(solar.date.getTime()-Date.UTC(2000,0,6,18,14))/86400000;
+    const days=(state.clockEpochMs-Date.UTC(2000,0,6,18,14))/86400000+
+      (state.simulatedMs-state.clockEpochMs)*state.moonOrbitSpeed/86400000;
     const phase=TAU*days/27.321661;
     const orbitR=r*1.22, orbitY=r*.33;
     ctx.save();
-    ctx.strokeStyle="rgba(192,214,116,.20)";ctx.lineWidth=1;
-    ctx.beginPath();ctx.ellipse(width/2,height/2,orbitR,orbitY,0,0,TAU);ctx.stroke();
+    if(state.showMoon){
+      ctx.strokeStyle="rgba(192,214,116,.20)";ctx.lineWidth=1;
+      ctx.beginPath();ctx.ellipse(width/2,height/2,orbitR,orbitY,0,0,TAU);ctx.stroke();
+    }
     const mx=width/2+orbitR*Math.cos(phase),my=height/2+orbitY*Math.sin(phase);
-    if(mx>=8&&mx<width-8&&my>=8&&my<height-8){
+    if(state.showMoon&&mx>=8&&mx<width-8&&my>=8&&my<height-8){
       ctx.beginPath();ctx.arc(mx,my,Math.max(3,Math.min(9,r*.025)),0,TAU);
       ctx.fillStyle="#d9dfd3";ctx.fill();
       ctx.fillStyle=state.theme.accent;ctx.font="11px monospace";ctx.fillText("Moon",mx+10,my-9);
     }
     const sx=width/2+Math.max(r*1.45,120)*Math.cos(solar.sunLon-state.yaw);
     const sy=height/2-Math.max(r*.5,60)*Math.sin(solar.sunDecl);
-    if(sx>=10&&sx<width-10&&sy>=10&&sy<height-10){
+    if(state.showSun&&sx>=10&&sx<width-10&&sy>=10&&sy<height-10){
       const glow=ctx.createRadialGradient(sx,sy,2,sx,sy,28);
       glow.addColorStop(0,"rgba(230,164,43,.82)");glow.addColorStop(1,"rgba(230,164,43,0)");
       ctx.fillStyle=glow;ctx.fillRect(sx-28,sy-28,56,56);
@@ -374,7 +388,7 @@
     drawOutline(ctx,width,height);
     state.candidates=[];
     for(const point of state.points){
-      if(point.kind && !waterFits(point))continue;
+      if(point.kind && (point.kind!=="ocean"&&point.code!==state.country||!waterFits(point)))continue;
       const p=project(point,width,height);if(!p)continue;
       const selected=point.code===state.country;
       const available=state.available.has(point.code);
@@ -386,9 +400,15 @@
     ctx.setTransform(1,0,0,1,0,0);
     const callout=$("[data-wfb-globe-callout]");
     const anchor=state.candidates.find(point=>point.code===state.country);
-    callout.hidden=!anchor;
-    if(anchor){callout.style.left=`${Math.max(165,Math.min(width-165,anchor.x))}px`;
-      callout.style.top=`${Math.max(115,anchor.y)}px`;}
+    callout.hidden=!state.country;
+    if(state.country){
+      const halfCard=Math.min(width/2,Math.max(70,callout.offsetWidth/2));
+      const minY=Math.min(height-14,callout.offsetHeight+25);
+      const x=anchor?.x??width-halfCard-16;
+      const y=anchor?.y??minY;
+      callout.style.left=`${Math.max(halfCard+8,Math.min(width-halfCard-8,x))}px`;
+      callout.style.top=`${Math.max(minY,Math.min(height-14,y))}px`;
+    }
   }
   const getJSON=async path=>{
     const response=await fetch(new URL(path,root));
@@ -417,7 +437,8 @@
     const subtitle=document.createElement("small");subtitle.textContent=statusLabel;
     box.append(title,subtitle);
     for(const [label,value] of rows){
-      const line=document.createElement("small");line.textContent=`${label}: ${value}`;box.append(line);
+      const summary=String(value).split(/\n/).find(part=>part.trim())?.replace(/^(?:name|total):\s*/i,"").trim()||"";
+      const line=document.createElement("small");line.textContent=`${label}: ${summary.slice(0,140)}`;box.append(line);
     }
     box.hidden=false;
   }
@@ -471,6 +492,24 @@
       if(current!==request)return;
       feed.leaders(panel,parts.flatMap(part=>part.terms||[]),year);
     }catch(error){/* No sourced leadership terms are installed for this country/year. */}
+  }
+  async function loadHTMLProfile(panel,record,code,year,current){
+    const data=await getJSON(record.path);
+    if(current!==request)return;
+    if(data.country!==code||Number(data.year)!==year)throw Error("HTML edition identity mismatch");
+    const fields=(data.fields||[]).filter(row=>row.country===code&&Number(row.edition_year)===year);
+    const visuals=data.media||[];
+    const source=`${data.source.name} · ${data.source.member} · SHA-256 ${data.source.sha256.slice(0,16)}…`;
+    feed.begin(panel,{name:data.name,code,year,status:data.status,source,kind:"SOURCE EDITION PROFILE"});
+    feed.fields(panel,fields,"",visuals,root);
+    const extract=matcher=>fields.find(row=>matcher.test(row.label||""))?.content;
+    callout([["Capital",extract(/^capital$/i)],["Population",extract(/^population$/i)],
+      ["GDP",extract(/^gdp(?:\s|$|\s*-)/i)]].filter(pair=>pair[1]),
+      `${fields.length} fields · ${year} HTML edition`);
+    status(`${year} · ${data.name} · ${fields.length} sourced fields · ${visuals.length} edition images · field review pending`);
+    if(code==="IN")await loadIndiaTrade(panel,year,current);
+    if(current===request)await loadWebFeatures(panel,code,year,current);
+    if(current===request)await loadLeadership(panel,code,year,current);
   }
   async function loadIndiaTrade(panel,year,requestId){
     const block=document.createElement("section");block.className="wfb-country-section wfb-trade";
@@ -533,8 +572,14 @@
     const edition=state.catalogue?.years?.find(row=>row.year===year);
     const entry=selected?.years?.find(row=>row.year===year);
     const water=state.waterFeatures.get(code);
+    const htmlProfile=state.verifiedHTML?.countries?.[code]?.find(row=>Number(row.year)===year);
     feed.begin(panel,{name:$("[data-wfb-country-heading]").textContent,code,year,
-      status:edition?.status||"unreviewed",kind:water?"WATER REFERENCE":entry?"BOOK PROFILE":"ARCHIVE INDEX"});
+      status:edition?.status||"unreviewed",kind:water&&!entry&&!htmlProfile?"WATER REFERENCE":entry||htmlProfile?"BOOK PROFILE":"ARCHIVE INDEX"});
+    if(htmlProfile&&!entry){
+      try{await loadHTMLProfile(panel,htmlProfile,code,year,current);}
+      catch(error){if(current===request)status(`HTML edition unavailable: ${error.message}`);}
+      return;
+    }
     if(water&&!entry){
       const section=document.createElement("section");section.className="wfb-country-section";
       const heading=document.createElement("h4");heading.textContent=`${water.name} · ${water.kind}`;
@@ -584,8 +629,10 @@
   function setYear(year){
     state.year=Number(year);$("[data-wfb-globe-year]").textContent=year;
     $("[data-wfb-globe-slider]").value=year;
-    state.available=new Set((state.catalogue?.countries||[])
-      .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code));
+    state.available=new Set([...(state.catalogue?.countries||[])
+      .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code),
+      ...Object.entries(state.verifiedHTML?.countries||{})
+        .filter(([,rows])=>rows.some(row=>Number(row.year)===state.year)).map(([code])=>code)]);
     boundaryStatus(`Boundaries: loading geometry for ${year}…`);
     loadBoundaries(state.year);
     draw();
@@ -622,13 +669,13 @@
       if(!down)return;
       if(!down.moved&&down.button===0){
         const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
+        const position=geoAt(x,y,rect.width,rect.height);
+        const water=waterAt(position);
         const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
-        if(near&&near.d<14)choose(near.code);
-        else{
-          const position=geoAt(x,y,rect.width,rect.height);
-          const region=waterAt(position)||featureAt(state.lookup,position);
-          if(region)choose(region.code);
-        }
+        if(water&&water.kind!=="ocean")choose(water.code);
+        else if(near&&near.d<14)choose(near.code);
+        else{const region=water||featureAt(state.lookup,position);
+          if(region)choose(region.code);}
       }
       down=null;
       state.dragging=false;
@@ -686,10 +733,18 @@
       }
     }
     catch(error){status("Country archive pending; provisional year/category excerpts will load when available.");}
+    try{state.verifiedHTML=await getJSON("api/verified-html/index.json");}
+    catch(error){state.verifiedHTML=null;}
     try{state.portal=await getJSON("api/portal-index.json");}catch(error){state.portal=null;}
-    state.available=new Set((state.catalogue?.countries||[]).map(row=>row.code));
+    state.available=new Set([...(state.catalogue?.countries||[]).map(row=>row.code),
+      ...Object.keys(state.verifiedHTML?.countries||{})]);
     try{state.points=(await getJSON("country-points.json")).points;}
     catch(error){status("Place coordinates unavailable; use the location selector.");}
+    for(const [code,rows] of Object.entries(state.verifiedHTML?.countries||{})){
+      if(state.points.some(point=>point.code===code))continue;
+      const entry=rows.find(row=>Number.isFinite(row.lat)&&Number.isFinite(row.lon))||rows[0];
+      state.points.push({code,name:entry.name,lat:entry.lat,lon:entry.lon});
+    }
     try{
       const index=await getJSON("boundaries/water/index.json");
       if(index.schema!=="zzx-water-click-index-v1")throw Error("Unknown water index schema");
@@ -728,6 +783,8 @@
     }
     const years=state.catalogue?.years?.filter(row=>row.fields>0)||[];
     if(years.length)state.year=years[years.length-1].year;
+    else if(state.verifiedHTML?.editions?.length)
+      state.year=Math.max(...state.verifiedHTML.editions.map(row=>Number(row.edition_year)));
     else{
       const legacy=(state.portal?.editions||[]).filter(row=>row.chunks>0);
       if(legacy.length)state.year=Number(legacy[legacy.length-1].year);
@@ -752,8 +809,20 @@
     bindKnob('[data-wfb-knob="tilt"]',()=>state.axialTilt,value=>setOrbitControl("tilt",value),.2);
     bindKnob('[data-wfb-knob="sync"]',()=>state.solarSync,value=>setOrbitControl("sync",value),1);
     bindKnob('[data-wfb-knob="season"]',()=>state.seasonDay,value=>setOrbitControl("season",value),2);
+    bindKnob('[data-wfb-knob="moon-speed"]',()=>state.moonOrbitSpeed,value=>setBodySpeed("moon",value),.06);
+    bindKnob('[data-wfb-knob="sun-speed"]',()=>state.sunOrbitSpeed,value=>setBodySpeed("sun",value),.06);
     setZoom(1);setAxis(0);
     setOrbitControl("tilt",23.44);setOrbitControl("sync",100);setOrbitControl("season",172);
+    setBodySpeed("moon",1);setBodySpeed("sun",1);
+    for(const body of ("sun","moon")){
+      const toggle=$(`[data-wfb-toggle="${body}"]`);
+      toggle.addEventListener("click",()=>{
+        const enabled=body==="sun"?!state.showSun:!state.showMoon;
+        if(body==="sun")state.showSun=enabled;else state.showMoon=enabled;
+        toggle.setAttribute("aria-checked",String(enabled));
+        draw();
+      });
+    }
     document.querySelectorAll(".wfb-view-switch button[data-wfb-view]").forEach(button=>button.addEventListener("click",()=>{
       state.flat=button.dataset.wfbView==="2d";
       document.querySelectorAll(".wfb-view-switch button[data-wfb-view]").forEach(item=>
