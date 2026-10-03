@@ -1,5 +1,5 @@
 <div align="center">
-<img src="./logo.png" alt="ZZX-Labs Software Projects catalog" width="240" height="240">
+<img src="../../logo.png" alt="ZZX-Labs Software Projects catalog" width="240" height="240">
 
 # Software Projects
 
