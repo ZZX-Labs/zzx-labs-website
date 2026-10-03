@@ -123,13 +123,21 @@ workflow file, issue, or public site bundle.
 
 The public checkout uses the workflow's `GITHUB_TOKEN`; that credential is
 scoped to the public repository URL. The private clone runs outside that
-checkout with only the private token and checks write access before spending
-time on a recovery run. Git's `http.extraheader` allows multiple values, so
-setting another header while inside a checkout with a broad GitHub header can
-send both credentials and result in HTTP 403. A successful repository API
-lookup only proves read access: check the token's Contents write permission
-if clone succeeds but push fails. A protected private branch may also block
-direct pushes and requires a repository rule change or an approved writer.
+checkout with a temporary Git prompt helper. The helper contains no token;
+Git reads `PRIVATE_TOKEN` through its prompt pipe. No token is embedded in the
+clone URL or Git configuration, and the helper is removed at the end of the
+job. This also avoids multiple `http.extraheader` credentials.
+
+The repository API lookup only establishes **metadata** access. Before
+cloning, the job now reads the private default branch's Git tree (Contents
+read) and creates an unreferenced tree object using an unchanged entry
+(Contents write). This probe does not change any branch or file. A 403/404
+at the read probe means the token can see repository metadata but cannot read
+the source. A 403 at the write probe means it lacks effective Contents write
+or the token owner lacks write access. Correct the token's resource owner,
+selected repository, Contents permission, approval, and account role before
+rerunning. A protected private branch can still block the eventual push and
+requires a repository rule change or an approved writer.
 
 Run the focused checks with `python tests/test_daily_fact_recovery.py` and
 `python tests/test_private_daily_repo.py`.
