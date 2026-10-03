@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 FILE = Path(__file__).resolve().parents[1] / "tools/worldfactbook/ensure_private_daily_repo.py"
@@ -36,6 +38,32 @@ class PrivateDailyRepoTests(unittest.TestCase):
                          "default_branch": "main"}
         with self.assertRaisesRegex(repo.RepositoryError, "public"):
             repo.ensure("ZZX-Labs/daily-part-0001", "secret", request=request)
+
+    def test_read_only_private_token_fails_before_clone(self):
+        def request(*_args):
+            return 200, {"full_name": "ZZX-Labs/daily-part-0001", "private": True,
+                         "default_branch": "main", "permissions": {"pull": True, "push": False}}
+        with self.assertRaisesRegex(repo.RepositoryError, "cannot push"):
+            repo.ensure("ZZX-Labs/daily-part-0001", "secret", request=request)
+
+    def test_public_checkout_header_is_not_sent_to_private_repo(self):
+        workflow = (FILE.parents[2] / ".github/workflows/zzx-worldfactbook-daily-recovery.yml").read_text()
+        self.assertIn('"http.https://github.com/${GITHUB_REPOSITORY}.git.extraheader"', workflow)
+        self.assertIn('git -C "${RUNNER_TEMP}" -c', workflow)
+        self.assertNotIn('git config --local http.https://github.com/.extraheader ', workflow)
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(["git", "init", "-q", directory], check=True)
+            subprocess.run(["git", "-C", directory, "config", "--local",
+                            "http.https://github.com/ZZX-Labs/zzx-labs-website.git.extraheader",
+                            "AUTHORIZATION: basic PUBLIC"], check=True)
+            public = subprocess.run(["git", "-C", directory, "config", "--get-urlmatch",
+                                     "http.extraheader", "https://github.com/ZZX-Labs/zzx-labs-website.git"],
+                                    text=True, capture_output=True, check=True)
+            private = subprocess.run(["git", "-C", directory, "config", "--get-urlmatch",
+                                      "http.extraheader", "https://github.com/ZZX-Labs/zzx-worldfactbook-daily-part-0001.git"],
+                                     text=True, capture_output=True)
+            self.assertEqual(public.stdout.strip(), "AUTHORIZATION: basic PUBLIC")
+            self.assertEqual(private.stdout.strip(), "")
 
     def test_missing_org_repo_is_created_private_and_rechecked(self):
         calls = []
