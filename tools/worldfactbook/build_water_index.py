@@ -116,7 +116,7 @@ def compile_index(sources: dict[str, Path], output: Path, source_urls: dict[str,
         for shape in current: draw_shape(painter, shape, color)
         feature_kind = water_kind(name, kind)
         is_great = name.lower() in {"lake superior","lake michigan","lake huron","lake erie","lake ontario"}
-        minimum = 1 if feature_kind=="ocean" or is_great else 1.8 if feature_kind=="sea" else 3 if feature_kind=="lake" else 5
+        minimum = 1 if feature_kind=="ocean" else 1.6 if feature_kind=="sea" or is_great else 3 if feature_kind=="lake" else 4
         lon_values=[p[0] for p in points];lat_values=[p[1] for p in points]
         bounds=[min(lon_values),min(lat_values),max(lon_values),max(lat_values)]
         code=("X-" if feature_kind=="ocean" else "WTR-")+re.sub(r"[^A-Z0-9]+","-",name.upper()).strip("-")[:60]
