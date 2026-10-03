@@ -48,7 +48,7 @@
     function refresh() {
       scheduled = false;
       const selectedYear = yearInput.value;
-      const selectedCode = countryInput.value;
+      const selectedCode = countryInput.value || profile.dataset.waterCode || "";
       edition.textContent = `Edition ${selectedYear}`;
       year.textContent = selectedYear;
       code.textContent = selectedCode || "—";
