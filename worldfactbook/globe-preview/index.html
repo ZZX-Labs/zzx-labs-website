@@ -19,7 +19,7 @@
   <script>window.WFB={};window.ZZXWorldFactbook={root:new URL("../",location.href)};</script>
   <script src="../js/globe-config.js" defer></script>
   <script src="../js/globe-renderer.js" defer></script>
-  <script src="../js/water-boundaries.js" defer></script>
+  <script src="../js/country-feed.js" defer></script>
   <script src="../js/globe.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",()=>window.WFB.globe.init());</script>
 </head>
@@ -33,7 +33,6 @@
         <span class="wfb-year-limits"><span>1962</span><span>2027</span></span>
       </label>
       <label>Location<select data-wfb-globe-country><option value="">Choose a place</option></select></label>
-      <label>Water body<select data-wfb-water-body aria-label="Find an ocean, sea, lake, or river"><option value="">Choose water geography</option></select></label>
       <label>Layer · source imagery<select data-wfb-layer aria-label="Globe imagery layer"></select></label>
       <label>Theme · library controls<select data-wfb-theme aria-label="Globe and library theme"></select></label>
       <div class="wfb-view-switch" role="group" aria-label="Map projection">
@@ -51,18 +50,21 @@
         <div class="wfb-knobs" role="group" aria-label="Globe rotary controls">
           <div class="wfb-knob-control"><span>Zoom</span><div class="wfb-knob" role="slider" tabindex="0" aria-label="Globe zoom" aria-valuemin="100" aria-valuemax="600" aria-valuenow="100" data-wfb-knob="zoom"></div><output data-wfb-zoom-value>100%</output></div>
           <div class="wfb-knob-control"><span>Earth axis</span><div class="wfb-knob" role="slider" tabindex="0" aria-label="Earth axis realism" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-wfb-knob="axis"></div><output data-wfb-axis-value>0% · map spin</output></div>
+          <div class="wfb-knob-control"><span>Axial tilt</span><div class="wfb-knob" role="slider" tabindex="0" aria-label="Earth axial tilt in degrees" aria-valuemin="0" aria-valuemax="23.44" aria-valuenow="23.44" data-wfb-knob="tilt"></div><output data-wfb-tilt-value>23.4°</output></div>
+          <div class="wfb-knob-control"><span>Solar sync</span><div class="wfb-knob" role="slider" tabindex="0" aria-label="Synchronize solar calendar with UTC" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" data-wfb-knob="sync"></div><output data-wfb-sync-value>100% · UTC</output></div>
+          <div class="wfb-knob-control"><span>Season</span><div class="wfb-knob" role="slider" tabindex="0" aria-label="Day of the year for manual season" aria-valuemin="1" aria-valuemax="365" aria-valuenow="172" data-wfb-knob="season"></div><output data-wfb-season-value>Jun 21</output></div>
         </div>
+        <small class="wfb-orbit-note">Sidereal rotation at full Earth axis; UTC solar sync; illustrative lunar orbit.</small>
         <span data-wfb-globe-renderer role="status">Renderer: loading</span>
         <span data-wfb-boundary-status role="status">Boundaries: loading</span>
-        <span data-wfb-water-status role="status">Water: loading reference geometry</span>
       </div>
     </div>
     <div class="wfb-globe-layout">
       <div class="wfb-globe-surface">
-        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive Earth; click a country, ocean, sea, lake, or river"></canvas>
+        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a region or a place marker"></canvas>
         <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
         <div class="wfb-globe-callout" data-wfb-globe-callout hidden></div>
-        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click a place or water body · select an edition</p>
+        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click a place · select an edition</p>
         <p class="wfb-globe-attribution" data-wfb-globe-attribution>Reference geography: Natural Earth</p>
       </div>
       <article class="wfb-country-panel" aria-live="polite">
