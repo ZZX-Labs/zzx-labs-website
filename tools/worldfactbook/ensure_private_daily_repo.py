@@ -54,6 +54,12 @@ def check_private(repository: str, status: int, data: dict) -> str:
         raise RepositoryError("Repository lookup returned a different owner/name")
     if data.get("private") is not True:
         raise RepositoryError("The configured data repository is public; refusing to send private archive evidence")
+    permissions = data.get("permissions")
+    if isinstance(permissions, dict) and permissions.get("push") is False:
+        raise RepositoryError(
+            "The token identity cannot push to the private repository. Grant repository Contents read/write "
+            "and authorize the token for this organization (including SSO or approval when required)"
+        )
     branch = str(data.get("default_branch") or "")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", branch):
         raise RepositoryError("The private repository needs an initialized default branch")
