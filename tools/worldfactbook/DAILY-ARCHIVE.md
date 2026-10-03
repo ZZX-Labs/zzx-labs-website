@@ -108,5 +108,28 @@ bounded static JSON to Pages. The existing private chain rollover tool should
 govern that repository when it approaches its capacity. The public output
 contains no private URL or token.
 
+### Repairing HTTP 403 on the private clone or push
+
+The Actions variable `WORLDFACTBOOK_DAILY_STORE_REPO` must be the exact
+`ZZX-Labs/zzx-worldfactbook-daily-part-0001` slug, not `owner/repo` or a URL.
+Set the separate Actions **secret** `WORLDFACTBOOK_PRIVATE_DATA_TOKEN` to a
+token whose resource owner is `ZZX-Labs`, whose selected repositories include
+that existing private repository, and whose **Contents** permission is **read
+and write**. If organization policy requires approval, an owner must approve
+the token. For a classic PAT, ensure the `repo` scope and authorize SSO for
+the organization if SSO is enforced. Update the secret after changing token
+permissions or replace an expired token. Never put the token in a variable,
+workflow file, issue, or public site bundle.
+
+The public checkout uses the workflow's `GITHUB_TOKEN`; that credential is
+scoped to the public repository URL. The private clone runs outside that
+checkout with only the private token and checks write access before spending
+time on a recovery run. Git's `http.extraheader` allows multiple values, so
+setting another header while inside a checkout with a broad GitHub header can
+send both credentials and result in HTTP 403. A successful repository API
+lookup only proves read access: check the token's Contents write permission
+if clone succeeds but push fails. A protected private branch may also block
+direct pushes and requires a repository rule change or an approved writer.
+
 Run the focused checks with `python tests/test_daily_fact_recovery.py` and
 `python tests/test_private_daily_repo.py`.
