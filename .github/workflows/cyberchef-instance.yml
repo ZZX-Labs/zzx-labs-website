@@ -159,10 +159,7 @@ jobs:
           test -d cyberchef/app/assets
           find cyberchef/app/assets -type f -print -quit | grep -q .
 
-          grep -q '<title>CyberChef' cyberchef/app/index.html
-          grep -q 'workspace-wrapper' cyberchef/app/index.html
-          grep -q 'id="operations"' cyberchef/app/index.html
-          grep -q 'id="recipe"' cyberchef/app/index.html
+          grep -qi '<title[^>]*>CyberChef' cyberchef/app/index.html
 
           if grep -q 'CyberChefZZX' cyberchef/app/index.html; then
             printf '%s\n' 'ERROR: native CyberChef HTML was modified.'
@@ -173,9 +170,14 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v9'
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v11'
           assert manifest['native_frontend']['upstream_html_unchanged'] is True
           assert manifest['native_frontend']['index_sha256'] == manifest['native_frontend']['upstream_entry_sha256']
+          upstream_entry = Path('cyberchef/app') / manifest['release']['entrypoint']
+          assert upstream_entry.is_file()
+          import hashlib
+          sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+          assert sha(Path('cyberchef/app/index.html')) == sha(upstream_entry)
           assert manifest['custom_frontend']['shim'] == '/cyberchef/css/frame/shim.css'
           assert manifest['custom_frontend']['css_layers'] == [
               '/cyberchef/css/frame/tokens.css',
