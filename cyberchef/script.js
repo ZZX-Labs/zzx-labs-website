@@ -118,10 +118,17 @@
         }
 
         const title = doc.querySelector("title")?.textContent || "";
-        const workspace = doc.querySelector("#workspace-wrapper");
-        const operations = doc.querySelector("#operations");
+        const hasBody = Boolean(doc.body && doc.documentElement);
+        const hasRuntimeCode = Boolean(
+            doc.querySelector('script[src], script:not([src])') ||
+            doc.querySelector('link[rel="stylesheet"][href], style')
+        );
 
-        if (!/CyberChef/i.test(title) || !workspace || !operations) {
+        // Do not gate a valid upstream release on internal DOM IDs. CyberChef's
+        // generated workspace markup is an implementation detail and can change
+        // between releases. We only require a same-origin CyberChef document with
+        // a normal document body and executable/styled runtime content.
+        if (!/CyberChef/i.test(title) || !hasBody || !hasRuntimeCode) {
             setFrameState("Invalid runtime");
             setStatus("/cyberchef/app/ loaded, but it is not a complete CyberChef production document.", "error");
             return;
