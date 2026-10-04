@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       cyberchef_version:
-        description: "Upstream GCHQ CyberChef release version to host locally"
+        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
         required: false
-        default: "11.0.0"
+        default: "latest"
         type: string
       deploy_pages:
         description: "Deploy the validated local frontends to GitHub Pages"
@@ -23,10 +23,10 @@ on:
   workflow_call:
     inputs:
       cyberchef_version:
-        description: "Upstream GCHQ CyberChef release version to host locally"
+        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
         required: false
         type: string
-        default: "11.0.0"
+        default: "latest"
       deploy_pages:
         description: "Deploy the validated local frontends to GitHub Pages"
         required: false
@@ -34,7 +34,7 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -47,5 +47,5 @@ jobs:
     name: Build and Host Local CyberChef Frontends
     uses: ./.github/workflows/cyberchef-instance.yml
     with:
-      cyberchef_version: ${{ inputs.cyberchef_version || '11.0.0' }}
+      cyberchef_version: ${{ inputs.cyberchef_version || 'latest' }}
       deploy_pages: ${{ github.event_name == 'schedule' || inputs.deploy_pages }}
