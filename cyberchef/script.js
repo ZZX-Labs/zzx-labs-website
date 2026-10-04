@@ -2,19 +2,13 @@
     "use strict";
 
     const config = window.ZZX?.CYBERCHEF || {};
-    const $ = (id) => document.getElementById(id);
-    let currentSource = config.defaultSource || "modified";
-    let loadSerial = 0;
+    const STORAGE = config.storageKeys || {};
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn, { once: true });
-        } else {
-            fn();
-        }
+    function byId(id) {
+        return document.getElementById(id);
     }
 
-    function getStorage(key, fallback = null) {
+    function readStorage(key, fallback = null) {
         try {
             return localStorage.getItem(key) ?? fallback;
         } catch (err) {
@@ -22,36 +16,37 @@
         }
     }
 
-    function setStorage(key, value) {
+    function writeStorage(key, value) {
         try {
-            localStorage.setItem(key, value);
+            localStorage.setItem(key, String(value));
         } catch (err) {}
     }
 
-    function status(text, error = false) {
-        const node = $(config.statusId || "cz-status");
+    function setStatus(message, kind = "") {
+        const node = byId(config.statusId || "cz-status");
         if (!node) return;
-        node.textContent = text;
-        node.classList.toggle("cz-error", Boolean(error));
+        node.textContent = message;
+        node.classList.remove("cz-status-ready", "cz-status-error");
+        if (kind === "ready") node.classList.add("cz-status-ready");
+        if (kind === "error") node.classList.add("cz-status-error");
     }
 
-    function state(text) {
-        const node = $(config.frameStateId || "cz-frame-state");
-        if (node) node.textContent = text;
+    function setFrameState(message) {
+        const node = byId(config.frameStateId || "cz-frame-state");
+        if (node) node.textContent = message;
     }
 
-    function active(text) {
-        const node = $(config.activeSourceId || "cz-active-source");
-        if (node) node.textContent = text;
-    }
-
-    function modeCard(text) {
-        const node = $("cz-mode-card");
-        if (node) node.textContent = text;
+    function setActiveLabel(mode) {
+        const active = byId(config.activeSourceId || "cz-active-source");
+        const card = byId("cz-mode-card");
+        const modified = mode === "modified";
+        if (active) active.textContent = modified ? "CyberChefZZX Modified" : "Native Local CyberChef";
+        if (card) card.textContent = modified ? "ZZX Modified" : "Native Local";
+        document.body.dataset.cyberchefMode = mode;
     }
 
     function frame() {
-        return $(config.frameId || "cz-frame");
+        return byId(config.frameId || "cz-frame");
     }
 
     function frameDocument() {
@@ -70,250 +65,167 @@
         }
     }
 
-    function setVersion(value) {
-        const version = value
-            ? (String(value).startsWith("v") ? String(value) : `v${value}`)
-            : "latest";
+    function selectedMode() {
+        const select = byId(config.sourceId || "cz-source");
+        const value = select?.value || config.defaultSource || "modified";
+        return value === "native" ? "native" : "modified";
+    }
 
-        config.version = version;
-        document.querySelectorAll("[data-zzx-cyberchef-version]")
-            .forEach((node) => { node.textContent = version; });
+    function clearShim(doc) {
+        doc.getElementById("zzx-cyberchef-shim")?.remove();
+        doc.documentElement.classList.remove("zzx-cyberchef-modified");
+        delete doc.documentElement.dataset.zzxTheme;
+        delete doc.documentElement.dataset.zzxLayout;
+    }
+
+    function installShim(doc) {
+        clearShim(doc);
+
+        const link = doc.createElement("link");
+        link.id = "zzx-cyberchef-shim";
+        link.rel = "stylesheet";
+        link.href = new URL(config.shimUrl || "./shim/shim.css", window.location.href).href;
+
+        return new Promise((resolve, reject) => {
+            link.addEventListener("load", () => resolve(link), { once: true });
+            link.addEventListener("error", () => reject(new Error("ZZX CyberChef CSS shim failed to load.")), { once: true });
+            doc.head.appendChild(link);
+        });
+    }
+
+    function setModifiedRoot(doc) {
+        doc.documentElement.classList.remove("classic", "geocities", "solarizedDark", "solarizedLight");
+        doc.documentElement.classList.add("dark", "zzx-cyberchef-modified");
+
+        const theme = readStorage(STORAGE.theme || "zzxCyberChefThemeV8", "tactical");
+        const layout = readStorage(STORAGE.layout || "zzxCyberChefLayoutV8", "native");
+        doc.documentElement.dataset.zzxTheme = theme;
+        doc.documentElement.dataset.zzxLayout = layout;
+    }
+
+    function emitReady(mode) {
+        const detail = { mode };
+        window.dispatchEvent(new CustomEvent("zzx-cyberchef-frame-ready", { detail }));
+        window.dispatchEvent(new CustomEvent("zzx-cyberchef-ready", { detail }));
+    }
+
+    async function handleFrameLoad(mode) {
+        const doc = frameDocument();
+        if (!doc || !doc.documentElement) {
+            setFrameState("Error");
+            setStatus("CyberChef loaded outside the expected same-origin local path.", "error");
+            return;
+        }
+
+        const title = doc.querySelector("title")?.textContent || "";
+        const workspace = doc.querySelector("#workspace-wrapper");
+        const operations = doc.querySelector("#operations");
+
+        if (!/CyberChef/i.test(title) || !workspace || !operations) {
+            setFrameState("Invalid runtime");
+            setStatus("/cyberchef/app/ loaded, but it is not a complete CyberChef production document.", "error");
+            return;
+        }
+
+        try {
+            if (mode === "modified") {
+                setFrameState("Applying ZZX shim…");
+                await installShim(doc);
+                setModifiedRoot(doc);
+                setStatus("CyberChefZZX loaded: upstream CyberChef first, ZZX CSS shim second.", "ready");
+            } else {
+                clearShim(doc);
+                setStatus("Native local CyberChef loaded with no ZZX CSS shim.", "ready");
+            }
+
+            setFrameState("Ready");
+            emitReady(mode);
+            window.ZZXCyberChefResize?.();
+        } catch (err) {
+            console.error("[CyberChefZZX]", err);
+            setFrameState("Shim error");
+            setStatus(err?.message || "CyberChefZZX shim failed to load.", "error");
+        }
+    }
+
+    function loadRuntime(mode = selectedMode(), options = {}) {
+        const node = frame();
+        if (!node) return;
+
+        const normalizedMode = mode === "native" ? "native" : "modified";
+        const select = byId(config.sourceId || "cz-source");
+        if (select) select.value = normalizedMode;
+
+        writeStorage(STORAGE.source || "zzxCyberChefSourceV8", normalizedMode);
+        setActiveLabel(normalizedMode);
+        setFrameState("Loading…");
+        setStatus(normalizedMode === "modified"
+            ? "Loading local CyberChef, then applying the ZZX CSS shim…"
+            : "Loading unmodified local CyberChef…");
+
+        node.onload = () => handleFrameLoad(normalizedMode);
+
+        const target = options.recipe
+            ? `${config.nativeUrl || "./app/index.html"}#recipe=${encodeURIComponent(options.recipe)}`
+            : (config.nativeUrl || "./app/index.html");
+
+        const current = node.getAttribute("src") || "";
+        if (current === target && !options.force) {
+            try {
+                node.contentWindow.location.reload();
+                return;
+            } catch (err) {}
+        }
+
+        node.setAttribute("src", target);
     }
 
     async function loadManifest() {
         try {
-            const response = await fetch(config.manifestUrl || "./runtime-manifest.json", {
-                cache: "no-store"
-            });
+            const response = await fetch(config.manifestUrl || "./runtime-manifest.json", { cache: "no-store" });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const manifest = await response.json();
-            setVersion(manifest?.release?.tag || manifest?.release?.version || null);
-            return manifest;
+            const tag = manifest?.release?.tag || manifest?.release?.version || "latest";
+            config.version = tag;
+            document.querySelectorAll("[data-zzx-cyberchef-version]").forEach(node => {
+                node.textContent = String(tag);
+            });
         } catch (err) {
-            console.warn("[CyberChefZZX] runtime manifest unavailable", err);
-            setVersion(null);
-            return null;
+            console.warn("[CyberChefZZX] Runtime manifest unavailable:", err);
         }
-    }
-
-    function localAppReady(doc) {
-        return Boolean(
-            doc &&
-            doc.querySelector("#workspace-wrapper") &&
-            doc.querySelector("#operations") &&
-            doc.querySelector("#recipe") &&
-            doc.querySelector("#IO")
-        );
-    }
-
-    function clearModifiedLayer() {
-        const doc = frameDocument();
-        if (!doc) return;
-
-        doc.querySelectorAll("link[data-zzx-cyberchef-layer]")
-            .forEach((node) => node.remove());
-
-        doc.documentElement.classList.remove("zzx-cyberchef-modified");
-        doc.documentElement.removeAttribute("data-zzx-theme");
-    }
-
-    function applyInternalTheme(theme) {
-        const doc = frameDocument();
-        if (!doc || currentSource !== "modified") return;
-        doc.documentElement.dataset.zzxTheme = theme || "tactical";
-    }
-
-    function installModifiedLayer() {
-        if (currentSource !== "modified") return false;
-
-        const doc = frameDocument();
-        if (!localAppReady(doc)) return false;
-
-        clearModifiedLayer();
-
-        for (const href of (config.modifiedStylesheets || [])) {
-            const link = doc.createElement("link");
-            link.rel = "stylesheet";
-            link.href = new URL(href, window.location.href).href;
-            link.dataset.zzxCyberchefLayer = "true";
-            doc.head.appendChild(link);
-        }
-
-        doc.documentElement.classList.add("zzx-cyberchef-modified");
-        applyInternalTheme(
-            getStorage(config.storageKeys?.theme || "zzxCyberChefThemeV2", "tactical")
-        );
-
-        return true;
-    }
-
-    function sourceSpec(source) {
-        if (source === "native") {
-            return {
-                label: "Native Local CyberChef",
-                mode: "Native",
-                url: config.nativeUrl || "./app/index.html",
-                local: true
-            };
-        }
-
-        if (source === "upstream") {
-            return {
-                label: "GCHQ Hosted CyberChef",
-                mode: "Upstream",
-                url: config.upstreamUrl || "https://gchq.github.io/CyberChef/",
-                local: false
-            };
-        }
-
-        return {
-            label: "CyberChefZZX Modified Instance",
-            mode: "ZZX Modified",
-            url: config.modifiedUrl || "./app/index.html",
-            local: true
-        };
-    }
-
-    function loadSource(source, reload = true) {
-        const allowed = new Set(["modified", "native", "upstream"]);
-        currentSource = allowed.has(source) ? source : "modified";
-        setStorage(config.storageKeys?.source || "zzxCyberChefSourceV2", currentSource);
-
-        const spec = sourceSpec(currentSource);
-        const target = frame();
-        const select = $(config.sourceId || "cz-source");
-
-        if (select) select.value = currentSource;
-        active(spec.label);
-        modeCard(spec.mode);
-        state("Loading");
-        status(`Loading ${spec.label}…`);
-
-        if (!target) {
-            state("Error");
-            status("CyberChef runtime frame is missing from this page.", true);
-            return;
-        }
-
-        loadSerial += 1;
-        target.dataset.loadSerial = String(loadSerial);
-
-        const wanted = new URL(spec.url, window.location.href).href;
-        if (reload || target.src !== wanted) {
-            target.src = wanted;
-        } else {
-            onFrameLoad();
-        }
-    }
-
-    function refresh() {
-        const target = frame();
-        if (!target) return;
-        state("Reloading");
-        status("Reloading CyberChef runtime…");
-        loadSource(currentSource, true);
-    }
-
-    function loadRecipe(recipe) {
-        if (!recipe) return;
-
-        if (currentSource === "upstream") {
-            const url = new URL(config.upstreamUrl || "https://gchq.github.io/CyberChef/");
-            url.hash = `recipe=${encodeURIComponent(recipe)}`;
-            window.open(url.href, "_blank", "noopener");
-            return;
-        }
-
-        const target = frame();
-        if (!target) return;
-
-        if (currentSource !== "modified") {
-            currentSource = "modified";
-            const select = $(config.sourceId || "cz-source");
-            if (select) select.value = "modified";
-        }
-
-        const url = new URL(config.modifiedUrl || "./app/index.html", window.location.href);
-        url.hash = `recipe=${encodeURIComponent(recipe)}`;
-        target.src = url.href;
-    }
-
-    function onFrameLoad() {
-        const spec = sourceSpec(currentSource);
-
-        if (!spec.local) {
-            state("Ready");
-            status(`${spec.label} loaded.`);
-            return;
-        }
-
-        const doc = frameDocument();
-        if (!localAppReady(doc)) {
-            state("Runtime missing");
-            status(
-                "Local CyberChef did not load. /cyberchef/app/index.html is missing or is not the CyberChef production build. Run the ZZX-CyberChef workflow and confirm it committed cyberchef/app/ to the website branch.",
-                true
-            );
-            return;
-        }
-
-        if (currentSource === "modified") {
-            installModifiedLayer();
-            setTimeout(installModifiedLayer, 150);
-            setTimeout(installModifiedLayer, 700);
-        } else {
-            clearModifiedLayer();
-        }
-
-        state("Ready");
-        status(`${spec.label} ready${config.version ? ` — ${config.version}` : ""}.`);
-        setStorage(
-            config.storageKeys?.lastLoaded || "zzxCyberChefLastLoadedV2",
-            new Date().toISOString()
-        );
-
-        window.dispatchEvent(new CustomEvent("zzx-cyberchef-ready", {
-            detail: { source: currentSource, frame: frame() }
-        }));
     }
 
     function boot() {
+        const select = byId(config.sourceId || "cz-source");
+        const stored = readStorage(STORAGE.source || "zzxCyberChefSourceV8", config.defaultSource || "modified");
+        const initialMode = stored === "native" ? "native" : "modified";
+        if (select) select.value = initialMode;
+
+        byId(config.loadButtonId || "cz-load")?.addEventListener("click", () => loadRuntime(selectedMode(), { force: true }));
+        byId(config.refreshButtonId || "cz-refresh")?.addEventListener("click", () => loadRuntime(selectedMode(), { force: true }));
+        select?.addEventListener("change", () => loadRuntime(selectedMode(), { force: true }));
+
         loadManifest();
-
-        const target = frame();
-        if (!target) {
-            status("CyberChef runtime frame is missing from this page.", true);
-            return;
-        }
-
-        target.addEventListener("load", onFrameLoad);
-
-        $(config.loadButtonId || "cz-load")?.addEventListener("click", () => {
-            loadSource($(config.sourceId || "cz-source")?.value || "modified", true);
-        });
-
-        $(config.refreshButtonId || "cz-refresh")?.addEventListener("click", refresh);
-
-        const saved = getStorage(
-            config.storageKeys?.source || "zzxCyberChefSourceV2",
-            config.defaultSource || "modified"
-        );
-
-        loadSource(saved, target.getAttribute("src") !== sourceSpec(saved).url);
+        loadRuntime(initialMode, { force: true });
     }
 
     window.ZZXCyberChef = {
-        frame,
-        frameDocument,
-        frameWindow,
-        loadSource,
-        refresh,
-        loadRecipe,
-        installModifiedLayer,
-        clearModifiedLayer,
-        applyInternalTheme,
-        get source() { return currentSource; }
+        load: loadRuntime,
+        loadRecipe(recipe) {
+            loadRuntime(selectedMode(), { recipe: String(recipe || ""), force: true });
+        },
+        getFrame: frame,
+        getDocument: frameDocument,
+        getWindow: frameWindow,
+        getMode: selectedMode,
+        reapplyShim() {
+            if (selectedMode() === "modified") handleFrameLoad("modified");
+        }
     };
 
-    ready(boot);
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else {
+        boot();
+    }
 })();
