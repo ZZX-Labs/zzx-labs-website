@@ -92,21 +92,48 @@ def resolve_release(requested: str) -> Release:
         raise RuntimeError(f"Unsafe CyberChef release version: {version!r}")
 
     assets = payload.get("assets") or []
-    preferred = (
-        f"CyberChef_{tag}.zip",
-        f"CyberChef_v{version}.zip",
-        f"CyberChef_{version}.zip",
-    )
 
-    asset = next(
-        (
-            item
-            for expected in preferred
-            for item in assets
-            if str(item.get("name", "")) == expected
-        ),
-        None,
-    )
+    # Upstream production release bundles currently use the form
+    # CyberChef_<40-hex commit>.zip (for example the v11.5.0 asset
+    # CyberChef_8cd426dd4f40f1423912d5fad91b578a86a65112.zip).
+    # Prefer that real deployable release artifact over source-code tag
+    # archives or any ancillary ZIP that may be attached in the future.
+    production_candidates = [
+        item
+        for item in assets
+        if re.fullmatch(
+            r"CyberChef_[0-9A-Fa-f]{40}\.zip",
+            str(item.get("name", "")).strip(),
+        )
+    ]
+
+    asset = None
+    if len(production_candidates) == 1:
+        asset = production_candidates[0]
+    elif len(production_candidates) > 1:
+        names = ", ".join(
+            str(item.get("name", "")) for item in production_candidates
+        )
+        raise RuntimeError(
+            "CyberChef release has multiple production ZIP assets: " + names
+        )
+
+    # Retain compatibility with older CyberChef release naming schemes.
+    if asset is None:
+        preferred = (
+            f"CyberChef_{tag}.zip",
+            f"CyberChef_v{version}.zip",
+            f"CyberChef_{version}.zip",
+        )
+        asset = next(
+            (
+                item
+                for expected in preferred
+                for item in assets
+                if str(item.get("name", "")) == expected
+            ),
+            None,
+        )
 
     if asset is None:
         candidates = [
@@ -133,7 +160,14 @@ def resolve_release(requested: str) -> Release:
 
     if not re.fullmatch(r"[0-9A-Za-z._+-]+\.zip", asset_name):
         raise RuntimeError(f"Unsafe CyberChef asset name: {asset_name!r}")
-    if parsed.scheme != "https" or parsed.hostname != "github.com":
+    expected_path = f"/gchq/CyberChef/releases/download/{tag}/{asset_name}"
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "github.com"
+        or parsed.path != expected_path
+        or parsed.query
+        or parsed.fragment
+    ):
         raise RuntimeError(f"Unexpected CyberChef asset URL: {asset_url!r}")
 
     return Release(
