@@ -1,6 +1,6 @@
 # CyberChef Attribution
 
-This directory contains a self-hosted copy of CyberChef v11.0.0.
+This directory hosts the latest stable self-hosted CyberChef release resolved at deployment time from the official GCHQ CyberChef GitHub Releases API.
 
 CyberChef is developed by GCHQ.
 
@@ -10,8 +10,10 @@ https://github.com/gchq/CyberChef
 Official hosted version:
 https://gchq.github.io/CyberChef/
 
-Release used:
-https://github.com/gchq/CyberChef/releases/download/v11.0.0/CyberChef_v11.0.0.zip
+Release metadata for the deployed local copy:
+`/cyberchef/runtime-manifest.json`
+
+The deployment manifest records the exact upstream tag, version, release page, release asset URL, and SHA-256 digest used for the currently published instance.
 
 ZZX-Labs R&D hosts this copy as a public/private browser-based cybersecurity, encoding, decoding, compression, cryptography, and data-analysis toolkit.
 
