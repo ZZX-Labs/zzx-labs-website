@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       cyberchef_version:
-        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
+        description: "GCHQ CyberChef release: latest (default) or explicit version/tag"
         required: false
         default: "latest"
         type: string
@@ -23,7 +23,7 @@ on:
   workflow_call:
     inputs:
       cyberchef_version:
-        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
+        description: "GCHQ CyberChef release: latest (default) or explicit version/tag"
         required: false
         type: string
         default: "latest"
@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   local_frontends:
-    name: Build Native + ZZX CyberChef Frontends
+    name: Preserve ZZX CyberChef Page + Install Latest Native Runtime
     uses: ./.github/workflows/cyberchef-instance.yml
     with:
       cyberchef_version: ${{ inputs.cyberchef_version || 'latest' }}
