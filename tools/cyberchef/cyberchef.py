@@ -188,11 +188,18 @@ def find_distribution(extract_dir: Path, release: Release) -> tuple[Path, Path]:
 
 
 def validate_entrypoint(entry: Path, dist_root: Path) -> None:
+    """Validate the production bundle contract without pinning to CyberChef DOM IDs.
+
+    CyberChef has changed its generated HTML shell across releases.  The immutable
+    contract we actually need is much smaller: this must be a CyberChef document,
+    its local linked assets must exist inside the extracted distribution, and the
+    entrypoint must load at least one local stylesheet and JavaScript bundle.  DOM
+    surfaces such as #operations/#recipe are runtime implementation details and are
+    intentionally *not* release-gating markers.
+    """
     html = entry.read_text(encoding="utf-8", errors="strict")
-    required_markers = ("<title>CyberChef", "workspace-wrapper", "id=\"operations\"", "id=\"recipe\"")
-    for marker in required_markers:
-        if marker not in html:
-            raise RuntimeError(f"CyberChef entrypoint missing expected marker: {marker}")
+    if not re.search(r"<title[^>]*>\s*CyberChef(?:\s|<|$)", html, re.I):
+        raise RuntimeError("CyberChef production entrypoint does not identify itself as CyberChef.")
 
     parser = AssetParser()
     parser.feed(html)
@@ -317,7 +324,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v9",
+            "schema": "zzx-cyberchef-runtime-v11",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
