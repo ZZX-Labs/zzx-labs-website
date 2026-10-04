@@ -4,121 +4,61 @@
     const config = window.ZZX?.CYBERCHEF || {};
     const STORAGE = config.storageKeys || {};
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn, { once: true });
-        } else {
-            fn();
-        }
-    }
-
-    function get(key, fallback = null) {
+    function read(key, fallback = "0") {
         try { return localStorage.getItem(key) ?? fallback; }
         catch (err) { return fallback; }
     }
 
-    function set(key, value) {
+    function write(key, value) {
         try { localStorage.setItem(key, value); }
         catch (err) {}
     }
 
-    function optionSelect(id, entries) {
-        const select = document.createElement("select");
-        select.id = id;
-        for (const [value, label] of entries) {
-            const option = document.createElement("option");
-            option.value = value;
-            option.textContent = label;
-            select.appendChild(option);
-        }
-        return select;
+    function makeButton(id, label) {
+        const button = document.createElement("button");
+        button.id = id;
+        button.type = "button";
+        button.textContent = label;
+        return button;
     }
 
-    function button(id, label) {
-        const node = document.createElement("button");
-        node.type = "button";
-        node.id = id;
-        node.textContent = label;
-        return node;
-    }
-
-    function applyTheme(theme) {
-        document.body.classList.remove(
-            "cz-theme-tactical",
-            "cz-theme-amber",
-            "cz-theme-crt",
-            "cz-theme-monochrome"
-        );
-        if (theme !== "plain") document.body.classList.add(`cz-theme-${theme}`);
-        set(STORAGE.theme || "zzxCyberChefThemeV2", theme);
-        window.ZZXCyberChef?.applyInternalTheme?.(theme);
-    }
-
-    function applyScale(scale) {
-        set(STORAGE.scale || "zzxCyberChefFrameScaleV2", String(scale));
-        window.ZZXCyberChefSetScale?.(scale);
-    }
-
-    function toggleClass(className, storageKey) {
-        const enabled = !document.body.classList.contains(className);
+    function setToggle(className, storageKey, enabled) {
         document.body.classList.toggle(className, enabled);
-        set(storageKey, enabled ? "1" : "0");
+        write(storageKey, enabled ? "1" : "0");
         window.ZZXCyberChefResize?.();
     }
 
-    function injectControls() {
+    function boot() {
         const bar = document.querySelector(".cz-sourcebar");
-        if (!bar || document.getElementById("cz-theme")) return;
+        if (!bar || document.getElementById("cz-compact-toggle")) return;
 
-        const theme = optionSelect("cz-theme", [
-            ["tactical", "ZZX Tactical"],
-            ["amber", "ZZX Amber"],
-            ["crt", "ZZX CRT"],
-            ["monochrome", "ZZX Mono"],
-            ["plain", "CyberChef Dark"]
-        ]);
+        const compact = makeButton("cz-compact-toggle", "Compact Page");
+        const fullscreen = makeButton("cz-fullscreen-toggle", "Tool Fullscreen");
+        const analyst = makeButton("cz-analyst-toggle", "Analyst View");
+        bar.append(compact, fullscreen, analyst);
 
-        const scale = optionSelect("cz-scale", [
-            ["1", "Zoom 100%"],
-            ["0.95", "Zoom 95%"],
-            ["0.90", "Zoom 90%"],
-            ["0.85", "Zoom 85%"],
-            ["0.80", "Zoom 80%"],
-            ["0.75", "Zoom 75%"],
-            ["0.70", "Zoom 70%"],
-            ["0.65", "Zoom 65%"]
-        ]);
+        const compactKey = STORAGE.compact || "zzxCyberChefCompactV8";
+        const fullscreenKey = STORAGE.fullscreen || "zzxCyberChefFullscreenV8";
+        const analystKey = STORAGE.analyst || "zzxCyberChefAnalystV8";
 
-        const compact = button("cz-compact-toggle", "Compact");
-        const fullscreen = button("cz-fullscreen-toggle", "Tool Fullscreen");
-        const analyst = button("cz-analyst-toggle", "Analyst Mode");
+        setToggle("cz-compact", compactKey, read(compactKey) === "1");
+        setToggle("cz-fullscreen-tool", fullscreenKey, read(fullscreenKey) === "1");
+        setToggle("cz-analyst-mode", analystKey, read(analystKey) === "1");
 
-        theme.value = get(STORAGE.theme || "zzxCyberChefThemeV2", "tactical");
-        scale.value = get(STORAGE.scale || "zzxCyberChefFrameScaleV2", "1");
-
-        bar.append(theme, scale, compact, fullscreen, analyst);
-
-        theme.addEventListener("change", () => applyTheme(theme.value));
-        scale.addEventListener("change", () => applyScale(scale.value));
-        compact.addEventListener("click", () => toggleClass("cz-compact", STORAGE.compact || "zzxCyberChefCompactV2"));
-        fullscreen.addEventListener("click", () => toggleClass("cz-fullscreen-tool", STORAGE.fullscreen || "zzxCyberChefFullscreenV2"));
-        analyst.addEventListener("click", () => toggleClass("cz-analyst-mode", "zzxCyberChefAnalystV2"));
+        compact.addEventListener("click", () => {
+            setToggle("cz-compact", compactKey, !document.body.classList.contains("cz-compact"));
+        });
+        fullscreen.addEventListener("click", () => {
+            setToggle("cz-fullscreen-tool", fullscreenKey, !document.body.classList.contains("cz-fullscreen-tool"));
+        });
+        analyst.addEventListener("click", () => {
+            setToggle("cz-analyst-mode", analystKey, !document.body.classList.contains("cz-analyst-mode"));
+        });
     }
 
-    ready(() => {
-        injectControls();
-
-        const theme = get(STORAGE.theme || "zzxCyberChefThemeV2", "tactical");
-        const scale = get(STORAGE.scale || "zzxCyberChefFrameScaleV2", "1");
-        applyTheme(theme);
-        applyScale(scale);
-
-        document.body.classList.toggle("cz-compact", get(STORAGE.compact || "zzxCyberChefCompactV2", "0") === "1");
-        document.body.classList.toggle("cz-fullscreen-tool", get(STORAGE.fullscreen || "zzxCyberChefFullscreenV2", "0") === "1");
-
-        window.addEventListener("zzx-cyberchef-ready", () => {
-            window.ZZXCyberChef?.applyInternalTheme?.(theme);
-            window.ZZXCyberChefResize?.();
-        });
-    });
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else {
+        boot();
+    }
 })();
