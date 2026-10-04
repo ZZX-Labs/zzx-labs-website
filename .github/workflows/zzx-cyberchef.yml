@@ -15,35 +15,22 @@ on:
         default: "latest"
         type: string
       deploy_pages:
-        description: "Deploy the validated site to GitHub Pages"
+        description: "Publish generated /cyberchef/app/ to the current website branch"
         required: false
         default: true
         type: boolean
-
-  workflow_call:
-    inputs:
-      cyberchef_version:
-        description: "GCHQ CyberChef release: latest (default) or explicit version/tag"
-        required: false
-        type: string
-        default: "latest"
-      deploy_pages:
-        description: "Deploy the validated site to GitHub Pages"
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: write
   pages: write
 
 concurrency:
-  group: zzx-cyberchef-controller
+  group: zzx-cyberchef-controller-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   local_frontends:
-    name: Preserve ZZX CyberChef Page + Install Latest Native Runtime
+    name: Update Local CyberChef Runtime
     uses: ./.github/workflows/cyberchef-instance.yml
     with:
       cyberchef_version: ${{ inputs.cyberchef_version || 'latest' }}
