@@ -53,9 +53,7 @@
             layout: "zzxCyberChefLayoutV9",
             module: "zzxCyberChefModuleV9",
             function: "zzxCyberChefFunctionV9",
-            compact: "zzxCyberChefCompactV9",
-            fullscreen: "zzxCyberChefFullscreenV9",
-            analyst: "zzxCyberChefAnalystV9"
+            viewMode: "zzxCyberChefViewModeV11"
         }
     });
 
