@@ -177,7 +177,7 @@
         }
 
         window.open(
-            `./app/#recipe=${encodeRecipe(recipe)}`,
+            `./app/index.html#recipe=${encodeRecipe(recipe)}`,
             "_blank",
             "noopener"
         );
@@ -185,7 +185,7 @@
 
     function openNativeRecipe(recipe) {
         window.open(
-            `./app/#recipe=${encodeRecipe(recipe)}`,
+            `./app/index.html#recipe=${encodeRecipe(recipe)}`,
             "_blank",
             "noopener"
         );
@@ -359,7 +359,7 @@
 
         document.getElementById("cz-open-native")
             ?.addEventListener("click", () => {
-                window.open("./app/", "_blank", "noopener");
+                window.open("./app/index.html", "_blank", "noopener");
             });
     }
 
