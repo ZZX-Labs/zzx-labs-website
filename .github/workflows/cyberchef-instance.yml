@@ -725,7 +725,7 @@ jobs:
           printf '%s\n' \
             "ZZX root frontend and isolated native CyberChef runtime verified."
 
-      - name: Deploy validated site to gh-pages with native Git
+      - name: Deploy validated site and request GitHub Pages build
         if: ${{ inputs.deploy_pages }}
         shell: bash
         env:
@@ -750,31 +750,58 @@ jobs:
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
           git push --force origin HEAD:gh-pages
 
+          printf '%s\n' \
+            "Published validated site to gh-pages."
+
           python3 - <<'PY'
-          import json, os, urllib.error, urllib.request
-          repo=os.environ['GITHUB_REPOSITORY']
-          token=os.environ['GH_TOKEN']
-          url=f'https://api.github.com/repos/{repo}/pages'
-          headers={
-              'Accept':'application/vnd.github+json',
-              'Authorization':f'Bearer {token}',
-              'X-GitHub-Api-Version':'2022-11-28',
-              'Content-Type':'application/json',
-              'User-Agent':'zzx-native-pages-deployer',
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          url = f"https://api.github.com/repos/{repo}/pages/builds"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "zzx-native-pages-deployer",
           }
-          payload=json.dumps({'source':{'branch':'gh-pages','path':'/'},'build_type':'legacy'}).encode()
-          def call(method):
-              req=urllib.request.Request(url,data=payload,headers=headers,method=method)
-              with urllib.request.urlopen(req,timeout=30) as response:
-                  return response.status
+          request = urllib.request.Request(
+              url,
+              data=b"",
+              headers=headers,
+              method="POST",
+          )
+
           try:
-              status=call('PUT')
-              print('Pages source updated:',status)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  status = response.status
+                  body = response.read().decode("utf-8", "replace")
           except urllib.error.HTTPError as exc:
-              if exc.code==404:
-                  status=call('POST')
-                  print('Pages source created:',status)
-              else:
-                  body=exc.read().decode('utf-8','replace')
-                  raise SystemExit(f'GitHub Pages API failed: HTTP {exc.code}: {body}')
+              body = exc.read().decode("utf-8", "replace")
+              if exc.code == 409:
+                  print(
+                      "GitHub Pages build is already queued or in progress; "
+                      "the gh-pages branch publication succeeded."
+                  )
+                  raise SystemExit(0)
+              if exc.code == 404:
+                  raise SystemExit(
+                      "GitHub Pages build request returned HTTP 404. "
+                      "Configure this repository once in Settings -> Pages to "
+                      "publish from the gh-pages branch at /, then rerun. "
+                      f"Response: {body}"
+                  )
+              raise SystemExit(
+                  f"GitHub Pages build request failed: HTTP {exc.code}: {body}"
+              )
+
+          if status not in (200, 201, 202):
+              raise SystemExit(
+                  f"Unexpected GitHub Pages build response: HTTP {status}: {body}"
+              )
+
+          print(f"GitHub Pages build requested successfully: HTTP {status}")
           PY
