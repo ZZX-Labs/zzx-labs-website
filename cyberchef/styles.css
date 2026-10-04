@@ -1,25 +1,56 @@
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../static/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../static/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../static/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
 :root {
     --cz-bg: #282828;
     --cz-bg-alt: #202020;
-    --cz-bg-panel: #333333;
-
+    --cz-bg-deep: #111111;
+    --cz-bg-panel: #303030;
+    --cz-bg-panel-hi: #353535;
     --cz-border: #444444;
-
+    --cz-border-hi: #596849;
     --cz-text: #d1d1d1;
     --cz-muted: #9a9a9a;
-
     --cz-accent: #c0d674;
-    --cz-gold: #c79c6e;
-
-    --cz-shadow:
-        0 0 0 1px rgba(0, 0, 0, 0.35),
-        0 8px 24px rgba(0, 0, 0, 0.35);
+    --cz-gold: #e6a42b;
+    --cz-danger: #d67474;
+    --cz-font: "IBM Plex Mono", Consolas, Monaco, monospace;
+    --cz-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 10px 32px rgba(0, 0, 0, 0.38);
 }
 
 html,
 body {
     background: var(--cz-bg);
     color: var(--cz-text);
+}
+
+.cz-shell,
+.cz-shell button,
+.cz-shell select,
+.cz-shell textarea,
+.cz-shell input {
+    font-family: var(--cz-font);
 }
 
 .cz-shell {
@@ -43,18 +74,22 @@ body {
     box-shadow: var(--cz-shadow);
 }
 
-.cz-hero {
+.cz-hero,
+.cz-panel,
+.cz-card {
     background:
-        linear-gradient(180deg, rgba(192, 214, 116, 0.08), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, rgba(192, 214, 116, 0.045), rgba(0, 0, 0, 0)),
         linear-gradient(180deg, var(--cz-bg-panel), var(--cz-bg-alt));
+}
+
+.cz-hero {
     padding: 1.25rem;
 }
 
 .cz-hero h2,
 .cz-panel-head h2 {
     color: var(--cz-accent);
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin: 0.45rem 0 0.6rem;
 }
 
 .cz-hero p,
@@ -62,56 +97,78 @@ body {
     line-height: 1.65;
 }
 
+.cz-hero code,
+.cz-panel code {
+    color: var(--cz-accent);
+    background: #171717;
+    border: 1px solid #3a3a3a;
+    padding: 0.08rem 0.28rem;
+}
+
 .cz-sourcebar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.7rem;
     margin-top: 1rem;
 }
 
 .cz-sourcebar label {
     color: var(--cz-gold);
-    font-size: 0.9rem;
+    font-size: 0.86rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .cz-sourcebar select,
 .cz-sourcebar button,
 .cz-link-button {
+    min-height: 2.45rem;
     border: 1px solid var(--cz-border);
+    border-radius: 2px;
     background: #181818;
     color: var(--cz-text);
     padding: 0.55rem 0.8rem;
     text-decoration: none;
     font: inherit;
-    transition:
-        background 0.15s ease,
-        color 0.15s ease,
-        border-color 0.15s ease;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .cz-sourcebar button:hover,
-.cz-link-button:hover {
+.cz-sourcebar button:focus-visible,
+.cz-link-button:hover,
+.cz-link-button:focus-visible {
     background: var(--cz-accent);
     color: #111111;
     border-color: var(--cz-accent);
+    outline: none;
 }
 
 .cz-status {
     background: #181818;
-    padding: 0.85rem;
+    padding: 0.85rem 1rem;
     color: var(--cz-muted);
+}
+
+.cz-status.cz-status-ready {
+    border-color: var(--cz-border-hi);
+    color: var(--cz-accent);
+}
+
+.cz-status.cz-status-error {
+    border-color: #8f4040;
+    color: var(--cz-danger);
 }
 
 .cz-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.8rem;
 }
 
 .cz-card {
-    background: linear-gradient(180deg, #2e2e2e, #1f1f1f);
-    padding: 1rem;
+    padding: 0.9rem 1rem;
+    min-width: 0;
 }
 
 .cz-card span {
@@ -119,18 +176,18 @@ body {
     color: var(--cz-muted);
     text-transform: uppercase;
     letter-spacing: 0.08rem;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
 }
 
 .cz-card strong {
     display: block;
-    margin-top: 0.5rem;
+    margin-top: 0.45rem;
     color: var(--cz-accent);
-    font-size: 1rem;
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
 }
 
 .cz-panel {
-    background: linear-gradient(180deg, #303030, #1f1f1f);
     padding: 1rem;
 }
 
@@ -148,14 +205,15 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    padding: 0.65rem 0.85rem;
+    min-height: 2.65rem;
+    padding: 0.62rem 0.85rem;
     border: 1px solid var(--cz-border);
-    border-bottom: none;
-    background: #181818;
+    background: #151515;
 }
 
 #cz-active-source {
     color: var(--cz-accent);
+    font-weight: 600;
 }
 
 #cz-frame-state {
@@ -164,10 +222,12 @@ body {
 
 .cz-runtime {
     position: relative;
-    min-height: 950px;
+    height: max(900px, 78vh);
+    min-height: 900px;
     border: 1px solid var(--cz-border);
+    border-top: 0;
     background: #111111;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .cz-frame {
@@ -190,55 +250,41 @@ body {
     background: #202020;
     padding: 0.4rem 0.7rem;
     color: var(--cz-muted);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
-.cz-loading {
-    opacity: 0.75;
+.cz-credit-grid strong {
+    color: var(--cz-accent);
 }
 
-.cz-ready {
-    opacity: 1;
-}
+@media (max-width: 1200px) {
+    .cz-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
-.cz-error {
-    border-color: #8f4040;
-}
-
-@media (max-width: 1400px) {
     .cz-runtime {
-        min-height: 850px;
+        height: max(820px, 76vh);
+        min-height: 820px;
     }
 }
 
-@media (max-width: 1100px) {
-    .cz-runtime {
-        min-height: 760px;
-    }
-}
-
-@media (max-width: 768px) {
+@media (max-width: 760px) {
     .cz-shell {
         width: calc(100vw - 0.5rem);
     }
 
-    .cz-sourcebar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
+    .cz-sourcebar,
     .cz-frame-toolbar {
+        align-items: stretch;
         flex-direction: column;
-        align-items: flex-start;
+    }
+
+    .cz-grid {
+        grid-template-columns: 1fr;
     }
 
     .cz-runtime {
-        min-height: 650px;
-    }
-}
-
-@media (max-width: 480px) {
-    .cz-runtime {
-        min-height: 560px;
+        height: 760px;
+        min-height: 760px;
     }
 }
