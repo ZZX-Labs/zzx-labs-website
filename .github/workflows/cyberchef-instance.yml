@@ -1,4 +1,4 @@
-name: ZZX-CyberChef Local Frontends
+name: ZZX-CyberChef Runtime
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         default: "latest"
         type: string
       deploy_pages:
-        description: "Deploy the validated site to GitHub Pages"
+        description: "Publish generated /cyberchef/app/ to the current website branch"
         required: false
         default: true
         type: boolean
@@ -19,20 +19,20 @@ on:
       cyberchef_version:
         description: "GCHQ CyberChef release: latest (default) or explicit version/tag"
         required: false
-        type: string
         default: "latest"
+        type: string
       deploy_pages:
-        description: "Deploy the validated site to GitHub Pages"
+        description: "Publish generated /cyberchef/app/ to the current website branch"
         required: false
-        type: boolean
         default: true
+        type: boolean
 
 permissions:
   contents: write
   pages: write
 
 concurrency:
-  group: zzx-labs-pages
+  group: zzx-cyberchef-runtime-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -41,135 +41,118 @@ env:
 
 jobs:
   build:
-    name: Preserve ZZX Page + Install Native CyberChef
+    name: Install Official CyberChef Runtime
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
-      - name: Checkout repository with native Git
+      - name: Checkout the website branch with native Git
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          TARGET_BRANCH="${GITHUB_REF_NAME}"
+          if [ -z "${TARGET_BRANCH}" ]; then
+            printf '%s\n' 'Unable to determine website branch.'
+            exit 1
+          fi
+
           git init .
-          git remote remove origin >/dev/null 2>&1 || true
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
-          git fetch --force --prune --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --force --detach FETCH_HEAD
-          git clean -fdx
+          git fetch --force --prune --no-tags --depth=1 origin "${TARGET_BRANCH}"
+          git checkout -B "${TARGET_BRANCH}" FETCH_HEAD
 
-      - name: Validate CyberChef site source and builder
+          printf 'TARGET_BRANCH=%s\n' "${TARGET_BRANCH}" >> "${GITHUB_ENV}"
+          printf 'Checked out %s at %s\n' "${TARGET_BRANCH}" "$(git rev-parse HEAD)"
+
+      - name: Validate ZZX CyberChef source
         shell: bash
         run: |
           set -euo pipefail
           python3 -m py_compile tools/cyberchef/cyberchef.py
           test -s cyberchef/index.html
-          test -s cyberchef/frame.css
+          test -s cyberchef/theme.css
+          test -s cyberchef/layout.css
           test -s cyberchef/script.js
           grep -q 'id="cz-frame"' cyberchef/index.html
-          grep -q 'CyberChefZZX' cyberchef/index.html
+          grep -q './app/index.html' cyberchef/index.html
 
-      - name: Stage complete Pages site and preserve custom CyberChef page
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf _site
-          mkdir -p _site
-
-          rsync -a \
-            --delete \
-            --exclude "/.git/" \
-            --exclude "/.github/" \
-            --exclude "/_site/" \
-            --exclude "/build/" \
-            --exclude "/cyberchef/app/" \
-            --exclude "/cyberchef/runtime-manifest.json" \
-            ./ _site/
-
-          # Repository build helper is not public website content.
-          rm -f _site/tools/cyberchef/cyberchef.py
-          find _site/tools/cyberchef -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
-          find _site/tools/cyberchef -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete 2>/dev/null || true
-
-          # The custom root page must still be present BEFORE installing upstream.
-          test -s _site/cyberchef/index.html
-          grep -q 'id="cz-frame"' _site/cyberchef/index.html
-          grep -q 'ZZX Additions' _site/cyberchef/index.html
-
-      - name: Resolve release and install only native CyberChef runtime
+      - name: Resolve latest official release and build /cyberchef/app/
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
           python3 tools/cyberchef/cyberchef.py \
             --version "${CYBERCHEF_REQUESTED_VERSION}" \
-            --output-dir _site/cyberchef
+            --output-dir cyberchef
 
-      - name: Verify both CyberChef routes
+      - name: Validate native and modified routes
         shell: bash
         run: |
           set -euo pipefail
 
-          # /cyberchef/ remains the ZZX-Labs site page.
-          test -s _site/cyberchef/index.html
-          grep -q 'CyberChefZZX' _site/cyberchef/index.html
-          grep -q 'id="cz-frame"' _site/cyberchef/index.html
-          grep -q 'ZZX Additions' _site/cyberchef/index.html
-          grep -q './app/' _site/cyberchef/index.html
+          test -s cyberchef/index.html
+          test -s cyberchef/runtime-manifest.json
+          test -s cyberchef/app/index.html
+          test -d cyberchef/app/assets
+          find cyberchef/app/assets -type f -print -quit | grep -q .
 
-          # /cyberchef/app/ is the complete native upstream release.
-          test -s _site/cyberchef/app/index.html
-          test -s _site/cyberchef/app/native.html
-          test -d _site/cyberchef/app/assets
-          find _site/cyberchef/app/assets -type f -print -quit | grep -q .
-          grep -q '<title>CyberChef' _site/cyberchef/app/index.html
+          grep -q '<title>CyberChef' cyberchef/app/index.html
+          grep -q 'workspace-wrapper' cyberchef/app/index.html
+          grep -q 'id="operations"' cyberchef/app/index.html
+          grep -q 'id="recipe"' cyberchef/app/index.html
 
-          # Native runtime must not contain our parent-page overlay markers.
-          if grep -q 'CyberChefZZX' _site/cyberchef/app/index.html; then
-            printf '%s\n' 'ERROR: native CyberChef app was modified.'
+          if grep -q 'CyberChefZZX' cyberchef/app/index.html; then
+            printf '%s\n' 'ERROR: native CyberChef HTML was modified.'
             exit 1
           fi
 
           python3 - <<'PY'
           import json
           from pathlib import Path
-          manifest = json.loads(Path('_site/cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v3'
-          assert manifest['custom_frontend']['path'] == '/cyberchef/'
-          assert manifest['native_frontend']['path'] == '/cyberchef/app/'
-          assert manifest['native_frontend']['overlay_applied'] is False
-          print('Resolved CyberChef:', manifest['release']['tag'])
-          print('Release asset:', manifest['release']['asset_name'])
+          manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v4'
+          assert manifest['native_frontend']['upstream_html_unchanged'] is True
+          assert manifest['custom_frontend']['layers'] == [
+              '/cyberchef/theme.css',
+              '/cyberchef/layout.css',
+          ]
+          print('CyberChef:', manifest['release']['tag'])
+          print('Asset:', manifest['release']['asset_name'])
           PY
 
-      - name: Deploy validated site to gh-pages with native Git
+      - name: Commit runtime to the website branch
         if: ${{ inputs.deploy_pages }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          DEPLOY_DIR="$(mktemp -d)"
-          trap 'rm -rf "${DEPLOY_DIR}"' EXIT
-          cp -a _site/. "${DEPLOY_DIR}/"
-          cd "${DEPLOY_DIR}"
 
-          git init .
-          git checkout --orphan gh-pages
-          git config user.name "zzx-pages-bot"
+          git config user.name "zzx-cyberchef-bot"
           git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Deploy site with CyberChef ${GITHUB_SHA}"
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
-          git push --force origin HEAD:gh-pages
 
-      - name: Best-effort GitHub Pages build request
+          git add -A cyberchef/app cyberchef/runtime-manifest.json
+
+          if git diff --cached --quiet; then
+            printf '%s\n' 'CyberChef runtime already current; no commit required.'
+            exit 0
+          fi
+
+          VERSION="$(python3 -c "import json; print(json.load(open('cyberchef/runtime-manifest.json'))['release']['tag'])")"
+          git commit -m "Update CyberChef runtime ${VERSION} [skip ci]"
+
+          # Never force the website branch. If it changed during this run, fail
+          # instead of overwriting unrelated website work.
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Request Pages rebuild for configured source
         if: ${{ inputs.deploy_pages }}
         continue-on-error: true
         shell: bash
@@ -178,24 +161,21 @@ jobs:
         run: |
           python3 - <<'PY'
           import os, urllib.error, urllib.request
-          repo = os.environ['GITHUB_REPOSITORY']
-          token = os.environ['GH_TOKEN']
           request = urllib.request.Request(
-              f'https://api.github.com/repos/{repo}/pages/builds',
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/pages/builds",
               data=b'{}',
               method='POST',
               headers={
                   'Accept': 'application/vnd.github+json',
-                  'Authorization': f'Bearer {token}',
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
                   'X-GitHub-Api-Version': '2022-11-28',
                   'Content-Type': 'application/json',
-                  'User-Agent': 'zzx-pages-build-request',
+                  'User-Agent': 'zzx-cyberchef-pages-build',
               },
           )
           try:
               with urllib.request.urlopen(request, timeout=30) as response:
                   print('Pages build request:', response.status)
           except urllib.error.HTTPError as exc:
-              body = exc.read().decode('utf-8', 'replace')
-              print(f'Pages build request nonfatal: HTTP {exc.code}: {body}')
+              print('Pages build request nonfatal:', exc.code, exc.read().decode('utf-8', 'replace'))
           PY
