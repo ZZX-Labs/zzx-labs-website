@@ -75,11 +75,19 @@ jobs:
           set -euo pipefail
           python3 -m py_compile tools/cyberchef/cyberchef.py
           test -s cyberchef/index.html
-          test -s cyberchef/theme.css
-          test -s cyberchef/layout.css
+          test -s cyberchef/shim/shim.css
+          test -s cyberchef/shim/core.css
+          test -s cyberchef/shim/themes.css
+          test -s cyberchef/shim/typography.css
+          test -s cyberchef/shim/layouts.css
+          test -s cyberchef/shim/components.css
+          test -s cyberchef/shim/operations.css
+          test -s cyberchef/rotary.js
           test -s cyberchef/script.js
           grep -q 'id="cz-frame"' cyberchef/index.html
           grep -q './app/index.html' cyberchef/index.html
+          grep -q 'id="cz-control-deck"' cyberchef/index.html
+          grep -q 'shim/shim.css' cyberchef/hook.js
 
       - name: Resolve latest official release and build /cyberchef/app/
         shell: bash
@@ -117,11 +125,17 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v4'
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v5'
           assert manifest['native_frontend']['upstream_html_unchanged'] is True
+          assert manifest['native_frontend']['index_sha256'] == manifest['native_frontend']['upstream_entry_sha256']
+          assert manifest['custom_frontend']['shim'] == '/cyberchef/shim/shim.css'
           assert manifest['custom_frontend']['layers'] == [
-              '/cyberchef/theme.css',
-              '/cyberchef/layout.css',
+              '/cyberchef/shim/core.css',
+              '/cyberchef/shim/themes.css',
+              '/cyberchef/shim/typography.css',
+              '/cyberchef/shim/layouts.css',
+              '/cyberchef/shim/components.css',
+              '/cyberchef/shim/operations.css',
           ]
           print('CyberChef:', manifest['release']['tag'])
           print('Asset:', manifest['release']['asset_name'])
