@@ -1,215 +1,49 @@
 (() => {
     "use strict";
 
-    function qs(selector) {
-        return document.querySelector(selector);
-    }
+    let announced = false;
 
-    function qsa(selector) {
-        return Array.from(document.querySelectorAll(selector));
-    }
-
-    function px(value) {
-        return `${Math.max(0, Math.floor(value))}px`;
-    }
-
-    function outerHeight(el) {
-        if (!el) {
-            return 0;
-        }
-
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-
+    function findCyberChefNode() {
         return (
-            rect.height +
-            parseFloat(style.marginTop || "0") +
-            parseFloat(style.marginBottom || "0")
+            document.querySelector("#workspace-wrapper") ||
+            document.querySelector("#content-wrapper") ||
+            document.querySelector("#operations") ||
+            document.querySelector("#recipe") ||
+            document.querySelector("#IO") ||
+            document.querySelector("#input") ||
+            document.querySelector("#output")
         );
     }
 
-    function isVisible(el) {
-        if (!el) {
+    function announceReady() {
+        if (announced || !findCyberChefNode()) {
             return false;
         }
-
-        const style = window.getComputedStyle(el);
-
-        return (
-            style.display !== "none" &&
-            style.visibility !== "hidden" &&
-            el.getClientRects().length > 0
-        );
+        announced = true;
+        document.documentElement.classList.add("zzx-cyberchef-ready");
+        window.dispatchEvent(new CustomEvent("zzx-cyberchef-ready"));
+        return true;
     }
 
-    function getRuntime() {
-        return qs("#cz-runtime") ||
-            qs("[data-cz-runtime]");
-    }
-
-    function getWorkspace() {
-        return qs("#workspace-wrapper") ||
-            qs("#content-wrapper") ||
-            qs("#operations")?.parentElement ||
-            null;
-    }
-
-    function getReservedHeight() {
-        const selectors = [
-            "header",
-            ".cz-hero",
-            ".cz-status",
-            ".cz-grid",
-            ".cz-panel-head",
-            ".cz-frame-toolbar",
-            ".cz-credit-grid",
-            "footer"
-        ];
-
-        return selectors
-            .map(qs)
-            .filter(isVisible)
-            .reduce(
-                (total, el) => total + outerHeight(el),
-                0
-            );
-    }
-
-    function getMinimumHeight() {
-        if (window.innerWidth < 480) {
-            return 560;
-        }
-
-        if (window.innerWidth < 768) {
-            return 650;
-        }
-
-        if (window.innerWidth < 1100) {
-            return 760;
-        }
-
-        return 900;
-    }
-
-    function resizeCyberChefCanvas() {
-        const runtime = getRuntime();
-
-        if (!runtime) {
+    function boot() {
+        if (announceReady() || !window.MutationObserver) {
             return;
         }
-
-        const reserved =
-            getReservedHeight() + 96;
-
-        const available =
-            window.innerHeight - reserved;
-
-        runtime.style.minHeight =
-            px(Math.max(getMinimumHeight(), available));
-
-        runtime.style.height =
-            "auto";
-
-        const workspace = getWorkspace();
-
-        if (workspace && runtime.contains(workspace)) {
-            workspace.style.minHeight =
-                px(Math.max(getMinimumHeight() - 80, available - 80));
-        }
-
-        document.documentElement.style.setProperty(
-            "--cz-runtime-height",
-            runtime.style.minHeight
-        );
-    }
-
-    function markCyberChefRuntime() {
-        const runtime = getRuntime();
-
-        if (!runtime) {
-            return;
-        }
-
-        const nodes = qsa(
-            "#loader-wrapper, #content-wrapper, #workspace-wrapper, #operations, #recipe, #IO, #input, #output"
-        );
-
-        for (const node of nodes) {
-            if (!runtime.contains(node)) {
-                continue;
-            }
-
-            node.dataset.czNativeNode = "true";
-        }
-    }
-
-    function observeRuntime() {
-        const runtime = getRuntime();
-
-        if (!runtime || !window.MutationObserver) {
-            return;
-        }
-
         const observer = new MutationObserver(() => {
-            markCyberChefRuntime();
-            resizeCyberChefCanvas();
+            if (announceReady()) {
+                observer.disconnect();
+            }
         });
-
-        observer.observe(runtime, {
+        observer.observe(document.documentElement, {
             childList: true,
             subtree: true
         });
-
-        window.ZZXCyberChefObserver = observer;
-    }
-
-    function bootContainer() {
-        resizeCyberChefCanvas();
-        markCyberChefRuntime();
-        observeRuntime();
-
-        window.addEventListener(
-            "resize",
-            resizeCyberChefCanvas,
-            { passive: true }
-        );
-
-        window.addEventListener(
-            "orientationchange",
-            () => {
-                setTimeout(resizeCyberChefCanvas, 250);
-                setTimeout(resizeCyberChefCanvas, 1000);
-            },
-            { passive: true }
-        );
-
-        window.addEventListener(
-            "zzx-cyberchef-ready",
-            () => {
-                markCyberChefRuntime();
-                resizeCyberChefCanvas();
-                setTimeout(resizeCyberChefCanvas, 500);
-                setTimeout(resizeCyberChefCanvas, 1500);
-            }
-        );
-
-        document.documentElement.classList.add(
-            "cz-container-ready"
-        );
+        window.setTimeout(() => observer.disconnect(), 30000);
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener(
-            "DOMContentLoaded",
-            bootContainer
-        );
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
     } else {
-        bootContainer();
+        boot();
     }
-
-    window.ZZXCyberChefResize =
-        resizeCyberChefCanvas;
-
-    window.ZZXCyberChefMarkRuntime =
-        markCyberChefRuntime;
 })();
