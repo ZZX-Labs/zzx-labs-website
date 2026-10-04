@@ -1,0 +1,28 @@
+"use strict";
+const fs=require("fs"),path=require("path"),assert=require("assert");
+const root=path.resolve(__dirname,"..");
+const site=path.resolve(root,"../../..");
+const read=name=>fs.readFileSync(path.join(root,name),"utf8");
+const html=read("widget.html"),css=read("widget.css"),js=read("widget.js");
+const themes=JSON.parse(read("themes.json")),presets=JSON.parse(read("presets.json"));
+const manifest=JSON.parse(fs.readFileSync(path.join(site,"__partials/widgets/manifest.json"),"utf8"));
+const shell=fs.readFileSync(path.join(site,"__partials/bitcoin-ticker-widget.html"),"utf8");
+const shellCss=fs.readFileSync(path.join(site,"__partials/bitcoin-ticker-widget.css"),"utf8");
+
+assert(html.includes('data-widget-root="mempool-visualizer"'));
+assert(html.includes("data-mv-canvas"));
+assert(html.includes("data-mv-reader"));
+assert(css.includes("aspect-ratio:2/1"));
+assert(css.includes("grid-column")===false,"Widget CSS must not own the parent grid");
+assert(js.includes("IntersectionObserver"));
+assert(js.includes("requestAnimationFrame"));
+assert(js.includes("ZZXMempoolLive"));
+assert(js.includes("fillRect(x,y,s+.65,s+.65)"),"Particle primitive must remain square");
+assert(themes.themes.length>=32,`Expected at least 32 themes, found ${themes.themes.length}`);
+assert(new Set(themes.themes.map(t=>t.id)).size===themes.themes.length,"Theme IDs must be unique");
+assert(presets.presets.length>=8);
+assert(presets.macros.length>=6);
+assert(manifest.widgets.some(w=>w.id==="mempool-visualizer"&&w.enabled===true));
+assert(shell.includes('data-widget="mempool-visualizer"'));
+assert(shellCss.includes('.btc-slot[data-widget="mempool-visualizer"]'));
+process.stdout.write(`mempool-visualizer selftest OK: ${themes.themes.length} themes, ${presets.presets.length} presets, ${presets.macros.length} macros\n`);

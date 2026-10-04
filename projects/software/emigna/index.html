@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Programmable rotor-based encryption and encoding research system inspired by Enigma, extended with SHA3-256 digest layers, deterministic modular rotor definitions, stepping behavior, and GPU-oriented configuration metadata.">
+  <title>EMIGNA Encryption System · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-emigna-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-emigna-1">
+  <script src="./hook.js?v=20260824-emigna-1" defer></script>
+  <script src="./script.js?v=20260824-emigna-1" defer></script>
+  <script src="./emigna-core.js?v=20260824-emigna-1" defer></script>
+  <script src="./emigna.js?v=20260824-emigna-1" defer></script>
+</head>
+
+<body class="project project-emigna">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="EMIGNA Encryption System logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>EMIGNA Encryption System</h1>
+    <p class="blurb">Programmable rotor-based encryption and encoding research system inspired by Enigma, extended with SHA3-256 digest layers, deterministic modular rotor definitions, stepping behavior, and GPU-oriented configuration metadata.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/emigna" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PROGRAMMABLE ROTOR CRYPTOGRAPHY</p><h2>EMIGNA Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">ROTORS: LOCAL</span><span class="runtime-badge ok">SHA3-256: LOCAL</span><span class="runtime-badge ok">CUSTOM: JSON</span><span class="runtime-badge partial">GPU: METADATA ONLY</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="transform" type="button">Transform</button>
+<button class="tool-tab mode-tab" data-mode="rotors" type="button">Rotor Lab</button>
+<button class="tool-tab mode-tab" data-mode="sha3" type="button">SHA3</button>
+<button class="tool-tab mode-tab" data-mode="custom" type="button">Custom Config</button>
+<button class="tool-tab mode-tab" data-mode="benchmark" type="button">Benchmark</button>
+</div><div class="z-sidebar-note"><strong>RESEARCH SYSTEM</strong><p>EMIGNA exposes experimental rotor mechanics. Do not use rotor-only output as a replacement for standardized authenticated encryption where modern cryptographic security is required.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-transform" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">REVERSIBLE ROTOR TRANSFORM</p><h2>Transform</h2></div><div class="tool-card">
+<label>Input<textarea id="et-input" rows="10">EMIGNA rotor demonstration</textarea></label>
+<div class="z-grid-3" style="margin-top:.7rem"><label>Rotor seed<input id="et-seed" value="emigna-demo"></label><label>Rotor count<input id="et-count" type="number" min="1" max="12" value="4"></label><label>Mode<select id="et-mode"><option value="encrypt">Forward transform</option><option value="decrypt">Reverse from hex</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="et-run" class="btn">RUN TRANSFORM</button><button id="et-roundtrip" class="btn ghost">ROUND-TRIP TEST</button></div><pre id="et-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-rotors" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MODULAR ROTOR DEFINITIONS</p><h2>Rotor Lab</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="er-build" class="btn">BUILD ROTORS</button><button id="er-export" class="btn ghost">EXPORT CONFIG</button></div><div id="er-list" class="z-list"></div></div></div>
+
+<div id="mode-sha3" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SHA3-256 ENTROPY LAYER</p><h2>SHA3</h2></div><div class="tool-card"><label>Input<textarea id="es-input" rows="8"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="es-run" class="btn">SHA3-256</button><button id="es-vector" class="btn ghost">TEST EMPTY VECTOR</button></div><pre id="es-output" class="z-log"></pre></div></div>
+
+<div id="mode-custom" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CONFIGURATION</p><h2>Custom Config</h2><p>Inspect/import deterministic rotor JSON. Imported configurations are validated as 256-byte permutations.</p></div><div class="tool-card"><label>Rotor configuration JSON<textarea id="ec-json" rows="16"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="ec-load" class="btn">LOAD CONFIG</button></div><pre id="ec-output" class="z-log"></pre></div></div>
+
+<div id="mode-benchmark" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CPU / GPU-ORIENTED METRICS</p><h2>Benchmark</h2><p>The web build benchmarks its CPU JavaScript implementation and reports GPU acceleration as a native/CUDA architecture feature only.</p></div><div class="tool-card"><div class="z-grid-2"><label>Payload KiB<input id="eb-kib" type="number" min="1" max="4096" value="256"></label><label>Iterations<input id="eb-it" type="number" min="1" max="100" value="5"></label></div><div class="button-row" style="justify-content:flex-start"><button id="eb-run" class="btn">BENCHMARK</button></div><pre id="eb-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>EMIGNA</h2><p>Programmable rotor encryption/encoding research environment.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Native platforms</dt><dd>Linux · Windows</dd></div><div><dt>Native stack</dt><dd>Python · PyQt5 · NumPy</dd></div><div><dt>Web</dt><dd>BigInt Keccak-f · SHA3-256 · rotor engine</dd></div></dl></article><article class="panel"><p class="kicker">GPU</p><h2>Architecture preserved</h2><p>The manifest identifies GPU/CUDA as part of the wider EMIGNA design; the static browser implementation uses CPU JavaScript and does not claim CUDA parity.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

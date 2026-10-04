@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Short-horizon Bitcoin savings planner using Script timelock policies, reserve targets, recurring deposits, maturity ladders, and deterministic policy exports.">
+  <title>BackABit · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-backabit-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-backabit-1">
+  <script src="./hook.js?v=20260822-backabit-1" defer></script>
+  <script src="./script.js?v=20260822-backabit-1" defer></script>
+  <script src="./bitcoin-time.js?v=20260822-backabit-1" defer></script>
+  <script src="./storage.js?v=20260822-backabit-1" defer></script>
+  <script src="./backabit.js?v=20260822-backabit-1" defer></script>
+</head>
+
+<body class="project project-backabit">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BackABit logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BackABit</h1>
+    <p class="blurb">Short-horizon Bitcoin savings planner using Script timelock policies, reserve targets, recurring deposits, maturity ladders, and deterministic policy exports.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/backabit" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section">
+  <div class="container section demo-container">
+    <div class="section-head">
+      <div><p class="kicker">SHORT-TERM BITCOIN TIMELOCK SAVINGS</p><h2>BackABit Browser Workbench</h2></div>
+      <div class="runtime-status">
+        <span class="runtime-badge ok">BITCOIN: POLICY</span>
+        <span class="runtime-badge ok">CLTV/CSV: LOCAL</span>
+        <span class="runtime-badge ok">KEYS: NONE</span>
+        <span class="runtime-badge ok">NETWORK: NONE</span>
+      </div>
+    </div>
+    <div class="workbench">
+      <aside class="tool-list-wrap">
+        <h3>Capabilities</h3>
+        <div class="tool-list" role="tablist">
+          <button class="tool-tab mode-tab active" data-mode="plan" type="button">Savings Plan</button>
+          <button class="tool-tab mode-tab" data-mode="ladder" type="button">Unlock Ladder</button>
+          <button class="tool-tab mode-tab" data-mode="contract" type="button">Timelock Policy</button>
+          <button class="tool-tab mode-tab" data-mode="simulate" type="button">Simulator</button>
+          <button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+        </div>
+        <div class="bb-sidebar-note"><strong>PLANNER, NOT CUSTODY</strong><p>No private keys, wallet seeds, transaction signing, or broadcasting are performed by this page.</p></div>
+      </aside>
+
+      <section class="tool-workspace" aria-live="polite">
+        <div id="mode-plan" class="bb-mode-panel mode-panel active">
+          <div class="bb-mode-heading"><p class="kicker">1–12 MONTH HORIZON</p><h2>Savings Plan</h2><p>Model a short-term reserve with recurring Bitcoin deposits and a configurable unlocked emergency portion.</p></div>
+          <div class="tool-card">
+            <div class="bb-grid-3">
+              <label>Starting balance sats<input id="plan-start" type="number" min="0" step="1000" value="500000"></label>
+              <label>Monthly contribution sats<input id="plan-monthly" type="number" min="0" step="1000" value="100000"></label>
+              <label>Horizon months<input id="plan-months" type="number" min="1" max="12" step="1" value="6"></label>
+              <label>Emergency liquid %<input id="plan-liquid" type="number" min="0" max="100" step="1" value="25"></label>
+              <label>Anchor block height<input id="anchor-height" type="number" min="0" step="1" value="900000"></label>
+              <label>Anchor date/time<input id="anchor-time" type="datetime-local" step="1"></label>
+            </div>
+            <div class="button-row" style="justify-content:flex-start">
+              <button id="plan-build" class="btn" type="button">BUILD PLAN</button>
+              <button id="plan-save" class="btn ghost" type="button">SAVE LOCALLY</button>
+            </div>
+            <div class="bb-metrics">
+              <div><span>Projected balance</span><strong id="metric-total">—</strong></div>
+              <div><span>Liquid reserve</span><strong id="metric-liquid">—</strong></div>
+              <div><span>Timelocked</span><strong id="metric-locked">—</strong></div>
+              <div><span>Maturity</span><strong id="metric-maturity">—</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="mode-ladder" class="bb-mode-panel mode-panel">
+          <div class="bb-mode-heading"><p class="kicker">MONTHLY RELEASES</p><h2>Unlock Ladder</h2><p>Split the locked balance into short monthly tranches so not all savings mature at once.</p></div>
+          <div class="tool-card">
+            <div class="bb-table-wrap">
+              <table class="bb-table"><thead><tr><th>#</th><th>Amount</th><th>Unlock date</th><th>Est. height</th><th>CLTV</th></tr></thead><tbody id="ladder-body"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="mode-contract" class="bb-mode-panel mode-panel">
+          <div class="bb-mode-heading"><p class="kicker">BITCOIN SCRIPT CONDITIONS</p><h2>Timelock Policy</h2><p>Generate an auditable policy template for absolute CLTV or relative CSV savings conditions.</p></div>
+          <div class="tool-card">
+            <div class="bb-grid-3">
+              <label>Policy type<select id="contract-type"><option value="cltv">Absolute CLTV</option><option value="csv">Relative CSV</option></select></label>
+              <label>Lock days<input id="contract-days" type="number" min="1" max="365" value="30"></label>
+              <label>Public-key placeholder<input id="contract-key" type="text" value="&lt;savings_pubkey&gt;"></label>
+            </div>
+            <div class="button-row" style="justify-content:flex-start"><button id="contract-build" class="btn" type="button">GENERATE POLICY</button></div>
+            <pre id="contract-output" class="bb-policy"></pre>
+            <div class="bb-note">Generated scripts are planning templates. Validate against your wallet, descriptor/miniscript tooling, Bitcoin Core policy, and actual transaction locktime/sequence semantics before funding anything.</div>
+          </div>
+        </div>
+
+        <div id="mode-simulate" class="bb-mode-panel mode-panel">
+          <div class="bb-mode-heading"><p class="kicker">MATURITY STATUS</p><h2>Simulator</h2><p>Move the simulated date through the plan and inspect which tranches are mature.</p></div>
+          <div class="tool-card">
+            <label>Simulation progress<input id="sim-range" class="bb-range" type="range" min="0" max="1000" value="0"></label>
+            <div class="bb-metrics">
+              <div><span>Simulated date</span><strong id="sim-date">—</strong></div>
+              <div><span>Matured</span><strong id="sim-matured">—</strong></div>
+              <div><span>Still locked</span><strong id="sim-locked">—</strong></div>
+              <div><span>Mature tranches</span><strong id="sim-count">—</strong></div>
+            </div>
+            <canvas id="sim-canvas" class="bb-canvas" width="1200" height="320"></canvas>
+          </div>
+        </div>
+
+        <div id="mode-export" class="bb-mode-panel mode-panel">
+          <div class="bb-mode-heading"><p class="kicker">PORTABLE POLICY</p><h2>Export / Import</h2><p>Move a BackABit plan as JSON. No keys or wallet secrets are included.</p></div>
+          <div class="tool-card">
+            <div class="button-row" style="justify-content:flex-start">
+              <button id="export-json" class="btn" type="button">EXPORT JSON</button>
+              <label class="file-button">IMPORT JSON<input id="import-json" type="file" accept=".json,application/json"></label>
+              <button id="clear-plan" class="btn ghost" type="button">CLEAR SAVED PLAN</button>
+            </div>
+            <pre id="export-output" class="tool-output"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="grid grid-2">
+    <article class="panel"><p class="kicker">PROJECT</p><h2>BackABit</h2><p>Short-term Bitcoin savings and reserve planning with recurring deposits and Script-based timelock conditions.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · bitcoinlib · SQLite</dd></div><div><dt>Web</dt><dd>JavaScript · localStorage · Canvas</dd></div></dl></article>
+    <article class="panel"><p class="kicker">WEB SCOPE</p><h2>Policy Planner</h2><p>The browser edition deliberately models savings, maturity, and Bitcoin Script timelock templates without storing keys, constructing funded transactions, or broadcasting to the Bitcoin network.</p></article>
+  </div>
+</section>
+</main>
+<footer><div id="zzx-footer"></div></footer>
+</body></html>

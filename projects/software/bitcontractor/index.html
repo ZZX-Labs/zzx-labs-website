@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Hybrid legal and on-chain Bitcoin contract authoring suite integrating BitLegal and BitEscrow concepts with templates, local version history, redlining, notarization hashes, signature-binding records, collaboration metadata, and JSON/PDF export.">
+  <title>BitContractor · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcontractor-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcontractor-1">
+  <script src="./hook.js?v=20260824-bitcontractor-1" defer></script>
+  <script src="./script.js?v=20260824-bitcontractor-1" defer></script>
+  <script src="./bitcontractor-core.js?v=20260824-bitcontractor-1" defer></script>
+  <script src="./bitcontractor.js?v=20260824-bitcontractor-1" defer></script>
+</head>
+
+<body class="project project-bitcontractor">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitContractor logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitContractor</h1>
+    <p class="blurb">Hybrid legal and on-chain Bitcoin contract authoring suite integrating BitLegal and BitEscrow concepts with templates, local version history, redlining, notarization hashes, signature-binding records, collaboration metadata, and JSON/PDF export.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcontractor" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">HYBRID CONTRACT AUTHORING</p><h2>BitContractor Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">AUTHORING: LOCAL</span><span class="runtime-badge ok">VERSIONS: LOCAL</span><span class="runtime-badge ok">HASH: SHA-256</span><span class="runtime-badge ok">PDF: LOCAL</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="draft" type="button">Draft</button>
+<button class="tool-tab mode-tab" data-mode="templates" type="button">Templates</button>
+<button class="tool-tab mode-tab" data-mode="versions" type="button">Versions</button>
+<button class="tool-tab mode-tab" data-mode="redline" type="button">Redline</button>
+<button class="tool-tab mode-tab" data-mode="sign" type="button">Sign / Notarize</button>
+<button class="tool-tab mode-tab" data-mode="collab" type="button">Collaboration</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>DOCUMENT LAYER</strong><p>BitContractor binds legal text to structured Bitcoin/Lightning/BitEscrow metadata. It does not itself determine legal enforceability or hold private signing keys.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-draft" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">CONTRACT EDITOR</p><h2>Draft</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Contract ID<input id="co-id" value="CON-001"></label><label>Title<input id="co-title" value="Bitcoin Services Agreement"></label><label>Jurisdiction note<input id="co-jur" value="Specify governing law"></label></div>
+<label style="margin-top:.7rem">Parties<textarea id="co-parties" rows="4">Party A
+Party B</textarea></label>
+<label style="margin-top:.7rem">Agreement text<textarea id="co-body" rows="18">1. Scope
+Party A will provide the agreed services.
+
+2. Payment
+Party B will pay according to the linked Bitcoin payment metadata.
+
+3. Disputes
+Disputes may be referred to the linked BitEscrow workflow.</textarea></label>
+<div class="z-grid-3" style="margin-top:.7rem"><label>Bitcoin amount sats<input id="co-sats" type="number" min="0" value="100000"></label><label>Payment reference<input id="co-payref" placeholder="address / invoice / descriptor ref"></label><label>BitEscrow ID<input id="co-escrow" value="ESC-001"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="co-save-version" class="btn" type="button">SAVE VERSION</button><button id="co-hash" class="btn ghost" type="button">HASH CURRENT</button></div><pre id="co-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-templates" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TEMPLATE MANAGEMENT</p><h2>Templates</h2></div><div class="tool-card">
+<div class="z-grid-2"><label>Template<select id="tpl-select"><option value="services">Services Agreement</option><option value="escrow">Escrow + Milestones</option><option value="retainer">Bitcoin Retainer</option><option value="nda">Mutual NDA</option></select></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="tpl-apply" class="btn" type="button">APPLY TEMPLATE</button></div></div>
+<pre id="tpl-preview" class="z-log"></pre></div></div>
+
+<div id="mode-versions" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL VERSION CONTROL</p><h2>Versions</h2><p>Save immutable local snapshots with SHA-256 identifiers and restore any previous draft.</p></div><div class="tool-card"><div id="ver-list" class="z-list"></div><div class="button-row" style="justify-content:flex-start"><button id="ver-export" class="btn ghost" type="button">EXPORT HISTORY JSON</button><button id="ver-clear" class="btn ghost" type="button">CLEAR HISTORY</button></div></div></div>
+
+<div id="mode-redline" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DIFF-BASED REDLINING</p><h2>Redline</h2></div><div class="tool-card">
+<div class="z-grid-2"><label>Baseline version<select id="rd-base"></select></label><label>Compare version<select id="rd-next"></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="rd-run" class="btn" type="button">COMPARE</button></div><pre id="rd-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-sign" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SIGNATURE BINDING / NOTARIZATION</p><h2>Sign / Notarize</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Signer / role<input id="sg-name" value="Party A"></label><label>Signature method<input id="sg-method" value="External signature"></label><label>Signature fingerprint/reference<input id="sg-ref"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="sg-bind" class="btn" type="button">BIND TO CURRENT HASH</button><button id="sg-notary" class="btn ghost" type="button">CREATE NOTARY RECORD</button></div>
+<pre id="sg-output" class="z-log"></pre></div></div>
+
+<div id="mode-collab" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MULTI-USER METADATA</p><h2>Collaboration</h2><p>Track participants, roles, review state, and comments without implementing a remote collaboration server.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Name<input id="cb-name" value="Reviewer"></label><label>Role<input id="cb-role" value="Legal reviewer"></label><label>Status<select id="cb-status"><option>reviewing</option><option>approved</option><option>changes-requested</option></select></label></div>
+<label style="margin-top:.7rem">Comment<input id="cb-comment" value="Review requested."></label>
+<div class="button-row" style="justify-content:flex-start"><button id="cb-add" class="btn" type="button">ADD REVIEW RECORD</button></div><div id="cb-list" class="z-list"></div>
+</div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PUBLISHING</p><h2>Export</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="ex-json" class="btn" type="button">EXPORT JSON</button><button id="ex-pdf" class="btn" type="button">EXPORT PDF</button><button id="ex-text" class="btn ghost" type="button">EXPORT TEXT</button></div><pre id="ex-output" class="z-log"></pre>
+</div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2">
+<article class="panel"><p class="kicker">PROJECT</p><h2>BitContractor</h2><p>Contract authoring and publishing for hybrid legal and Bitcoin agreements.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>PyQt5 · GitPython · SQLAlchemy · Jinja2 · cryptography</dd></div><div><dt>Web</dt><dd>Web Crypto · localStorage · PDF writer</dd></div></dl></article>
+<article class="panel"><p class="kicker">INTEGRATION</p><h2>BitLegal + BitEscrow</h2><p>The document model carries structured Bitcoin payment and BitEscrow references so the contract text, action metadata, signatures, and hashes can be archived together.</p></article>
+</div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

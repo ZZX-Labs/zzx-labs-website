@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="ZZX-Labs R&D GPG key history, signing key lifecycle, active keys, transitional keys, retired keys, and release identity records.">
+    <title>GPG Key History | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../../static/icons/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../static/styles.css">
+    <link rel="stylesheet" href="./styles.css">
+
+    <script src="../../static/script.js" defer></script>
+    <script src="./script.js" defer></script>
+</head>
+
+<body class="zzx-site-page zzx-page-contact zzx-page-key-history">
+<header>
+    <div id="zzx-header"></div>
+
+    <br>
+
+    <div id="ticker-container"></div>
+
+    <br>
+</header>
+
+<main class="zzx-page-shell">
+
+    <section class="zzx-page-hero container">
+        <p class="zzx-kicker">ZZX-Labs / Contact / Key History</p>
+        <h1>GPG Key History</h1>
+        <p>
+            This page records the public signing-key history for ZZX-Labs R&D, 0xdeadbeef, and related release
+            infrastructure. It exists so users, collaborators, researchers, contributors, and clients can verify which
+            cryptographic identities are active, transitional, retired, expired, discontinued, or no longer trusted for
+            new releases.
+        </p>
+        <p>
+            These keys cover public website releases, software, firmware, hardware documentation, applications, AI and ML
+            models, databases, datasets, papers, reports, downloads, release manifests, hashes, checksums, detached
+            signatures, and all other published ZZX-Labs artifacts.
+        </p>
+
+        <div class="zzx-action-row">
+            <a href="../" class="btn">Back to Contact</a>
+            <a href="#active-key" class="btn btn-outline">Active Key</a>
+            <a href="#key-policy" class="btn btn-outline">Key Policy</a>
+            <a href="#records" class="btn btn-outline">All Records</a>
+        </div>
+
+        <div class="kh-status-row">
+            <span class="kh-status-pill"><span class="kh-status-dot active"></span>Green / Active</span>
+            <span class="kh-status-pill"><span class="kh-status-dot transitional"></span>Yellow / Transitional</span>
+            <span class="kh-status-pill"><span class="kh-status-dot retired"></span>Red / Retired</span>
+        </div>
+    </section>
+
+    <section class="container">
+        <p id="kh-load-notice" class="kh-load-error kh-hidden"></p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Status Dashboard</p>
+        <h2>Key Rotation Overview</h2>
+        <div id="kh-dashboard" class="kh-dashboard"></div>
+    </section>
+
+    <section class="zzx-panel-grid container">
+        <article class="zzx-panel kh-success-panel">
+            <h2><span class="kh-active">Green</span> Active</h2>
+            <p>
+                Active keys are current standard signing keys. These are preferred for verifying present ZZX-Labs
+                releases, communications, manifests, and detached signatures.
+            </p>
+        </article>
+
+        <article class="zzx-panel kh-warning-panel">
+            <h2><span class="kh-transitional">Yellow</span> Transitional</h2>
+            <p>
+                Transitional keys may be used during migration, overlap, staged rotation, emergency replacement, or
+                multi-system upgrade periods. A transitional key may later become active.
+            </p>
+        </article>
+
+        <article class="zzx-panel kh-danger-panel">
+            <h2><span class="kh-retired">Red</span> Retired</h2>
+            <p>
+                Retired keys are expired, discontinued, replaced, revoked, or no longer used for new releases. They
+                remain listed for historical verification of older signatures.
+            </p>
+        </article>
+    </section>
+
+    <section id="key-policy" class="container zzx-panel">
+        <p class="zzx-kicker">Policy</p>
+        <h2>Why This Page Exists</h2>
+        <p>
+            ZZX-Labs expects signing keys to change periodically as part of security hardening. Rotation creates a public
+            record of operational discipline: when keys were changed, why they were changed, which keys signed which
+            artifacts, and when users should stop trusting older keys for new releases.
+        </p>
+        <p>
+            Frequent key rotation makes the release chain more resilient only if the history is visible. This page acts
+            as a public ledger for signing identity changes across the website, tools, software, firmware, hardware
+            documentation, AI and ML artifacts, databases, datasets, publications, and all other released materials.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Verification Rule</p>
+        <h2>Do Not Trust Unlisted Release Keys</h2>
+        <p>
+            Any ZZX-Labs release-signing key should be listed here before it is treated as authoritative. If a signature,
+            checksum, release manifest, model card, firmware package, application installer, dataset, database, paper, or
+            download claims to be signed by ZZX-Labs but the key is not listed on this page, treat that artifact as
+            unverified until confirmed through the current active key or another authenticated channel.
+        </p>
+    </section>
+
+    <section id="active-key" class="container zzx-panel">
+        <p class="zzx-kicker">Current Standard</p>
+        <h2>Active ZZX-Labs Signing Key</h2>
+        <div id="kh-active-key" class="kh-record-list"></div>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Chronological Record</p>
+        <h2>Key Change Log</h2>
+        <p>
+            Newest key events appear first. Older retired keys remain listed for historical verification. Each entry
+            should identify when the key was added to the website, when it became active, when it became transitional or
+            retired, and which artifacts it was authorized to sign.
+        </p>
+        <ol id="kh-key-timeline" class="kh-timeline"></ol>
+    </section>
+
+    <section id="records" class="container zzx-panel">
+        <p class="zzx-kicker">Records</p>
+        <h2>All Key Records</h2>
+
+        <div class="kh-filter-row">
+            <button class="kh-filter-button" type="button" data-kh-filter="all" aria-pressed="true">All</button>
+            <button class="kh-filter-button" type="button" data-kh-filter="active" aria-pressed="false">Active</button>
+            <button class="kh-filter-button" type="button" data-kh-filter="transitional" aria-pressed="false">Transitional</button>
+            <button class="kh-filter-button" type="button" data-kh-filter="retired" aria-pressed="false">Retired</button>
+        </div>
+
+        <br>
+
+        <div id="kh-record-list" class="kh-record-list"></div>
+    </section>
+
+    <section class="zzx-card-grid container">
+        <article class="zzx-card">
+            <h3>Website</h3>
+            <p>HTML, CSS, JavaScript, static assets, widgets, subpage bundles, release archives, and deployment manifests.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Software</h3>
+            <p>Python, C, C++, Go, JavaScript, desktop applications, CLI tools, daemons, APIs, and packaged releases.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Firmware</h3>
+            <p>Embedded firmware, board definitions, device packages, controller code, hardware support files, and flashing bundles.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Hardware</h3>
+            <p>Design files, schematics, BOMs, enclosure files, diagrams, CAD exports, interface maps, and build documentation.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>AI / ML</h3>
+            <p>Model cards, weights, datasets, fine-tuning records, evaluation reports, manifests, and generated research artifacts.</p>
+        </article>
+
+        <article class="zzx-card">
+            <h3>Publications</h3>
+            <p>Papers, reports, analysis, dossiers, disclosures, documentation, editorial releases, and long-form research packages.</p>
+        </article>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Rotation Standard</p>
+        <h2>Recommended Key Lifecycle</h2>
+        <p>
+            ZZX-Labs should treat key rotation as a planned operational event, not only an emergency action. A new key
+            may begin as yellow transitional, overlap with the current green active key, and later become green once it
+            is fully published, tested, backed up, verified, and used across release workflows.
+        </p>
+        <p>
+            The previous key should then move to red retired status unless it intentionally remains transitional.
+            Emergency rotation should occur immediately if a private key is suspected to be exposed, lost, copied,
+            mishandled, stored insecurely, signed from an untrusted machine, or used inside a compromised release process.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Future Data Model</p>
+        <h2>Key History JSON</h2>
+        <p>
+            This page is designed to load optional structured data from:
+        </p>
+        <pre class="zzx-code-block">contact/key-history/data/key-history.json</pre>
+        <p>
+            If that JSON file is absent, the local script displays an embedded fallback record for the current active
+            key. Once the JSON file exists, the page becomes a data-driven key history dashboard instead of a manually
+            edited HTML ledger.
+        </p>
+    </section>
+
+    <section class="container zzx-panel">
+        <p class="zzx-kicker">Suggested JSON Entry</p>
+        <h2>Template for Future Key Records</h2>
+        <pre class="zzx-code-block">{
+    "id": "zzx-labs-YYYY-MM-DD",
+    "status": "active",
+    "label": "ZZX-Labs R&amp;D Public Signing Key",
+    "fingerprint": "FINGERPRINT HERE",
+    "listed_on": "YYYY-MM-DD",
+    "active_from": "YYYY-MM-DD",
+    "active_until": null,
+    "retired_on": null,
+    "file": "./keys/active/current.asc",
+    "designation": "Standard ZZX-Labs R&amp;D release and communications key.",
+    "reason": "Short reason for creation, promotion, transition, retirement, or revocation.",
+    "primary_use": "Website, software, firmware, hardware, AI/ML, databases, datasets, papers, downloads, checksums, and release manifests.",
+    "purposes": [
+        "website",
+        "software",
+        "firmware",
+        "hardware",
+        "ai",
+        "ml",
+        "databases",
+        "datasets",
+        "papers",
+        "downloads"
+    ],
+    "public_key_block": ""
+}</pre>
+    </section>
+
+    <section class="container zzx-panel zzx-cta-panel">
+        <p class="zzx-kicker">Verification</p>
+        <h2>Verify Before Trusting Releases</h2>
+        <p>
+            Users should verify release signatures, hashes, checksums, and manifests against the active or historically
+            correct key listed here. For sensitive work, verify the fingerprint through the Contact page and use
+            GPG-encrypted communication before exchanging confidential material.
+        </p>
+        <div class="zzx-action-row">
+            <a href="../" class="btn">Contact Page</a>
+            <a href="../../downloads" class="btn btn-outline">Downloads</a>
+            <a href="../../docs" class="btn btn-outline">Documentation</a>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

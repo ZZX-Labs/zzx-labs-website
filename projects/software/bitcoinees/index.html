@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin-focused encryption framework using EMIGNA rotor mechanics for sensitive wallet records, seed backups, key material, and metadata, with layered transforms and authenticated encrypted export.">
+  <title>Bitcoin EMIGNA Encoding System (BEES) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcoinees-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcoinees-1">
+  <script src="./hook.js?v=20260824-bitcoinees-1" defer></script>
+  <script src="./script.js?v=20260824-bitcoinees-1" defer></script>
+  <script src="./emigna-core.js?v=20260824-bitcoinees-1" defer></script>
+  <script src="./bees-crypto.js?v=20260824-bitcoinees-1" defer></script>
+  <script src="./bitcoinees.js?v=20260824-bitcoinees-1" defer></script>
+</head>
+
+<body class="project project-bitcoinees">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bitcoin EMIGNA Encoding System (BEES) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bitcoin EMIGNA Encoding System (BEES)</h1>
+    <p class="blurb">Bitcoin-focused encryption framework using EMIGNA rotor mechanics for sensitive wallet records, seed backups, key material, and metadata, with layered transforms and authenticated encrypted export.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcoinees" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN / EMIGNA ENCRYPTION</p><h2>BEES Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">EMIGNA: LOCAL</span><span class="runtime-badge ok">SHA3-256: LOCAL</span><span class="runtime-badge ok">AES-GCM: WEB CRYPTO</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="encode" type="button">Encode</button>
+<button class="tool-tab mode-tab" data-mode="decrypt" type="button">Decrypt</button>
+<button class="tool-tab mode-tab" data-mode="rotors" type="button">Rotors</button>
+<button class="tool-tab mode-tab" data-mode="wallet" type="button">Wallet Record</button>
+<button class="tool-tab mode-tab" data-mode="audit" type="button">Audit</button>
+</div><div class="z-sidebar-note"><strong>IMPORTANT</strong><p>EMIGNA rotor transforms are an experimental encoding layer, not a substitute for modern authenticated encryption. Secret-bearing BEES exports additionally use PBKDF2-SHA256 + AES-256-GCM.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-encode" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">LAYERED SECRET EXPORT</p><h2>Encode</h2></div><div class="tool-card">
+<label>Plaintext / wallet record<textarea id="be-plain" rows="12" placeholder="Sensitive material stays in this browser session."></textarea></label>
+<div class="z-grid-3" style="margin-top:.7rem"><label>EMIGNA seed<input id="be-seed" type="password" autocomplete="new-password"></label><label>Rotor count<input id="be-count" type="number" min="1" max="12" value="4"></label><label>Encryption password<input id="be-pass" type="password" autocomplete="new-password"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="be-random" class="btn ghost">RANDOMIZE EMIGNA SEED</button><button id="be-encrypt" class="btn">EMIGNA + ENCRYPT</button><button id="be-export" class="btn ghost">EXPORT ENVELOPE</button></div>
+<pre id="be-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-decrypt" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">AUTHENTICATED DECRYPTION</p><h2>Decrypt</h2></div><div class="tool-card">
+<label>BEES envelope JSON<textarea id="bd-envelope" rows="14"></textarea></label>
+<div class="z-grid-2" style="margin-top:.7rem"><label>Encryption password<input id="bd-pass" type="password"></label><label>EMIGNA seed<input id="bd-seed" type="password"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bd-run" class="btn">DECRYPT + REVERSE EMIGNA</button></div><pre id="bd-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-rotors" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ROTOR DEFINITION</p><h2>Rotors</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="br-inspect" class="btn">INSPECT CURRENT ROTORS</button></div><pre id="br-output" class="z-log"></pre></div></div>
+
+<div id="mode-wallet" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">STRUCTURED BITCOIN RECORD</p><h2>Wallet Record</h2><p>Build a structured backup record before encrypting it. The form does not validate or derive wallet keys.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Record type<select id="bw-type"><option>seed phrase</option><option>private key</option><option>wallet.dat note</option><option>descriptor</option><option>credential</option></select></label><label>Network<select id="bw-net"><option>mainnet</option><option>testnet</option><option>signet</option><option>regtest</option></select></label><label>Label<input id="bw-label" value="cold-backup"></label></div>
+<label style="margin-top:.7rem">Secret / record data<textarea id="bw-data" rows="8"></textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="bw-build" class="btn">BUILD RECORD INTO ENCODER</button></div>
+</div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">INTEGRITY / TEST VECTORS</p><h2>Audit</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ba-sha3" class="btn">SHA3-256 PLAINTEXT</button><button id="ba-selftest" class="btn ghost">RUN SELF-TEST</button></div><pre id="ba-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2">
+<article class="panel"><p class="kicker">PROJECT</p><h2>BEES</h2><p>Bitcoin-specific EMIGNA encoding/encryption framework.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Native platforms</dt><dd>Linux · Windows</dd></div><div><dt>Native dependency</dt><dd>Python 3</dd></div><div><dt>Web</dt><dd>SHA3-256 · PBKDF2 · AES-256-GCM</dd></div></dl></article>
+<article class="panel"><p class="kicker">SECURITY MODEL</p><h2>Layered, not rotor-only</h2><p>The reversible EMIGNA stage provides the project-specific transform; authenticated AES-GCM provides modern confidentiality/integrity for exported secret records.</p></article>
+</div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

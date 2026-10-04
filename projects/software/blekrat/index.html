@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Private internal administrator orchestration interface for authorized lab/testbed host inventory, allowlisted maintenance-task planning, imported health telemetry, and tamper-evident audit records.">
+  <title>BlekRAT · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blekrat-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blekrat-1">
+  <script src="./hook.js?v=20260824-blekrat-1" defer></script>
+  <script src="./script.js?v=20260824-blekrat-1" defer></script>
+  <script src="./blekrat-core.js?v=20260824-blekrat-1" defer></script>
+  <script src="./blekrat.js?v=20260824-blekrat-1" defer></script>
+</head>
+
+<body class="project project-blekrat">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlekRAT logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlekRAT</h1>
+    <p class="blurb">Private internal administrator orchestration interface for authorized lab/testbed host inventory, allowlisted maintenance-task planning, imported health telemetry, and tamper-evident audit records.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blekrat" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">INTERNAL // AUTHORIZED LAB ORCHESTRATION</p><h2>BlekRAT Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge bad">INTERNAL</span><span class="runtime-badge ok">HOSTS: INVENTORY</span><span class="runtime-badge ok">TASKS: ALLOWLISTED</span><span class="runtime-badge ok">REMOTE EXECUTION: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="hosts" type="button">Hosts</button><button class="tool-tab mode-tab" data-mode="tasks" type="button">Task Plans</button><button class="tool-tab mode-tab" data-mode="status" type="button">Status Import</button><button class="tool-tab mode-tab" data-mode="audit" type="button">Audit Log</button><button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>INTERNAL – NOT FOR PUBLIC DISTRIBUTION</strong><p>The browser port deliberately has no arbitrary shell, SSH connection, credential storage, persistence agent, or remote execution. It is an inventory/planning/audit layer for systems you are authorized to administer.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-hosts" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">AUTHORIZED TESTBED INVENTORY</p><h2>Hosts</h2></div><div class="tool-card"><div class="z-grid-3"><label>Host label<input id="rh-label" value="lab-node-01"></label><label>Address / inventory ref<input id="rh-host" value="192.0.2.10"></label><label>Platform<select id="rh-os"><option>Linux</option><option>Windows</option><option>macOS</option><option>Kali</option></select></label><label>Environment<input id="rh-env" value="testbed"></label><label>Owner / authorization<input id="rh-owner" value="internal lab"></label><label>Tags<input id="rh-tags" value="bitcoin,test"></label></div><div class="button-row" style="justify-content:flex-start"><button id="rh-add" class="btn">ADD HOST</button></div><div id="rh-list" class="z-list"></div></div></div>
+
+<div id="mode-tasks" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ALLOWLISTED ADMIN TASKS</p><h2>Task Plans</h2></div><div class="tool-card"><div class="z-grid-3"><label>Host<select id="rt-host"></select></label><label>Task<select id="rt-action"><option value="system-info">Collect system info</option><option value="service-status">Check service status</option><option value="log-review">Review application logs</option><option value="file-hash">Verify file hash</option><option value="connectivity">Connectivity health check</option></select></label><label>Parameter<input id="rt-param" placeholder="service/file/log identifier"></label></div><div class="button-row" style="justify-content:flex-start"><button id="rt-plan" class="btn">CREATE TASK PLAN</button></div><div id="rt-list" class="z-list"></div></div></div>
+
+<div id="mode-status" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SANITIZED TELEMETRY</p><h2>Status Import</h2><p>Paste status JSON produced by a trusted local collector. No browser-side host connection is attempted.</p></div><div class="tool-card"><label>Status JSON<textarea id="rs-json" rows="14">{"host":"lab-node-01","cpuPercent":18.4,"memoryPercent":42.1,"diskPercent":53.0,"services":{"bitcoind":"running"}}</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="rs-import" class="btn">IMPORT STATUS</button></div><pre id="rs-output" class="z-log"></pre></div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">HASH-CHAINED RECORD</p><h2>Audit Log</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ra-verify" class="btn">VERIFY CHAIN</button></div><pre id="ra-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">INTERNAL ORCHESTRATION BUNDLE</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="rx-json" class="btn">EXPORT JSON</button></div><pre id="rx-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlekRAT</h2><p>Private administrator lab/testbed orchestration and audit tooling.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>Proprietary / Internal</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Kali</dd></div><div><dt>Native</dt><dd>Paramiko · psutil · SQLAlchemy · cryptography · Requests</dd></div></dl></article><article class="panel"><p class="kicker">WEB SAFETY BOUNDARY</p><h2>Planning, not remote control</h2><p>The static subpage cannot execute commands, authenticate to hosts, deploy agents, or open control channels. It generates auditable plans and consumes sanitized status data.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

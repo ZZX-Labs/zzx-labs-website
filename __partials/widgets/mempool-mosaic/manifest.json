@@ -1,0 +1,29 @@
+{
+  "id": "mempool-mosaic",
+  "name": "Mempool Mosaic",
+  "version": "3.2.0",
+  "runtime": {
+    "html": "widget.html",
+    "css": "widget.css",
+    "js": "widget.js"
+  },
+  "source": "js/",
+  "build": "python build.py",
+  "test": "node tests/layout-selftest.js && node tests/live-selftest.js && node tests/model-selftest.js && node tests/reader-store-selftest.js && node tests/selftest.js",
+  "network": {
+    "primary": "configured mempool-compatible API / WebSocket",
+    "fallback": "https://mempool.space/api",
+    "websocket": "wss://mempool.space/api/v1/ws"
+  },
+  "features": [
+    "3x3-dominant recursive exact-cover square tessellation",
+    "real projected block-0 transaction membership",
+    "mechanical mosaic, fee, value, vsize, age, and shuffle re-sorts",
+    "animated transitions between complete square mosaics",
+    "fee-tier color encoding from existing widget CSS",
+    "click-through persistent transaction reader",
+    "configured endpoint rotation with mempool.space fallback",
+    "single bundled production JavaScript asset",
+    "site-uniform widget chrome; visualization-only custom rendering"
+  ]
+}

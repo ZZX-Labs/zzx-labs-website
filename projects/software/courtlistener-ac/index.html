@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="CourtListener oral-argument audio collector companion for cataloging local audio, transcript ingestion, timestamp alignment, speaker tagging, corpus search, SHA-256 media fingerprints, acquisition queues, and portable legal/linguistic research archives."><title>CourtListener-AC · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-courtlistener-ac-1"><link rel="stylesheet" href="./hook.css?v=20260824-courtlistener-ac-1">
+<script src="./hook.js?v=20260824-courtlistener-ac-1" defer></script><script src="./script.js?v=20260824-courtlistener-ac-1" defer></script>
+  <script src="./courtlistener-ac-core.js?v=20260824-courtlistener-ac-1" defer></script>
+  <script src="./courtlistener-ac.js?v=20260824-courtlistener-ac-1" defer></script></head>
+<body class="project project-courtlistener-ac"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CourtListener-AC logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p><h1>CourtListener-AC</h1><p class="blurb">CourtListener oral-argument audio collector companion for cataloging local audio, transcript ingestion, timestamp alignment, speaker tagging, corpus search, SHA-256 media fingerprints, acquisition queues, and portable legal/linguistic research archives.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/courtlistener-ac" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ORAL ARGUMENT AUDIO CORPUS</p><h2>CourtListener-AC Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">AUDIO: LOCAL</span><span class="runtime-badge ok">TRANSCRIPTS: INDEXED</span><span class="runtime-badge ok">ALIGNMENT: TIMESTAMPED</span><span class="runtime-badge partial">FETCH: QUEUE / ADAPTER</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="catalog">Catalog</button><button class="tool-tab mode-tab" data-mode="transcript">Transcript</button><button class="tool-tab mode-tab" data-mode="search">Corpus Search</button><button class="tool-tab mode-tab" data-mode="queue">Collector Queue</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>LEGAL RESEARCH ARCHIVE</strong><p>The browser edition catalogs user-supplied local audio and transcripts. Network collection is represented as a public-source queue/provider adapter so deployment policy controls the actual fetcher.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-catalog" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">OPEN ARGUMENT AUDIO<input id="audio-file" type="file" accept="audio/*"></label></div><audio id="player" controls style="width:100%"></audio>
+<div class="z-grid-3"><label>Case name<input id="case-name"></label><label>Docket / cluster ID<input id="docket"></label><label>Court<input id="court"></label><label>Argument date<input id="arg-date" type="date"></label><label>Source URL<input id="source-url" type="url"></label><label>Tags<input id="tags" placeholder="constitutional,patent,..."></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="save-record" class="btn">SAVE CATALOG RECORD</button></div><pre id="catalog-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-transcript" class="z-mode-panel mode-panel"><div class="tool-card"><p>Timestamp syntax: <code>[HH:MM:SS] Speaker: text</code> or <code>[MM:SS] Speaker: text</code>.</p><label>Transcript<textarea id="transcript" rows="18">[00:00] Clerk: The court will now hear argument.
+[00:12] Counsel: May it please the Court.
+[00:28] Judge: Counsel, let me ask you about the standard of review.</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="parse-transcript" class="btn">PARSE + ALIGN</button></div><div id="segments" class="z-list"></div></div></div>
+
+<div id="mode-search" class="z-mode-panel mode-panel"><div class="tool-card"><label>Search transcript corpus<input id="query"></label><div id="results" class="z-list"></div></div></div>
+
+<div id="mode-queue" class="z-mode-panel mode-panel"><div class="tool-card"><label>CourtListener/public argument URLs, one per line<textarea id="urls" rows="12"></textarea></label><div class="z-grid-3"><label>Delay ms<input id="delay" type="number" min="250" value="1500"></label><label>Max items<input id="max-items" type="number" min="1" value="100"></label><label>Include transcript<select id="include-transcript"><option value="yes">yes</option><option value="no">no</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="export-queue" class="btn">EXPORT COLLECTOR QUEUE</button></div><pre id="queue-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn">EXPORT CORPUS JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CourtListener-AC</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>Requests · BeautifulSoup · Pydub · FFmpeg · SQLAlchemy · SQLite</dd></div></dl></article><article class="panel"><p class="kicker">WEB</p><h2>Timestamp-aligned corpus</h2><p>Local argument audio, metadata, transcript segments, speaker labels, search, and SHA-256 fingerprints are handled directly in-browser.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

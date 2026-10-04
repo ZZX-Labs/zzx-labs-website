@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');
+const root=path.resolve(__dirname,'..');
+const ctx={window:{location:{href:'https://example.test/'}},console,setTimeout,clearTimeout};ctx.window.window=ctx.window;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'js','live.js'),'utf8'),ctx,{filename:'live.js'});
+const L=ctx.window.ZZXMempoolMosaicLive;
+const id=n=>n.toString(16).padStart(64,'0');
+let p=L.blockTxPayload({'mempool-block-transactions':{index:0,blockTransactions:[{txid:id(1),vsize:200,fee:1000}]}});
+if(!p||!p.replace||p.rows.length!==1||p.index!==0)throw new Error('full parse');
+p=L.blockTxPayload({'mempool-block-transactions':{index:0,added:[{txid:id(2),vsize:300,fee:1500}],removed:[id(1)]}});
+if(!p||p.replace||p.rows.length!==1||p.removed.length!==1)throw new Error('delta parse');
+const rows=L.normalizeRows([{txid:id(1),vsize:200,fee:1000},{txid:id(1),vsize:210,fee:1100},{txid:id(2),weight:800,fee:1200}]);
+if(rows.length!==2||rows[1].vsize!==200)throw new Error('normalize');
+console.log('mempool-mosaic live selftest: PASS');

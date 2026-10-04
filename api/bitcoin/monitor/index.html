@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Monitor API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Monitor</h2>
+  <p>
+    View real-time data from ZZX-Labs’ unified Bitcoin monitoring system. This module consolidates block height, mempool activity, network hash rate, average fees, and node reachability into a unified live panel.
+  </p>
+  <p>
+    Use this dashboard to observe blockchain activity, detect congestion, or alert on anomalous conditions like fee spikes or block delays. Data updates every 250ms from direct node and mempool feeds.
+  </p>
+</section>
+
+<section class="container">
+  <div id="btc-monitor">
+    <ul>
+      <li style="list-style-type: none;">Block Height: <span id="block-height">...</span></li>
+      <li style="list-style-type: none;">Mempool TX Count: <span id="mempool-count">...</span></li>
+      <li style="list-style-type: none;">Avg Fee (sat/vB): <span id="avg-fee">...</span></li>
+      <li style="list-style-type: none;">Hashrate (EH/s): <span id="hashrate">...</span></li>
+      <li style="list-style-type: none;">Nodes Online: <span id="nodes-online">...</span></li>
+    </ul>
+  </div>
+</section>
+
+<script>
+  async function updateMonitor() {
+    try {
+      const res = await fetch('/api/bitcoin/network-stats');
+      const data = await res.json();
+      document.getElementById('block-height').textContent = data.block_height;
+      document.getElementById('mempool-count').textContent = data.mempool_tx_count;
+      document.getElementById('avg-fee').textContent = data.avg_fee;
+      document.getElementById('hashrate').textContent = data.hashrate;
+      document.getElementById('nodes-online').textContent = data.node_count;
+    } catch (err) {
+      console.error('Monitor fetch error:', err);
+    }
+  }
+
+  setInterval(updateMonitor, 250);
+  updateMonitor();
+</script>
+
+<section class="features">
+  <div class="feature">
+    <h3>Network Stats API</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/network-stats</code></pre>
+    <p>Returns live data from Bitcoin Core full node + mempool parser.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Use Cases</h3>
+    <ul>
+      <li style="list-style-type: none;">Mining and transaction fee analysis</li>
+      <li style="list-style-type: none;">Mempool congestion monitoring</li>
+      <li style="list-style-type: none;">Full node and network health validation</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want a Custom Monitoring Panel?</h2>
+  <p>
+    We offer deployment of private monitoring dashboards and infrastructure analytics across Bitcoin, Lightning, and DeFi platforms.
+  </p>
+  <a href="../../../contact" class="btn">Deploy Monitoring Stack</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Monitor the real heartbeat of Bitcoin.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">View Network Dev Tools</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

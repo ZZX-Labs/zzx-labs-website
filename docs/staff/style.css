@@ -1,0 +1,93 @@
+/* docs/staff/style.css
+   Page-local for /docs/staff/index.html
+   - Works alongside static/css/features.css
+   - No :root vars, no global element resets, no ticker selectors
+*/
+
+/* ===== Make .features a grid ON THIS PAGE (no .features-grid wrapper) ===== */
+body main section.features {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 8px !important;                  /* 8px between cards */
+  /* Keep the global section padding from static/css/features.css unless you want less: */
+  /* padding: 1rem !important;  */
+}
+
+/* Keep the global card visuals; only add light constraints needed here */
+body main section.features .feature {
+  /* Do NOT change colors, shadows, or text-align from your global features.css */
+  /* Just ensure inner spacing is OK if your card copy is longer */
+  padding: 1.25rem !important;          /* a hair smaller than 2rem if desired; remove if not */
+}
+
+/* ===== Bulletless lists inside the cards ===== */
+body main section.features .feature ul,
+body main section.features .feature ol {
+  list-style: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+
+body main section.features .feature li::marker { content: "" !important; }
+
+body main section.features .feature li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;             /* ~3px between items */
+  padding: 0 !important;
+}
+
+/* Keep your global link colors; add light affordance without fighting globals */
+body main section.features .feature li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.features .feature li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Staff Index TOC (the UL directly after its H2) ===== */
+body main section.container h2 + ul {
+  list-style: none !important;
+  margin: .5rem 0 0 0 !important;
+  padding-left: 0 !important;
+}
+body main section.container h2 + ul > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;
+  padding: 0 !important;
+}
+body main section.container h2 + ul > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.container h2 + ul > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Footer lists only (bulletless, light spacing) ===== */
+body .footer .footer-links,
+body .footer .footer-links li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .footer .footer-links li { margin: 3px 0 !important; }
+body .footer .footer-links a {
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  display: inline-block !important;
+  padding: 2px 0 !important;
+}
+
+/* ===== Small screens ===== */
+@media (max-width: 600px) {
+  body main section.features { grid-template-columns: 1fr !important; }
+}

@@ -1,0 +1,12 @@
+(()=>{"use strict";
+const MG={};
+MG.randomUint32=()=>{const x=new Uint32Array(1);crypto.getRandomValues(x);return x[0]};
+MG.unbiasedIndex=n=>{if(!(n>0&&n<=0x100000000))throw new Error("Invalid wordlist length");const max=Math.floor(0x100000000/n)*n;let x;do{x=MG.randomUint32()}while(x>=max);return x%n};
+MG.randomBytes=n=>{const b=new Uint8Array(n);crypto.getRandomValues(b);return b};
+MG.hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+MG.entropyEstimate=(words,listSize)=>words*Math.log2(listSize);
+MG.generateWords=(list,count)=>{if(list.length<2)throw new Error("Import a wordlist first.");const out=[];for(let i=0;i<count;i++)out.push(list[MG.unbiasedIndex(list.length)]);return out};
+MG.generatePassphrase=(list,count=6)=>MG.generateWords(list,count).join("-");
+MG.download=(text,name,type="text/plain")=>{const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),800)};
+window.MnemonicGeneratorCore=Object.freeze(MG);
+})();

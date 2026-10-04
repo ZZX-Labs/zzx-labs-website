@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="CasBra (Casino Breaker) is a probabilistic inference and game-state research engine for card, tabletop, and digital games, with transparent Monte Carlo simulation, deck-state analysis, and user-supplied image/video annotation hooks."><title>CasBra · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-casbra-1"><link rel="stylesheet" href="./hook.css?v=20260824-casbra-1">
+<script src="./hook.js?v=20260824-casbra-1" defer></script><script src="./script.js?v=20260824-casbra-1" defer></script>
+  <script src="./casbra-core.js?v=20260824-casbra-1" defer></script>
+  <script src="./casbra.js?v=20260824-casbra-1" defer></script></head>
+<body class="project project-casbra"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CasBra logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p><h1>CasBra</h1><p class="blurb">CasBra (Casino Breaker) is a probabilistic inference and game-state research engine for card, tabletop, and digital games, with transparent Monte Carlo simulation, deck-state analysis, and user-supplied image/video annotation hooks.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/casbra" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PROBABILITY / GAME-STATE RESEARCH</p><h2>CasBra Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">MONTE CARLO: LOCAL</span><span class="runtime-badge ok">DECK MODEL: LOCAL</span><span class="runtime-badge partial">CV: ANNOTATION HOOK</span><span class="runtime-badge partial">ML: NATIVE STACK</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="cards">Card Model</button><button class="tool-tab mode-tab" data-mode="simulate">Monte Carlo</button><button class="tool-tab mode-tab" data-mode="ranges">Opponent Range</button><button class="tool-tab mode-tab" data-mode="vision">Image / Video</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>RESEARCH / TRAINING</strong><p>The browser build analyzes explicit game state and user-supplied annotations. It does not claim live TensorFlow/OpenCV hidden-state inference parity.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-cards" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Game<select id="game"><option value="holdem">Texas Hold'em</option><option value="blackjack">Blackjack</option></select></label><label>Known cards<input id="known" placeholder="AS KH 2C 7D"></label><label>Dead / exposed cards<input id="dead" placeholder="3S 4S"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="validate" class="btn">VALIDATE STATE</button><button id="reset-deck" class="btn ghost">RESET</button></div><pre id="cards-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-simulate" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Hero cards<input id="hero" value="AS KH"></label><label>Board<input id="board" placeholder="2C 7D 9H"></label><label>Iterations<input id="iters" type="number" min="100" max="200000" value="20000"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="run-sim" class="btn">RUN HOLD'EM EQUITY</button></div>
+<div class="z-metrics"><div><span>Win</span><strong id="win">—</strong></div><div><span>Tie</span><strong id="tie">—</strong></div><div><span>Loss</span><strong id="loss">—</strong></div><div><span>Equity</span><strong id="equity">—</strong></div></div><pre id="sim-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-ranges" class="z-mode-panel mode-panel"><div class="tool-card">
+<p>Build a transparent weighted opponent range from explicit candidate hole-card pairs.</p>
+<label>Candidate combos, one per line: <code>cards,weight</code><textarea id="range" rows="10">QS QH,1
+JS JH,1
+AC QC,0.5
+TD 9D,0.5</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="parse-range" class="btn">PARSE RANGE</button></div><pre id="range-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-vision" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">OPEN IMAGE / VIDEO<input id="media" type="file" accept="image/*,video/*"></label></div>
+<div id="media-wrap"><img id="image" style="max-width:100%;display:none"><video id="video" controls style="max-width:100%;display:none"></video></div>
+<label>Manual / external detector annotations JSON<textarea id="annotations" rows="10">{"cards":[],"objects":[],"confidence":[]}</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="apply-annotations" class="btn">APPLY ANNOTATIONS</button></div><pre id="vision-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-json" class="btn">EXPORT SESSION JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CasBra</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>PyQt5 · OpenCV · TensorFlow · NumPy</dd></div></dl></article><article class="panel"><p class="kicker">WEB BASELINE</p><h2>Transparent probability engine</h2><p>Monte Carlo and card-state math execute locally. Native OpenCV/TensorFlow remain the richer visual inference backend.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

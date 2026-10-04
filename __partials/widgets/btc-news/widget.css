@@ -1,0 +1,245 @@
+/* __partials/widgets/btc-news/widget.css */
+
+.btc-news{
+  --news-green:var(--zzx-accent,#c0d674);
+  --news-gold:var(--zzx-accent-alt,#e6a42b);
+  --news-red:var(--zzx-error,#d67474);
+  --news-muted:var(--zzx-muted,#b7bf9a);
+  --news-dim:var(--zzx-dim,#777);
+  --news-line:rgba(255,255,255,.09);
+  --news-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.btc-news__header,
+.btc-news__footer,
+.btc-news__meta-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.btc-news__header{align-items:flex-start}
+
+.btc-news__eyebrow,
+.btc-news__hero > span,
+.btc-news__controls label > span{
+  color:var(--news-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.btc-news__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--news-line);
+  border-bottom:1px solid var(--news-line);
+}
+
+.btc-news__hero strong{
+  min-width:0;
+  color:var(--news-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.22rem;
+  line-height:1.05;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-news__hero small{
+  color:var(--news-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-news__controls{
+  display:flex;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.btc-news__controls label{
+  display:grid;
+  gap:.15rem;
+  flex:1 1 200px;
+  min-width:0;
+}
+
+.btc-news__controls select{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--news-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.btc-news__controls select:focus{border-color:var(--news-gold)}
+
+.btc-news__ticker{
+  margin-top:.5rem;
+  overflow:hidden;
+  border:1px solid var(--news-line);
+  border-radius:6px;
+  background:rgba(0,0,0,.22);
+}
+
+.btc-news__track{
+  display:flex;
+  width:max-content;
+  align-items:center;
+  gap:1.25rem;
+  padding:.38rem .6rem;
+  white-space:nowrap;
+  animation:zzx-btc-news-marquee 28s linear infinite;
+  will-change:transform;
+}
+
+.btc-news__ticker:hover .btc-news__track{
+  animation-play-state:paused;
+}
+
+.btc-news__ticker-item{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  flex:0 0 auto;
+}
+
+.btc-news__ticker-bullet{
+  color:var(--news-gold);
+}
+
+.btc-news__ticker a,
+.btc-news__item a{
+  color:var(--news-green);
+  text-decoration:none;
+}
+
+.btc-news__ticker a:hover,
+.btc-news__item a:hover{
+  color:var(--news-gold);
+  text-decoration:underline;
+}
+
+@keyframes zzx-btc-news-marquee{
+  from{transform:translateX(18vw)}
+  to{transform:translateX(-100%)}
+}
+
+.btc-news__meta-line{
+  margin-top:.4rem;
+  color:var(--news-muted);
+  font-size:.66rem;
+}
+
+.btc-news__meta-line span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-news__list{
+  display:grid;
+  gap:.28rem;
+  margin-top:.42rem;
+}
+
+.btc-news__item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:.5rem;
+  min-width:0;
+  padding:.34rem .38rem;
+  border:1px solid var(--news-line);
+  border-radius:6px;
+  background:var(--news-panel);
+}
+
+.btc-news__item-main{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+
+.btc-news__item-main a{
+  min-width:0;
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-news__item-main small,
+.btc-news__item time{
+  color:var(--news-dim);
+  font-size:.61rem;
+}
+
+.btc-news__item-main small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-news__item time{white-space:nowrap}
+
+.btc-news__empty{
+  padding:.7rem;
+  border:1px dashed var(--news-line);
+  border-radius:6px;
+  color:var(--news-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.btc-news__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--news-line);
+  color:var(--news-muted);
+  font-size:.67rem;
+}
+
+.btc-news__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .btc-news__track{
+    animation:none;
+    width:auto;
+    overflow:auto;
+  }
+}
+
+@media(max-width:460px){
+  .btc-news__controls{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .btc-news__item{
+    grid-template-columns:1fr;
+  }
+}

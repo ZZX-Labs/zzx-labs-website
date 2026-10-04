@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Deterministic Bitcoin lottery engine using ticket commitments and reproducible drawings anchored to Bitcoin block hashes for offline verification, replay, and archival.">
+  <title>BitLotto · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260823-bitlotto-1">
+  <link rel="stylesheet" href="./hook.css?v=20260823-bitlotto-1">
+  <script src="./hook.js?v=20260823-bitlotto-1" defer></script>
+  <script src="./script.js?v=20260823-bitlotto-1" defer></script>
+  <script src="./bitlotto-core.js?v=20260823-bitlotto-1" defer></script>
+  <script src="./bitlotto.js?v=20260823-bitlotto-1" defer></script>
+</head>
+
+<body class="project project-bitlotto">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitLotto logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitLotto</h1>
+    <p class="blurb">Deterministic Bitcoin lottery engine using ticket commitments and reproducible drawings anchored to Bitcoin block hashes for offline verification, replay, and archival.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/BitLotto" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">DETERMINISTIC DRAW ENGINE</p><h2>BitLotto Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">COMMITMENTS: SHA-256</span><span class="runtime-badge ok">RNG: HMAC-SHA256</span><span class="runtime-badge ok">ANCHOR: BLOCK HASH</span><span class="runtime-badge ok">SETTLEMENT: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="tickets" type="button">Tickets</button>
+<button class="tool-tab mode-tab" data-mode="anchor" type="button">Block Anchor</button>
+<button class="tool-tab mode-tab" data-mode="draw" type="button">Draw</button>
+<button class="tool-tab mode-tab" data-mode="verify" type="button">Verify</button>
+<button class="tool-tab mode-tab" data-mode="archive" type="button">Archive</button>
+</div><div class="z-sidebar-note"><strong>AUDIT ENGINE ONLY</strong><p>This web build demonstrates commitments and deterministic drawings. It does not collect money, custody funds, sell tickets, or settle wagers.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-tickets" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">ESCROW-STYLE COMMITMENTS</p><h2>Tickets</h2><p>Create deterministic ticket commitments from participant label, chosen numbers, and a private nonce retained by the participant.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Participant label<input id="lt-label" type="text" value="ticket-001"></label><label>Numbers (comma-separated)<input id="lt-numbers" type="text" value="3,11,19,27,42"></label><label>Nonce<input id="lt-nonce" type="text" autocomplete="off"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="lt-random-nonce" class="btn ghost" type="button">RANDOM NONCE</button><button id="lt-commit" class="btn" type="button">COMMIT TICKET</button></div>
+<pre id="lt-ticket-output" class="z-log"></pre><div id="lt-ticket-list" class="z-list"></div>
+</div></div>
+
+<div id="mode-anchor" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BITCOIN BLOCK HASH</p><h2>Block Anchor</h2><p>Enter a known block hash manually or fetch one from a configured Esplora endpoint.</p></div><div class="tool-card">
+<div class="z-grid-2"><label>Block height<input id="la-height" type="number" min="0" value="900000"></label><label>Block hash<input id="la-hash" type="text" placeholder="64 hex characters"></label></div>
+<label style="margin-top:.7rem">Esplora API<input id="la-api" type="url" value="https://mempool.space/api"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="la-fetch" class="btn" type="button">FETCH HASH</button><button id="la-set" class="btn ghost" type="button">SET MANUAL ANCHOR</button></div><pre id="la-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-draw" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PROVABLY REPLAYABLE DRAW</p><h2>Draw</h2><p>Combine the block hash, sorted ticket commitments, and draw parameters into a deterministic seed.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Numbers drawn<input id="ld-count" type="number" min="1" max="20" value="5"></label><label>Range min<input id="ld-min" type="number" value="1"></label><label>Range max<input id="ld-max" type="number" value="50"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="ld-run" class="btn" type="button">RUN DRAW</button></div><pre id="ld-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-verify" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">INDEPENDENT REPLAY</p><h2>Verify</h2><p>Paste an archived draw JSON and replay it entirely offline.</p></div><div class="tool-card"><label>Draw JSON<textarea id="lv-json" rows="18"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="lv-run" class="btn" type="button">VERIFY DRAW</button></div><pre id="lv-output" class="z-log"></pre></div></div>
+
+<div id="mode-archive" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LONG-TERM AUDIT RECORD</p><h2>Archive</h2><p>Export tickets, commitments, anchor, seed derivation inputs, and result in one reproducible JSON record.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="lx-export" class="btn" type="button">EXPORT DRAW ARCHIVE</button><button id="lx-clear" class="btn ghost" type="button">CLEAR SESSION</button></div><pre id="lx-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitLotto</h2><p>Commitment-based deterministic draw engine anchored to Bitcoin block hashes.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.3.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · cryptography · hashlib · SQLite · PyQt5</dd></div><div><dt>Web</dt><dd>Web Crypto · HMAC-SHA256</dd></div></dl></article><article class="panel"><p class="kicker">VERIFIABILITY</p><h2>Replayable by design</h2><p>The draw result depends only on archived commitments, draw parameters, and the chosen Bitcoin block hash.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

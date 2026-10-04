@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Market Stats API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Market Stats API</h2>
+  <p>
+    The Market Stats API aggregates real-time order book data, trade volume, spreads, slippage metrics, and arbitrage windows across all tracked exchanges. Powered by ZZX-Labs’ full aggregation node, this API offers high-resolution statistics updated every 250ms.
+  </p>
+  <p>
+    Use it to build dashboards, trading algorithms, arbitrage scanners, or exchange health monitors. All data is returned in clean JSON format with optional filters per exchange or fiat pair.
+  </p>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Public Endpoint</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/market-stats</code></pre>
+    <p>Returns exchange volumes, spread, price depth, slippage bands, and price leaderboards.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Sample Response</h3>
+    <pre><code class="language-json">{
+  "timestamp": "2025-05-01T12:00:00Z",
+  "global_volume": 389200.42,
+  "price_spread": 27.55,
+  "top_exchanges": [
+    {"name": "Binance", "volume": 134000, "price": 63880.22},
+    {"name": "Coinbase", "volume": 102000, "price": 63879.91}
+  ],
+  "arbitrage_opportunities": [
+    {"buy": "Kraken", "sell": "Bitfinex", "profit_margin": "0.27%"}
+  ]
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Features</h3>
+    <ul>
+      <li style="list-style-type: none;">Live price feeds from top 100+ exchanges</li>
+      <li style="list-style-type: none;">Aggregated bid/ask depth across fiat pairs</li>
+      <li style="list-style-type: none;">Exchange leader detection by volume</li>
+      <li style="list-style-type: none;">Spread, slippage, and arbitrage alerts</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want Exchange-Level Data Access?</h2>
+  <p>
+    Need filtered stats for a specific exchange or historical dataset for your trading engine? Reach out for API tier access and JSON schema specs.
+  </p>
+  <a href="../../../contact" class="btn">Get Market Feed Access</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Track every market move—down to the spread.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">View Market Expertise</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

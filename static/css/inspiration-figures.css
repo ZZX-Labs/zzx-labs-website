@@ -1,0 +1,105 @@
+/* static/css/inspiration-figures.css
+   Figures page layout (scoped)
+   Loaded in pages layer
+*/
+
+/* =========================
+   0) Layout: stack grid + below-content
+   ========================= */
+body.inspiration .features {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px; /* spacing between grid block and following content */
+  background: var(--bg);
+  padding-inline: 12px; /* tiny gutter for edge safety on small screens */
+}
+
+/* =========================
+   1) Card grid container (8px rhythm)
+   ========================= */
+body.inspiration .feature-card-container {
+  inline-size: 100%;
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 4px; /* perimeter breathing room */
+  margin-inline: auto;
+  max-inline-size: 1200px;
+}
+
+/* No extra margins; grid gap handles spacing */
+body.inspiration .feature-card { margin: 0; }
+
+/* =========================
+   2) Following content block(s)
+   ========================= */
+body.inspiration .features > :not(.feature-card-container) {
+  inline-size: 100%;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  text-align: center; /* balances summary/cta blocks beneath */
+}
+body.inspiration .features > .container { display: block; }
+
+/* =========================
+   3) Philosophical Values block
+   ========================= */
+body.inspiration #philosophical-values {
+  grid-column: 1 / -1;         /* if placed inside a grid, span full width */
+  justify-self: center;
+  inline-size: 100%;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  padding-inline: 16px;
+
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px; /* tile spacing */
+}
+
+/* Override global .feature sizing only here (don’t force 33%) */
+body.inspiration #philosophical-values .feature {
+  flex: 0 1 320px;  /* preferred tile width */
+  max-inline-size: 420px; /* cap so rows center nicely */
+  margin: 0;        /* gaps control rhythm */
+  text-align: center;
+}
+
+/* Ensure inner .container behaves */
+body.inspiration #philosophical-values .container {
+  inline-size: 100%;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+}
+
+/* Redundant safety: keep figures grid at 8px gap */
+body.inspiration .feature-card-container { gap: 8px; }
+
+/* =========================
+   4) Responsive fine-tuning
+   ========================= */
+@media (max-width: 768px) {
+  body.inspiration .features { gap: 20px; }
+  body.inspiration #philosophical-values {
+    gap: 12px;
+    padding-inline: 12px;
+  }
+  body.inspiration #philosophical-values .feature {
+    flex-basis: 280px; /* align with grid min width */
+    max-inline-size: 100%;
+  }
+}
+
+/* =========================
+   5) Reduced motion
+   ========================= */
+@media (prefers-reduced-motion: reduce) {
+  body.inspiration .feature,
+  body.inspiration .feature-card {
+    transition: none !important;
+    transform: none !important;
+  }
+}

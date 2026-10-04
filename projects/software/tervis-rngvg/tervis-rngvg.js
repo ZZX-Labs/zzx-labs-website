@@ -1,0 +1,22 @@
+(()=>{"use strict";
+const $=id=>document.getElementById(id),c=$("canvas"),x=c.getContext("2d");
+let rng=Math.random,entities=[],frame=0,raf=null,currentLabels=[],recorder=null,chunks=[];
+const classes=["bird","deer","rabbit","fox","insect"];
+function mulberry32(a){return()=>{let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function reset(){const seed=(+$("seed").value||1)>>>0;rng=mulberry32(seed);entities=[];for(let i=0;i<Math.max(1,+$("animals").value||1);i++){entities.push({id:i,type:classes[Math.floor(rng()*classes.length)],x:rng(),y:.25+rng()*.7,vx:(rng()-.5)*.0027,vy:(rng()-.5)*.0014,size:.012+rng()*.035})}frame=0}
+function background(){const day=+$("day").value/100,g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,`rgb(${20+day*90|0},${30+day*120|0},${45+day*150|0})`);g.addColorStop(1,`rgb(${35+day*95|0},${50+day*105|0},${35+day*80|0})`);x.fillStyle=g;x.fillRect(0,0,c.width,c.height);x.fillStyle="#172216";x.beginPath();x.moveTo(0,c.height*.62);for(let i=0;i<=16;i++)x.lineTo(i*c.width/16,c.height*(.55+rng()*.1));x.lineTo(c.width,c.height);x.lineTo(0,c.height);x.fill();x.fillStyle="#26331a";for(let i=0;i<90;i++){const px=rng()*c.width,py=c.height*(.62+rng()*.36);x.fillRect(px,py,2,7+rng()*35)}}
+function drawEntity(e){const px=e.x*c.width,py=e.y*c.height,s=e.size*Math.min(c.width,c.height);x.save();x.translate(px,py);x.fillStyle=e.type==="bird"?"#ddd":e.type==="insect"?"#d7b356":"#8c714c";if(e.type==="bird"){x.strokeStyle="#ddd";x.lineWidth=2;x.beginPath();x.moveTo(-s,0);x.quadraticCurveTo(-s/2,-s,0,0);x.quadraticCurveTo(s/2,-s,s,0);x.stroke()}else if(e.type==="insect"){x.beginPath();x.arc(0,0,Math.max(2,s*.24),0,Math.PI*2);x.fill()}else{x.fillRect(-s*.5,-s*.25,s,s*.5);x.beginPath();x.arc(s*.5,-s*.2,s*.27,0,Math.PI*2);x.fill()}x.restore()}
+function step(){background();const speed=+$("speed").value/100,noise=+$("noise").value/100;currentLabels=[];for(const e of entities){e.x+=e.vx*speed;e.y+=e.vy*speed;if(e.x<-.05)e.x=1.05;if(e.x>1.05)e.x=-.05;if(e.y<.22)e.y=.22;if(e.y>.97)e.y=.97;drawEntity(e);currentLabels.push({frame,id:e.id,class:e.type,bbox:[+(e.x-e.size).toFixed(5),+(e.y-e.size).toFixed(5),+(2*e.size).toFixed(5),+(2*e.size).toFixed(5)],synthetic:true})}if(noise){const im=x.getImageData(0,0,c.width,c.height),d=im.data;for(let i=0;i<d.length;i+=8){const n=(rng()-.5)*noise*50;d[i]+=n;d[i+1]+=n;d[i+2]+=n}x.putImageData(im,0,0)}$("frame").textContent=frame;$("objects").textContent=entities.length;$("labels-count").textContent=currentLabels.length;frame++}
+function loop(){step();raf=requestAnimationFrame(loop)}
+function dl(t,n,type){const b=new Blob([t],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(u),900)}
+$("generate").onclick=()=>{cancelAnimationFrame(raf);reset();step()};
+$("animate").onclick=()=>{cancelAnimationFrame(raf);reset();loop()};
+$("stop").onclick=()=>cancelAnimationFrame(raf);
+$("random-seed").onclick=()=>{const a=new Uint32Array(1);crypto.getRandomValues(a);$("seed").value=a[0];$("generate").click()};
+$("png").onclick=()=>{const a=document.createElement("a");a.href=c.toDataURL("image/png");a.download="tervis-rngvg-frame.png";a.click()};
+$("labels").onclick=()=>dl(JSON.stringify({schema:"zzx.tervis-rngvg.labels.v1",seed:+$("seed").value,frame,width:c.width,height:c.height,labels:currentLabels},null,2),"tervis-rngvg-labels.json","application/json");
+$("recipe").onclick=()=>dl(JSON.stringify({schema:"zzx.tervis-rngvg.recipe.v1",seed:+$("seed").value,animals:+$("animals").value,daylight:+$("day").value,motion:+$("speed").value,noise:+$("noise").value,synthetic:true},null,2),"tervis-rngvg-recipe.json","application/json");
+$("record").onclick=()=>{if(!c.captureStream||!window.MediaRecorder){$("record-state").textContent="MediaRecorder unavailable";return}chunks=[];recorder=new MediaRecorder(c.captureStream(30));recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||"video/webm"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="tervis-rngvg.webm";a.click();setTimeout(()=>URL.revokeObjectURL(u),900);$("record-state").textContent="EXPORTED"};recorder.start();$("record-state").textContent="RECORDING"};
+$("record-stop").onclick=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop()};
+$("generate").click();window.TerVISRNGvG=Object.freeze({version:"0.2.0-alpha-web",synthetic:true});
+})();

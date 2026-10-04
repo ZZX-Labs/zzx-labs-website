@@ -1,0 +1,41 @@
+"use strict";
+const {chromium}=require("playwright");
+const assert=require("assert");
+
+(async()=>{
+  const browser=await chromium.launch({headless:true});
+  const page=await browser.newPage({viewport:{width:1280,height:900},deviceScaleFactor:1});
+  const errors=[];
+  page.on("pageerror",error=>errors.push(`pageerror: ${error.message}`));
+  page.on("console",message=>{if(message.type()==="error")errors.push(`console: ${message.text()}`)});
+  await page.goto("http://127.0.0.1:8765/__partials/widgets/mempool-visualizer/demo.html",{waitUntil:"domcontentloaded"});
+  await page.waitForSelector('[data-widget-root="mempool-visualizer"]');
+  await page.waitForFunction(()=>{const n=document.querySelector('[data-mv-stat="shown"]');return n&&/^\d/.test(n.textContent)},null,{timeout:12000});
+  const state=await page.evaluate(()=>{
+    const root=document.querySelector('[data-widget-root="mempool-visualizer"]');
+    const stage=document.querySelector('[data-mv-stage]');
+    const canvas=document.querySelector('[data-mv-canvas]');
+    const rect=stage.getBoundingClientRect(),context=canvas.getContext("2d"),pixels=context.getImageData(0,0,Math.min(canvas.width,32),Math.min(canvas.height,32)).data;
+    return {rootWidth:root.getBoundingClientRect().width,stageWidth:rect.width,stageHeight:rect.height,canvasWidth:canvas.width,canvasHeight:canvas.height,pixelEnergy:Array.from(pixels).reduce((sum,value)=>sum+value,0),shown:document.querySelector('[data-mv-stat="shown"]').textContent,connection:document.querySelector('[data-mv-connection]').textContent};
+  });
+  assert(state.rootWidth>900,"wide widget did not render at desktop width");
+  assert(Math.abs(state.stageWidth/state.stageHeight-2)<.05,"stage is not a 2:1 pair of square chambers");
+  assert(state.canvasWidth>0&&state.canvasHeight>0,"canvas has no backing dimensions");
+  assert(state.pixelEnergy>0,"canvas appears blank");
+  await page.click("[data-mv-settings]");
+  assert(await page.isVisible("[data-mv-settings-panel]"),"settings panel did not open");
+  await page.selectOption("[data-mv-preset]","whales");
+  await page.waitForTimeout(350);
+  assert((await page.getAttribute('[data-widget-root="mempool-visualizer"]',"data-mv-theme"))==="deep-ocean","preset did not change theme");
+  const box=await page.locator("[data-mv-stage]").boundingBox();
+  await page.mouse.click(box.x+box.width*.25,box.y+box.height*.5);
+  await page.waitForSelector("[data-mv-reader]:not([hidden])",{timeout:5000});
+  await page.click("[data-mv-fullscreen]");
+  assert(await page.locator('[data-widget-root="mempool-visualizer"]').evaluate(node=>node.classList.contains("is-fullscreen")),"fullscreen mode did not engage");
+  await page.keyboard.press("Escape");
+  assert(!(await page.locator('[data-widget-root="mempool-visualizer"]').evaluate(node=>node.classList.contains("is-fullscreen"))),"Escape did not leave fullscreen mode");
+  await page.screenshot({path:"/workspace/scratch/8cc562d05abd/qa/mempool-visualizer-desktop.png",fullPage:true});
+  assert(errors.length===0,errors.join("\n"));
+  process.stdout.write(`browser test OK: ${state.shown} rendered, ${state.connection}, ${Math.round(state.stageWidth)}x${Math.round(state.stageHeight)} stage\n`);
+  await browser.close();
+})().catch(error=>{process.stderr.write(`${error.stack||error}\n`);process.exitCode=1});

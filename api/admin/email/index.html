@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Email API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Secure Email Server API</h2>
+  <p>
+    This API interfaces with ZZX-Labs' internal ProtonMail-compatible GPG-based email server. It offers administrative functionality for managing encrypted mailboxes, access control, user provisioning, and email routing within a zero-trust encrypted infrastructure.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Core Functionalities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Account Management:</strong> Create, revoke, or rotate GPG-protected accounts.</li>
+    <li style="list-style-type: none;"><strong>Inbox Access:</strong> Admin-level access to encrypted inbox metadata (headers only, content stays encrypted).</li>
+    <li style="list-style-type: none;"><strong>IMAP Control:</strong> Enable/disable IMAP access for specific users or teams.</li>
+    <li style="list-style-type: none;"><strong>GPG Key Management:</strong> Upload and verify user public keys for email exchange.</li>
+    <li style="list-style-type: none;"><strong>Audit & Delivery Logs:</strong> Query logs of deliveries, failures, and authentication events.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Create Email Account</h3>
+    <p>Provision a new internal account for encrypted email communication.</p>
+    <pre><code class="language-json">{
+  "cmd": "create_account",
+  "user": "alice@zzx-labs.io",
+  "pubkey": "-----BEGIN PGP PUBLIC KEY BLOCK----- ...",
+  "auth_token": "admin-tier-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Toggle IMAP Access</h3>
+    <p>Enable or disable IMAP/SMTP relay capabilities for a specific internal account.</p>
+    <pre><code class="language-json">{
+  "cmd": "set_imap",
+  "user": "alice@zzx-labs.io",
+  "status": "enabled",
+  "auth_token": "admin-gpg-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>List Active Accounts</h3>
+    <p>View current email accounts with their IMAP status, role, and key fingerprint.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/email/accounts">List Accounts</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Admin Email Access?</h2>
+  <p>Only internal admins with appropriate cryptographic credentials can access or configure mail services.</p>
+  <p>To set up encrypted internal communications or provision a new team inbox, request access through our secure contact portal.</p>
+  <a href="../../../contact" class="btn">Request Email Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

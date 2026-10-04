@@ -1,0 +1,54 @@
+<!-- __partials/widgets/lightning-detail/widget.html -->
+<div class="btc-card lightning-detail">
+  <div class="lightning-detail__header">
+    <div>
+      <div class="btc-card__title">LN Detail</div>
+      <div class="lightning-detail__eyebrow">liquidity · topology · normalized public-network statistics</div>
+    </div>
+    <span class="btc-card__status" data-lnd-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="lightning-detail__hero">
+    <span>public channel capacity</span>
+    <strong data-lnd-capacity>—</strong>
+    <small data-lnd-capacity-sats>—</small>
+  </div>
+
+  <div class="lightning-detail__metrics">
+    <div><span>nodes</span><strong data-lnd-nodes>—</strong></div>
+    <div><span>channels</span><strong data-lnd-channels>—</strong></div>
+    <div><span>channels / node</span><strong data-lnd-cpn>—</strong></div>
+    <div><span>mean channel degree</span><strong data-lnd-degree>—</strong></div>
+  </div>
+
+  <div class="lightning-detail__metrics lightning-detail__metrics--liquidity">
+    <div><span>capacity / channel</span><strong data-lnd-per-channel>—</strong></div>
+    <div><span>sats / channel</span><strong data-lnd-per-channel-sats>—</strong></div>
+    <div><span>capacity / node</span><strong data-lnd-per-node>—</strong></div>
+    <div><span>channel endpoints</span><strong data-lnd-endpoints>—</strong></div>
+  </div>
+
+  <div class="lightning-detail__details">
+    <div class="lightning-detail__row">
+      <span>capacity source field</span>
+      <strong data-lnd-cap-field>—</strong>
+    </div>
+    <div class="lightning-detail__row">
+      <span>unit normalization</span>
+      <strong data-lnd-cap-assumption>—</strong>
+    </div>
+    <div class="lightning-detail__row">
+      <span>source timestamp</span>
+      <strong data-lnd-updated>—</strong>
+    </div>
+    <div class="lightning-detail__row">
+      <span>endpoint</span>
+      <strong data-lnd-source>—</strong>
+    </div>
+  </div>
+
+  <div class="lightning-detail__footer">
+    <span data-lnd-meta>public-channel statistics only; private channels and private liquidity are not observable here</span>
+    <button type="button" class="zzx-widgets__btn" data-lnd-refresh>Refresh</button>
+  </div>
+</div>

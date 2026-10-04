@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - SFTP API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>SFTP Server Control API</h2>
+  <p>
+    This endpoint allows admin-level control over ZZX-Labs' secure file server, which is hosted locally and accessed via SSH/SFTP. All transactions are authenticated using GPG-signed tokens and internal access tiering.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Key Functions</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Mount Points:</strong> Dynamically mount and unmount file volumes for project-specific or department-specific access.</li>
+    <li style="list-style-type: none;"><strong>Permission Management:</strong> Set read/write access for each user, project, or token.</li>
+    <li style="list-style-type: none;"><strong>Credential Issuance:</strong> Issue time-bound or scoped login credentials for SFTP access.</li>
+    <li style="list-style-type: none;"><strong>Archive Sync:</strong> Push/pull archives to remote mirrors or encrypted vaults.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>List Directory</h3>
+    <p>Returns directory listing from mounted volume, scoped to user’s tier and project namespace.</p>
+    <pre><code class="language-json">{
+  "auth_token": "gpg-signed-token",
+  "command": "list",
+  "path": "/mnt/projects/zzx-research"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Mount Volume</h3>
+    <p>Mount an encrypted LUKS container with specified passphrase and UUID. Must be pre-registered.</p>
+    <pre><code class="language-json">{
+  "auth_token": "admin-tier-gpg-token",
+  "command": "mount",
+  "volume_id": "vault001"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Set Permissions</h3>
+    <p>Define access rights for a file, folder, or entire volume. Supports recursive permissions and expiration timers.</p>
+    <pre><code class="language-json">{
+  "command": "set_permissions",
+  "target": "/mnt/sftp/project-alpha",
+  "access": {
+    "user": "bob",
+    "permissions": "read-write",
+    "expires": "2025-12-31T00:00:00Z"
+  }
+}</code></pre>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need SFTP Admin Access?</h2>
+  <p>All access to the SFTP API is logged, encrypted, and scoped to cryptographically authenticated admin users.</p>
+  <p>If you need encrypted vault access, archival sync capability, or research collaboration uploads, request authorization below.</p>
+  <a href="/contact" class="btn">Request SFTP API Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

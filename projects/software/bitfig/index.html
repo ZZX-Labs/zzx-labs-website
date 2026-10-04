@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin Core / Knots configuration designer for building, validating, comparing, exporting, and deployment-planning bitcoin.conf files with rollback-aware workflows.">
+  <title>BitFig · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260823-bitfig-1">
+  <link rel="stylesheet" href="./hook.css?v=20260823-bitfig-1">
+  <script src="./hook.js?v=20260823-bitfig-1" defer></script>
+  <script src="./script.js?v=20260823-bitfig-1" defer></script>
+  <script src="./bitfig-core.js?v=20260823-bitfig-1" defer></script>
+  <script src="./bitfig.js?v=20260823-bitfig-1" defer></script>
+</head>
+
+<body class="project project-bitfig">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitFig logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitFig</h1>
+    <p class="blurb">Bitcoin Core / Knots configuration designer for building, validating, comparing, exporting, and deployment-planning bitcoin.conf files with rollback-aware workflows.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitfig" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN.CONF DESIGNER</p><h2>BitFig Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">EDIT: LOCAL</span><span class="runtime-badge ok">VALIDATE: LOCAL</span><span class="runtime-badge ok">DEPLOY: PLAN ONLY</span><span class="runtime-badge ok">SECRETS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="builder" type="button">Builder</button>
+<button class="tool-tab mode-tab" data-mode="raw" type="button">Raw Config</button>
+<button class="tool-tab mode-tab" data-mode="validate" type="button">Validate</button>
+<button class="tool-tab mode-tab" data-mode="diff" type="button">Compare</button>
+<button class="tool-tab mode-tab" data-mode="deploy" type="button">Deploy Plan</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Import / Export</button>
+</div><div class="z-sidebar-note"><strong>SAFE STATIC PORT</strong><p>The page generates and validates configuration text. It does not SSH into hosts or overwrite live node files from the browser.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-builder" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">PARAMETER EDITOR</p><h2>Builder</h2><p>Build a bitcoin.conf from common Core/Knots settings.</p></div><div class="tool-card">
+<div class="z-grid-3">
+<label>Network<select id="bf-network"><option value="main">main</option><option value="testnet4">testnet4</option><option value="signet">signet</option><option value="regtest">regtest</option></select></label>
+<label>Prune MiB<input id="bf-prune" type="number" min="0" value="0"></label>
+<label>DB cache MiB<input id="bf-dbcache" type="number" min="4" value="450"></label>
+<label>Max connections<input id="bf-maxconn" type="number" min="0" value="125"></label>
+<label>RPC enabled<select id="bf-rpc"><option value="0">No</option><option value="1">Yes</option></select></label>
+<label>Tx index<select id="bf-txindex"><option value="0">No</option><option value="1">Yes</option></select></label>
+<label>Listen<select id="bf-listen"><option value="1">Yes</option><option value="0">No</option></select></label>
+<label>Blocksonly<select id="bf-blocksonly"><option value="0">No</option><option value="1">Yes</option></select></label>
+<label>Proxy<input id="bf-proxy" type="text" placeholder="127.0.0.1:9050"></label>
+</div>
+<div class="button-row" style="justify-content:flex-start"><button id="bf-build" class="btn" type="button">GENERATE CONFIG</button><button id="bf-preset-privacy" class="btn ghost" type="button">PRIVACY PRESET</button></div>
+<pre id="bf-builder-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-raw" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DIRECT TEXT EDITING</p><h2>Raw Config</h2><p>Edit the generated configuration directly.</p></div><div class="tool-card"><textarea id="bf-raw" rows="24" spellcheck="false"></textarea></div></div>
+
+<div id="mode-validate" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SYNTAX + POLICY CHECKS</p><h2>Validate</h2><p>Check malformed lines, duplicate options, invalid booleans/numbers, network conflicts, and risky combinations.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bf-validate" class="btn" type="button">VALIDATE CURRENT</button></div><pre id="bf-validation" class="z-log"></pre></div></div>
+
+<div id="mode-diff" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CONFIGURATION DIFF</p><h2>Compare</h2><p>Compare the current config to another bitcoin.conf snapshot.</p></div><div class="tool-card"><div class="z-grid-2"><label>Baseline<textarea id="bf-baseline" rows="18"></textarea></label><label>Current<textarea id="bf-current-copy" rows="18" readonly></textarea></label></div><div class="button-row" style="justify-content:flex-start"><button id="bf-diff" class="btn" type="button">COMPARE</button></div><pre id="bf-diff-output" class="z-log"></pre></div></div>
+
+<div id="mode-deploy" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ROLLBACK-AWARE DEPLOYMENT PLAN</p><h2>Deploy Plan</h2><p>Generate a deployment checklist for local or remote application without storing credentials.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Target<select id="bf-target"><option value="local">Local node</option><option value="remote">Remote node</option></select></label><label>Path<input id="bf-path" type="text" value="~/.bitcoin/bitcoin.conf"></label><label>Service name<input id="bf-service" type="text" value="bitcoind"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bf-plan" class="btn" type="button">BUILD DEPLOYMENT PLAN</button></div><pre id="bf-plan-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE CONFIG</p><h2>Import / Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bf-export" class="btn" type="button">DOWNLOAD BITCOIN.CONF</button><label class="file-button">IMPORT CONFIG<input id="bf-import" type="file" accept=".conf,.txt,text/plain"></label></div><pre id="bf-export-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitFig</h2><p>Interactive Bitcoin Core / Knots configuration generation, validation, comparison, and deployment planning.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.2.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Flask · Jinja2 · Paramiko · SQLAlchemy</dd></div><div><dt>Web</dt><dd>JavaScript · local validation</dd></div></dl></article><article class="panel"><p class="kicker">DEPLOYMENT BOUNDARY</p><h2>No remote credentials</h2><p>SSH/Paramiko deployment remains native-side. The browser creates a deterministic deployment/rollback plan without accepting passwords or private keys.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

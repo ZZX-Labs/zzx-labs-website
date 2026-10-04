@@ -1,0 +1,266 @@
+/* static/css/navbar.css
+   Primary navigation (components layer)
+   - Compact, scrollable mobile drawer
+   - Keeps your existing HTML & JS (.open toggling)
+   - Desktop FIX: centered rail + wraps into rows (NO scrollbar, NO spill)
+*/
+
+/* ---------- NAVBAR WRAPPER ---------- */
+.navbar { width: 100%; }
+
+.navbar,
+.header .container .navbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* ---------- HAMBURGER ---------- */
+.menu-button {
+  appearance: none;
+  background: color-mix(in srgb, #161616 92%, transparent);
+  border: 1px solid #2a2a2a;
+  font-size: 1.35rem;
+  color: var(--text, #e8e8e8);
+  cursor: pointer;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  padding: .3rem .55rem;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  transition: background-color .2s ease, border-color .2s ease, transform .1s ease, color .2s ease;
+}
+.menu-button:hover   { background:#1d1d1d; border-color:#3a3a3a; color:#e6a42b; }
+.menu-button:active  { transform: translateY(1px) scale(.98); }
+.menu-button:focus-visible { outline: 2px solid #e6a42b; outline-offset: 2px; }
+
+@media (min-width: 769px) { .menu-button { display: none; } }
+
+/* ---------- NAV LIST (MOBILE DRAWER) ---------- */
+.nav-links {
+  grid-column: 1 / -1;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .2rem;
+  margin: .5rem 0 0;
+  padding: .5rem;
+  background: color-mix(in srgb, #0c0c0c 92%, transparent);
+  border: 1px solid #232323;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+
+  /* scrollable drawer */
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: max-height .26s ease, opacity .18s ease;
+}
+
+.nav-links.open {
+  max-height: min(78vh, 620px);
+  opacity: 1;
+  pointer-events: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Each item tighter */
+.nav-links li { position: relative; }
+
+/* Top-level links — compact */
+.nav-links > li > a {
+  display: block;
+  color: var(--text, #e8e8e8);
+  text-decoration: none;
+  padding: .5rem .6rem;
+  border-radius: 8px;
+  font: 500 .95rem/1.2 "IBM Plex Mono", ui-monospace, monospace;
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.nav-links > li > a:hover { background:#1a1a1a; color:#e6a42b; }
+.nav-links > li > a:focus-visible { outline:2px solid #e6a42b; outline-offset:2px; }
+.nav-links > li > a.active {
+  color:#e6a42b;
+  background:#171717;
+  box-shadow: inset 0 0 0 1px #313131;
+}
+
+/* ---------- SUBMENUS (MOBILE) ---------- */
+.submenu-toggle {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text, #d1d1d1);
+  font-size: .9rem;
+  margin-left: .3rem;
+  cursor: pointer;
+  transition: transform .2s ease, color .2s ease;
+}
+.submenu-toggle:hover { color:#e6a42b; }
+.submenu-toggle.open  { transform: rotate(180deg); }
+
+.submenu {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  margin: .3rem 0 0;
+  padding: .4rem .4rem .5rem;
+  background: #121212;
+  border: 1px solid #242424;
+  border-radius: 10px;
+
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height .24s ease, opacity .16s ease;
+}
+.submenu.open {
+  max-height: 60vh;
+  opacity: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.submenu a {
+  display: block;
+  padding: .4rem .5rem;
+  color: #bfbfbf;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: .9rem;
+  transition: color .16s ease, background-color .16s ease;
+}
+.submenu a:hover { color:#000; background:#e6a42b; }
+
+/* ---------- DESKTOP LAYOUT (NO SCROLLBAR) ---------- */
+@media (min-width: 769px) {
+
+  /* Desktop: nav is just the link rail; no hamburger column needed */
+  .navbar,
+  .header .container .navbar {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .nav-links {
+    grid-column: 1 / -1;
+
+    /* ✅ centered, perfectly contained */
+    width: 100%;
+    max-width: min(var(--header-rail, 1100px), 100%);
+    margin: 0;
+    padding: 0;
+
+    /* ✅ row rack (wraps cleanly, no overflow) */
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;              /* key: wrap */
+    justify-content: center;
+    align-items: center;
+    gap: .25rem;
+
+    /* desktop reset */
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+
+    opacity: 1 !important;
+    max-height: none !important;
+    pointer-events: auto;
+
+    /* ✅ kill any chance of a horizontal scrollbar */
+    overflow-x: clip;             /* modern */
+    overflow-y: visible;
+  }
+
+  /* fallback for older engines */
+  @supports not (overflow-x: clip) {
+    .nav-links { overflow-x: hidden; }
+  }
+
+  .nav-links > li { padding: .15rem .08rem; position: relative; }
+
+  .nav-links > li > a {
+    padding: .48rem .65rem;
+    border-radius: 8px;
+    position: relative;
+    font-size: .95rem;
+  }
+
+  /* Hover underline flourish */
+  .nav-links > li > a::after {
+    content: '';
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    bottom: 6px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #e6a42b, transparent);
+    opacity: 0;
+    transform: scaleX(.5);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .nav-links > li > a:hover::after,
+  .nav-links > li > a.active::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  /* Desktop dropdowns */
+  .submenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 240px;
+    width: max-content;
+    background: color-mix(in srgb, #0f0f0f 92%, transparent);
+    border: 1px solid #232323;
+    border-radius: 12px;
+    padding: .5rem;
+    box-shadow: 0 18px 36px rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    margin: 0;
+    max-height: none;
+    overflow: visible;
+    z-index: 1000;
+  }
+
+  .nav-links > li:hover > .submenu,
+  .nav-links > li > .submenu.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .submenu a {
+    white-space: nowrap;
+    font-size: .95rem;
+    border-radius: 8px;
+  }
+}
+
+/* ---------- ACCESSIBILITY / MOTION ---------- */
+body.no-scroll { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-button,
+  .nav-links a,
+  .submenu,
+  .submenu-toggle {
+    transition: none !important;
+    transform: none !important;
+  }
+}

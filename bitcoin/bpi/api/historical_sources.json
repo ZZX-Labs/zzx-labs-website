@@ -1,0 +1,1877 @@
+{
+  "schema": "zzx-bpi-historical-sources-v1",
+  "sources": [
+    {
+      "id": "coinbase",
+      "label": "Coinbase",
+      "kind": "exchange",
+      "history_adapter": "coinbase_candles",
+      "history_url_template": "https://api.exchange.coinbase.com/products/{market}/candles?granularity={seconds}&start={start}&end={end}",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public candle contract pattern; validate current limits before large backfill."
+    },
+    {
+      "id": "kraken",
+      "label": "Kraken",
+      "kind": "exchange",
+      "history_adapter": "kraken_ohlc",
+      "history_url_template": "https://api.kraken.com/0/public/OHLC?pair={market}&interval={minutes}&since={since}",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public OHLC contract pattern; earliest history returned depends on provider."
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini",
+      "kind": "exchange",
+      "history_adapter": "gemini_candles",
+      "history_url_template": "https://api.gemini.com/v2/candles/{market}/{time_frame}",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public candle contract pattern."
+    },
+    {
+      "id": "bitstamp",
+      "label": "Bitstamp",
+      "kind": "exchange",
+      "history_adapter": "bitstamp_ohlc",
+      "history_url_template": "https://www.bitstamp.net/api/v2/ohlc/{market}/?step={seconds}&limit={limit}&start={start}",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public OHLC contract pattern."
+    },
+    {
+      "id": "bitfinex",
+      "label": "Bitfinex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "okx",
+      "label": "OKX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "crypto_com",
+      "label": "Crypto.com Exchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "kucoin",
+      "label": "KuCoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "gateio",
+      "label": "Gate.io",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitget",
+      "label": "Bitget",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mexc",
+      "label": "MEXC",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "htx",
+      "label": "HTX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "okcoin",
+      "label": "OKCoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "binance_us",
+      "label": "Binance.US",
+      "kind": "exchange",
+      "history_adapter": "binance_klines",
+      "history_url_template": "https://api.binance.us/api/v3/klines?symbol={market}&interval={interval}&startTime={start_ms}&endTime={end_ms}&limit=1000",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public kline contract pattern."
+    },
+    {
+      "id": "coingecko_global",
+      "label": "CoinGecko Global BTC Aggregate",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "binance",
+      "label": "Binance",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bybit",
+      "label": "Bybit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "upbit",
+      "label": "Upbit",
+      "kind": "exchange",
+      "history_adapter": "upbit_candles",
+      "history_url_template": "https://api.upbit.com/v1/candles/minutes/{unit}?market={market}&to={to}&count=200",
+      "enabled": false,
+      "status": "known-contract-pattern-needs-runtime-validation",
+      "notes": "Public candle contract pattern."
+    },
+    {
+      "id": "bithumb",
+      "label": "Bithumb",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinone",
+      "label": "Coinone",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "korbit",
+      "label": "Korbit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitflyer",
+      "label": "bitFlyer",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coincheck",
+      "label": "Coincheck",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitbank",
+      "label": "bitbank",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "gmo_coin",
+      "label": "GMO Coin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "sbi_vc_trade",
+      "label": "SBI VC Trade",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "zaif",
+      "label": "Zaif",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "liquid",
+      "label": "Liquid",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "independent_reserve",
+      "label": "Independent Reserve",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "btc_markets",
+      "label": "BTC Markets",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinjar",
+      "label": "CoinJar Exchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "swyftx",
+      "label": "Swyftx",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinspot",
+      "label": "CoinSpot",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "easy_crypto",
+      "label": "Easy Crypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "cexio",
+      "label": "CEX.IO",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "luno",
+      "label": "Luno",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitso",
+      "label": "Bitso",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mercado_bitcoin",
+      "label": "Mercado Bitcoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "foxbit",
+      "label": "Foxbit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "novadax",
+      "label": "NovaDAX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitcointrade",
+      "label": "BitcoinTrade",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ripio",
+      "label": "Ripio",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "buda",
+      "label": "Buda.com",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "lemon_cash",
+      "label": "Lemon Cash",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "satoshitango",
+      "label": "SatoshiTango",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "buenbit",
+      "label": "Buenbit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bit2me",
+      "label": "Bit2Me",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmotion",
+      "label": "Coinmotion",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitpanda",
+      "label": "Bitpanda",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitvavo",
+      "label": "Bitvavo",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmetro",
+      "label": "CoinMetro",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "paymium",
+      "label": "Paymium",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitonic",
+      "label": "Bitonic",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "anycoin_direct",
+      "label": "Anycoin Direct",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "btc_direct",
+      "label": "BTC Direct",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "the_rock_trading",
+      "label": "The Rock Trading",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "young_platform",
+      "label": "Young Platform",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmerce",
+      "label": "Coinmerce",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "zonda",
+      "label": "Zonda",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmate",
+      "label": "Coinmate",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "lykke",
+      "label": "Lykke",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "swissborg",
+      "label": "SwissBorg",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "relai",
+      "label": "Relai",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitcoin_suisse",
+      "label": "Bitcoin Suisse",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bity",
+      "label": "Bity",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitwala",
+      "label": "Bitwala",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bsdex",
+      "label": "BSDEX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bison",
+      "label": "BISON",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinfinity",
+      "label": "Coinfinity",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "safello",
+      "label": "Safello",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "btcx",
+      "label": "BTCX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "nbx",
+      "label": "NBX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "firi",
+      "label": "Firi",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "kuna",
+      "label": "Kuna",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "whitebit",
+      "label": "WhiteBIT",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "exmo",
+      "label": "EXMO",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "currency_com",
+      "label": "Currency.com",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitbay",
+      "label": "BitBay",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinsquare",
+      "label": "Coinsquare",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ndax",
+      "label": "NDAX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "newton",
+      "label": "Newton",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitbuy",
+      "label": "Bitbuy",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "virgocx",
+      "label": "VirgoCX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bull_bitcoin",
+      "label": "Bull Bitcoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "shakepay",
+      "label": "Shakepay",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinberry",
+      "label": "Coinberry",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "river",
+      "label": "River",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "strike",
+      "label": "Strike",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "cash_app",
+      "label": "Cash App Bitcoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "robinhood_crypto",
+      "label": "Robinhood Crypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "fidelity_crypto",
+      "label": "Fidelity Crypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "etoro",
+      "label": "eToro",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "public_com",
+      "label": "Public.com Crypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "paxos",
+      "label": "Paxos",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "itbit",
+      "label": "itBit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bakkt",
+      "label": "Bakkt",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bullish",
+      "label": "Bullish",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitmart",
+      "label": "BitMart",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ascendex",
+      "label": "AscendEX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "phemex",
+      "label": "Phemex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bingx",
+      "label": "BingX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinex",
+      "label": "CoinEx",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "digifinex",
+      "label": "DigiFinex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "latoken",
+      "label": "LATOKEN",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "xt_com",
+      "label": "XT.COM",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "lbank",
+      "label": "LBank",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitrue",
+      "label": "Bitrue",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitrue_spot",
+      "label": "Bitrue Spot",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "deepcoin",
+      "label": "Deepcoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "tapbit",
+      "label": "Tapbit",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinw",
+      "label": "CoinW",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "pionex",
+      "label": "Pionex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "weex",
+      "label": "WEEX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "blofin",
+      "label": "BloFin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitvenus",
+      "label": "BitVenus",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bigone",
+      "label": "BigONE",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "poloniex",
+      "label": "Poloniex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "probit_global",
+      "label": "ProBit Global",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "cointr",
+      "label": "CoinTR",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "btcturk",
+      "label": "BtcTurk",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "paribu",
+      "label": "Paribu",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitlo",
+      "label": "Bitlo",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinzo",
+      "label": "Coinzo",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "wazirx",
+      "label": "WazirX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coindcx",
+      "label": "CoinDCX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "zebpay",
+      "label": "ZebPay",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "unocoin",
+      "label": "Unocoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitbns",
+      "label": "Bitbns",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "giottus",
+      "label": "Giottus",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mudrex",
+      "label": "Mudrex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinswitch",
+      "label": "CoinSwitch",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "suncrypto",
+      "label": "SunCrypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "flitpay",
+      "label": "Flitpay",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitkub",
+      "label": "Bitkub",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "satang",
+      "label": "Satang Pro",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coins_th",
+      "label": "Coins.co.th",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coins_ph",
+      "label": "Coins.ph",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "pdax",
+      "label": "PDAX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coins_pro",
+      "label": "Coins Pro",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "indodax",
+      "label": "Indodax",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "tokocrypto",
+      "label": "Tokocrypto",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "pintu",
+      "label": "Pintu",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "reku",
+      "label": "Reku",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "triv",
+      "label": "Triv",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "zipmex",
+      "label": "Zipmex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinhako",
+      "label": "Coinhako",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "independent_reserve_sg",
+      "label": "Independent Reserve Singapore",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "crypto_sg",
+      "label": "Crypto.com Singapore",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "luno_my",
+      "label": "Luno Malaysia",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "sinegy",
+      "label": "SINEGY",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mx_global",
+      "label": "MX Global",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "hata",
+      "label": "Hata",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "tokenize_xchange",
+      "label": "Tokenize Xchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "korbit_global",
+      "label": "Korbit Global",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitopro",
+      "label": "BitoPro",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "maicoin",
+      "label": "MaiCoin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "max_exchange",
+      "label": "MAX Exchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ace_exchange",
+      "label": "ACE Exchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "hashkey_exchange",
+      "label": "HashKey Exchange",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "osl",
+      "label": "OSL",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinsuper",
+      "label": "CoinSuper",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "rain",
+      "label": "Rain",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmena",
+      "label": "CoinMENA",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitoasis",
+      "label": "BitOasis",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bahrain_bourse_crypto",
+      "label": "Bahrain Crypto Market",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "valr",
+      "label": "VALR",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "luno_za",
+      "label": "Luno South Africa",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "altcointrader",
+      "label": "AltCoinTrader",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ovex",
+      "label": "OVEX",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ice3x",
+      "label": "ICE3X",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "yellow_card",
+      "label": "Yellow Card",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "quidax",
+      "label": "Quidax",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bundle_africa",
+      "label": "Bundle Africa",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "busha",
+      "label": "Busha",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "roqqu",
+      "label": "Roqqu",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "nobitex",
+      "label": "Nobitex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "wallex_ir",
+      "label": "Wallex Iran",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ramzinex",
+      "label": "Ramzinex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "exir",
+      "label": "EXIR",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "tabdeal",
+      "label": "Tabdeal",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitpin",
+      "label": "Bitpin",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "coinmama",
+      "label": "Coinmama",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "changelly_pro",
+      "label": "Changelly PRO",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "changehero",
+      "label": "ChangeHero",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "simplex",
+      "label": "Simplex",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "moonpay",
+      "label": "MoonPay",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "banxa",
+      "label": "Banxa",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "transak",
+      "label": "Transak",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "ramp_network",
+      "label": "Ramp Network",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mercuryo",
+      "label": "Mercuryo",
+      "kind": "exchange",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bisq",
+      "label": "Bisq",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bisq2",
+      "label": "Bisq 2",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "hodlhodl",
+      "label": "Hodl Hodl",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "peach_bitcoin",
+      "label": "Peach Bitcoin",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "robosats",
+      "label": "RoboSats",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "vexl",
+      "label": "Vexl",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "mostro",
+      "label": "Mostro",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "lnp2pbot",
+      "label": "LNP2PBot",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "localcoinswap",
+      "label": "LocalCoinSwap",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "paxful",
+      "label": "Paxful",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "noones",
+      "label": "NoOnes",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "bitvalve",
+      "label": "BitValve",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "agoradesk",
+      "label": "AgoraDesk",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "localcryptos",
+      "label": "LocalCryptos",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    },
+    {
+      "id": "localbitcoins",
+      "label": "LocalBitcoins",
+      "kind": "p2p-bitcoin-market",
+      "history_adapter": null,
+      "history_url_template": null,
+      "enabled": false,
+      "status": "import-or-adapter-required"
+    }
+  ],
+  "import_policy": {
+    "all_catalog_entries_supported_by_import": true,
+    "accepted_imports": [
+      "CSV",
+      "JSON"
+    ],
+    "required_fields": [
+      "timestamp",
+      "price_usd"
+    ],
+    "optional_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume_24h_btc",
+      "market",
+      "quote"
+    ],
+    "remote_adapters_disabled_until_validated": true
+  }
+}

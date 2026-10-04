@@ -1,0 +1,343 @@
+(() => {
+    "use strict";
+
+    const SOURCES = {
+        zzxbitnodes: "../api/zzxbitnodes/tor.json",
+        originalbitnodes: "../api/originalbitnodes/latest.json",
+        aggregate: "../api/aggregate/zzxbitnodes/latest.json",
+        enriched: "../api/enriched/zzxbitnodes/latest.json",
+        local: "../api/tor.json",
+        external: "https://bitnodes.io/api/v1/snapshots/latest/"
+    };
+
+    let ROWS = [];
+
+    const $ = q => document.querySelector(q);
+
+    function fmt(value) {
+        if (value === null || value === undefined || value === "") return "—";
+        if (typeof value === "number") return value.toLocaleString();
+        return String(value);
+    }
+
+    function esc(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function unix(value) {
+        if (!value) return "—";
+
+        const n = Number(value);
+
+        if (!Number.isFinite(n)) {
+            return String(value);
+        }
+
+        const ts = n < 10000000000 ? n * 1000 : n;
+
+        try {
+            return new Date(ts)
+                .toISOString()
+                .replace("T", " ")
+                .replace(".000Z", " UTC");
+        } catch {
+            return String(value);
+        }
+    }
+
+    function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function setStatus(message, mode = "") {
+        const el = $("#bn-status");
+
+        if (!el) {
+            return;
+        }
+
+        el.className = `bn-status container ${mode}`.trim();
+        el.textContent = message;
+    }
+
+    async function getJson(url) {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
+    }
+
+    function extractNodes(data) {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const entries = runtime.nodeEntries(data);
+            if (entries.length) {
+                return Object.fromEntries(entries);
+            }
+        }
+
+        if (!data || typeof data !== "object") return {};
+        if (Array.isArray(data.nodes)) {
+            return Object.fromEntries(data.nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        if (data.nodes && typeof data.nodes === "object") return data.nodes;
+        if (Array.isArray(data.reachable_nodes)) {
+            return Object.fromEntries(data.reachable_nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        if (data.reachable_nodes && typeof data.reachable_nodes === "object") return data.reachable_nodes;
+        if (data.data && Array.isArray(data.data.nodes)) {
+            return Object.fromEntries(data.data.nodes.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        if (data.data && data.data.nodes && typeof data.data.nodes === "object") return data.data.nodes;
+        if (Array.isArray(data.rows)) {
+            return Object.fromEntries(data.rows.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        if (Array.isArray(data.results)) {
+            return Object.fromEntries(data.results.map((row, index) => [row?.address || row?.node || String(index), row]));
+        }
+        return {};
+    }
+
+    function isTorNode(address, row) {
+        const text = [
+            address,
+            row?.address,
+            row?.node,
+            row?.hostname,
+            row?.host
+        ].join(" ").toLowerCase();
+
+        return Boolean(
+            row?.tor ||
+            row?.is_tor ||
+            text.includes(".onion")
+        );
+    }
+
+    function normalizeNode(address, row) {
+        if (Array.isArray(row)) {
+            const meta = row[19] && typeof row[19] === "object" ? row[19] : {};
+
+            return {
+                node: address,
+                protocol: row?.[0],
+                userAgent: row?.[1],
+                connectedSince: row?.[2],
+                services: row?.[3],
+                height: row?.[4],
+                hostname: row?.[5],
+                city: row?.[6],
+                country: row?.[7],
+                asn: row?.[11],
+                organization: row?.[12],
+                provider: row?.[13],
+                port: extractPort(address),
+                metadata: meta
+            };
+        }
+
+        const meta = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+
+        const node = row?.address || row?.node || row?.addr || address;
+
+        return {
+            node,
+            protocol: row?.protocol || row?.protocol_version || row?.version,
+            userAgent: row?.user_agent || row?.agent || row?.subver,
+            connectedSince: row?.connected_since || row?.timestamp || row?.seen_at || row?.last_seen,
+            services: row?.services || row?.service_bits,
+            height: row?.height || row?.start_height || row?.latest_height,
+            hostname: row?.hostname || row?.host,
+            city: row?.city || meta.city,
+            country: row?.country || row?.country_code || meta.country,
+            asn: row?.asn || meta.asn,
+            organization: row?.organization || row?.org || meta.organization || meta.org,
+            provider: row?.provider || meta.provider,
+            port: row?.port || extractPort(node),
+            metadata: meta
+        };
+    }
+
+    function extractPort(address) {
+        const text = String(address || "");
+
+        if (text.startsWith("[") && text.includes("]:")) {
+            const match = text.match(/\]:(\d+)$/);
+            return match ? match[1] : "Unknown";
+        }
+
+        const match = text.match(/:(\d+)$/);
+        return match ? match[1] : "Unknown";
+    }
+
+    function normalize(data) {
+        const nodes = extractNodes(data);
+        const rows = [];
+
+        for (const [address, row] of Object.entries(nodes || {})) {
+            if (!isTorNode(address, row)) {
+                continue;
+            }
+
+            rows.push(normalizeNode(address, row));
+        }
+
+        return rows;
+    }
+
+    function renderSummary(rows) {
+        const target = $("#bn-summary");
+
+        if (!target) {
+            return;
+        }
+
+        const agents = new Set(rows.map(row => row.userAgent).filter(Boolean));
+        const protocols = new Set(rows.map(row => row.protocol).filter(Boolean));
+        const ports = new Set(rows.map(row => row.port).filter(Boolean));
+
+        target.innerHTML = `
+            <article class="bn-card"><span>Tor Nodes</span><strong>${fmt(rows.length)}</strong></article>
+            <article class="bn-card"><span>User Agents</span><strong>${fmt(agents.size)}</strong></article>
+            <article class="bn-card"><span>Protocols</span><strong>${fmt(protocols.size)}</strong></article>
+            <article class="bn-card"><span>Ports</span><strong>${fmt(ports.size)}</strong></article>
+        `;
+    }
+
+    function filteredRows() {
+        const search = ($("#bn-search")?.value || "").trim().toLowerCase();
+        const sort = $("#bn-sort")?.value || "height";
+
+        let rows = ROWS.filter(row => {
+            if (!search) return true;
+
+            return [
+                row.node,
+                row.hostname,
+                row.userAgent,
+                row.protocol,
+                row.services,
+                row.port,
+                row.organization,
+                row.provider
+            ].join(" ").toLowerCase().includes(search);
+        });
+
+        if (sort === "protocol") {
+            rows.sort((a, b) => num(b.protocol) - num(a.protocol));
+        } else if (sort === "agent") {
+            rows.sort((a, b) => String(a.userAgent).localeCompare(String(b.userAgent)));
+        } else if (sort === "port") {
+            rows.sort((a, b) => String(a.port).localeCompare(String(b.port)));
+        } else {
+            rows.sort((a, b) => num(b.height) - num(a.height));
+        }
+
+        return rows;
+    }
+
+    function renderRows(rows) {
+        const view = $("#bn-view");
+
+        if (!view) {
+            return;
+        }
+
+        if (!rows.length) {
+            view.innerHTML = `<div class="bn-empty">No reachable onion nodes matched current filters.</div>`;
+            return;
+        }
+
+        view.innerHTML = `
+            <div class="bn-tor-grid">
+                ${rows.slice(0, 500).map(row => `
+                    <article class="bn-tor-card">
+                        <div class="bn-tor-address">${esc(fmt(row.node))}</div>
+
+                        <div class="bn-tor-meta">
+                            <div class="bn-tor-stat"><span>User Agent</span><strong>${esc(fmt(row.userAgent))}</strong></div>
+                            <div class="bn-tor-stat"><span>Protocol</span><strong>${fmt(row.protocol)}</strong></div>
+                            <div class="bn-tor-stat"><span>Block Height</span><strong>${fmt(row.height)}</strong></div>
+                            <div class="bn-tor-stat"><span>Services</span><strong>${fmt(row.services)}</strong></div>
+                            <div class="bn-tor-stat"><span>Port</span><strong>${esc(fmt(row.port))}</strong></div>
+                            <div class="bn-tor-stat"><span>Hostname</span><strong>${esc(fmt(row.hostname))}</strong></div>
+                            <div class="bn-tor-stat"><span>Organization</span><strong>${esc(fmt(row.organization))}</strong></div>
+                            <div class="bn-tor-stat"><span>Provider</span><strong>${esc(fmt(row.provider))}</strong></div>
+                            <div class="bn-tor-stat"><span>Country</span><strong>${esc(fmt(row.country))}</strong></div>
+                            <div class="bn-tor-stat"><span>Connected Since</span><strong>${esc(unix(row.connectedSince))}</strong></div>
+                        </div>
+                    </article>
+                `).join("")}
+            </div>
+        `;
+    }
+
+    function rerender() {
+        renderRows(filteredRows());
+    }
+
+    async function loadTor() {
+        const source = $("#bn-source")?.value || "zzxbitnodes";
+        const url = SOURCES[source] || SOURCES.zzxbitnodes;
+
+        setStatus(`Loading Tor reachable-node telemetry from ${source}...`);
+
+        try {
+            const data = await getJson(url);
+
+            ROWS = normalize(data);
+            ROWS.sort((a, b) => num(b.height) - num(a.height));
+
+            renderSummary(ROWS);
+            renderRows(ROWS);
+
+            setStatus(`Loaded ${fmt(ROWS.length)} reachable onion nodes. Showing first 500 matching rows.`, "ok");
+        } catch (err) {
+            ROWS = [];
+
+            renderSummary([]);
+            renderRows([]);
+
+            setStatus(`Tor telemetry unavailable: ${err.message}`, "warn");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        $("#bn-refresh")?.addEventListener("click", loadTor);
+        $("#bn-source")?.addEventListener("change", loadTor);
+        $("#bn-search")?.addEventListener("input", rerender);
+        $("#bn-sort")?.addEventListener("change", rerender);
+
+        loadTor();
+    });
+})();

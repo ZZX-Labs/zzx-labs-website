@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Android++ — offline-first browser-native code editor with transforms, local encryption, and safe APK container inspection.">
+  <title>Android++ · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-androidpp-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-androidpp-1">
+  <script src="./hook.js?v=20260822-androidpp-1" defer></script>
+  <script src="./script.js?v=20260822-androidpp-1" defer></script>
+  <script src="./editor-core.js?v=20260822-androidpp-1" defer></script>
+  <script src="./transforms.js?v=20260822-androidpp-1" defer></script>
+  <script src="./crypto-vault.js?v=20260822-androidpp-1" defer></script>
+  <script src="./apk-container.js?v=20260822-androidpp-1" defer></script>
+  <script src="./androidpp.js?v=20260822-androidpp-1" defer></script>
+</head>
+
+<body class="project project-androidpp">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="Android++ logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>Android++</h1>
+      <p class="blurb">
+        Offline-first code and text editor with multi-document tabs, search/replace,
+        local transformations, encrypted notes, and an isolated APK inspection/container layer.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB EDITOR</a>
+        <a class="btn alt" href="./androidpp.apk">APK FILE</a>
+        <a class="btn ghost" href="https://github.com/ZZX-Labs/androidpp" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>Android++ Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span class="runtime-badge ok">EDITOR: NATIVE WEB</span>
+          <span class="runtime-badge ok">FILES: LOCAL</span>
+          <span id="status-crypto" class="runtime-badge">CRYPTO: CHECKING</span>
+          <span id="status-apk" class="runtime-badge partial">APK: READY</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="editor" type="button">Editor</button>
+            <button class="tool-tab mode-tab" data-mode="files" type="button">Files &amp; Tabs</button>
+            <button class="tool-tab mode-tab" data-mode="find" type="button">Find / Replace</button>
+            <button class="tool-tab mode-tab" data-mode="transform" type="button">Transforms</button>
+            <button class="tool-tab mode-tab" data-mode="crypto" type="button">Crypto</button>
+            <button class="tool-tab mode-tab" data-mode="apk" type="button">APK Container</button>
+          </div>
+
+          <div class="androidpp-sidebar-note">
+            <strong>BROWSER-NATIVE FIRST</strong>
+            <p>
+              The editor runs independently of the APK. APK loading cannot lock the editor
+              startup path; it is an isolated optional capability.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-editor" class="androidpp-mode-panel mode-panel active">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">NOTEPAD++-STYLE WORKFLOW</p>
+              <h2>Editor</h2>
+              <p>
+                Multi-document local editing with tabs, line numbers, indentation, word wrap,
+                downloads, and browser-local draft recovery.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-editor-shell">
+                <div id="editor-tabs" class="androidpp-tabs"></div>
+
+                <div class="androidpp-editor-toolbar">
+                  <button id="editor-new" type="button">NEW</button>
+                  <label class="file-button" style="min-height:31px;padding:.3rem .5rem">
+                    OPEN
+                    <input id="editor-open" type="file" multiple>
+                  </label>
+                  <button id="editor-save" type="button">DOWNLOAD</button>
+                  <button id="editor-save-copy" type="button">DOWNLOAD AS</button>
+                  <select id="editor-language" aria-label="language mode">
+                    <option value="plain">Plain text</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="html">HTML</option>
+                    <option value="css">CSS</option>
+                    <option value="json">JSON</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="shell">Shell</option>
+                    <option value="kotlin">Kotlin</option>
+                    <option value="java">Java</option>
+                    <option value="xml">XML</option>
+                  </select>
+                  <button id="editor-wrap" type="button">WRAP: OFF</button>
+                </div>
+
+                <div class="androidpp-editor-pane">
+                  <pre id="editor-gutter" class="androidpp-gutter">1</pre>
+                  <textarea id="editor-code" class="androidpp-code" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                </div>
+
+                <div class="androidpp-status">
+                  <span>Ln <strong id="status-line">1</strong></span>
+                  <span>Col <strong id="status-col">1</strong></span>
+                  <span>Lines <strong id="status-lines">1</strong></span>
+                  <span>Chars <strong id="status-chars">0</strong></span>
+                  <span>Encoding <strong>UTF-8</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-files" class="androidpp-mode-panel mode-panel">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">LOCAL WORKSPACE</p>
+              <h2>Files &amp; Tabs</h2>
+              <p>
+                Open multiple local text/code files, create new buffers, rename tabs,
+                duplicate documents, and download edited copies.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-file-grid">
+                <div>
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="files-new" class="btn" type="button">NEW DOCUMENT</button>
+                    <label class="file-button">
+                      OPEN FILES
+                      <input id="files-open" type="file" multiple>
+                    </label>
+                  </div>
+
+                  <div id="file-list" class="androidpp-file-list"></div>
+                </div>
+
+                <div>
+                  <label>
+                    Rename active document
+                    <input id="file-rename" type="text">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="file-apply-name" class="btn" type="button">RENAME</button>
+                    <button id="file-duplicate" class="btn ghost" type="button">DUPLICATE</button>
+                    <button id="file-close" class="btn ghost" type="button">CLOSE</button>
+                  </div>
+
+                  <pre id="files-output" class="tool-output"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-find" class="androidpp-mode-panel mode-panel">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">TEXT NAVIGATION</p>
+              <h2>Find / Replace</h2>
+              <p>
+                Search the active buffer with case-sensitive or regular-expression matching
+                and replace one or all matches.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-find-grid">
+                <label>
+                  Find
+                  <input id="find-query" type="text">
+                </label>
+
+                <label>
+                  Replace with
+                  <input id="replace-query" type="text">
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="find-next" class="btn" type="button">FIND NEXT</button>
+                <button id="replace-one" class="btn ghost" type="button">REPLACE</button>
+                <button id="replace-all" class="btn ghost" type="button">REPLACE ALL</button>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                  <input id="find-case" type="checkbox" style="width:auto;min-height:auto">
+                  Case sensitive
+                </label>
+
+                <label style="display:flex;grid-template-columns:auto 1fr;align-items:center">
+                  <input id="find-regex" type="checkbox" style="width:auto;min-height:auto">
+                  Regular expression
+                </label>
+              </div>
+
+              <div id="find-result" class="androidpp-result-strip">No search yet.</div>
+            </div>
+          </div>
+
+          <div id="mode-transform" class="androidpp-mode-panel mode-panel">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">CYBERCHEF-STYLE LOCAL OPERATIONS</p>
+              <h2>Transforms</h2>
+              <p>
+                Apply common encoding, decoding, formatting, and hashing operations to
+                the current selection or entire active document.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-transform-grid">
+                <div>
+                  <div class="androidpp-transform-buttons">
+                    <button data-transform="base64-encode" type="button">BASE64 ENCODE</button>
+                    <button data-transform="base64-decode" type="button">BASE64 DECODE</button>
+                    <button data-transform="hex-encode" type="button">HEX ENCODE</button>
+                    <button data-transform="hex-decode" type="button">HEX DECODE</button>
+                    <button data-transform="url-encode" type="button">URL ENCODE</button>
+                    <button data-transform="url-decode" type="button">URL DECODE</button>
+                    <button data-transform="rot13" type="button">ROT13</button>
+                    <button data-transform="json-pretty" type="button">JSON PRETTY</button>
+                    <button data-transform="json-minify" type="button">JSON MINIFY</button>
+                    <button data-transform="upper" type="button">UPPERCASE</button>
+                    <button data-transform="lower" type="button">LOWERCASE</button>
+                    <button data-transform="sha256" type="button">SHA-256</button>
+                  </div>
+
+                  <div class="androidpp-help">
+                    Transformations run locally. When text is selected, the transform targets
+                    the selection; otherwise it targets the entire active document.
+                  </div>
+                </div>
+
+                <div>
+                  <label>
+                    Transform output
+                    <textarea id="transform-output" rows="18" readonly spellcheck="false"></textarea>
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="transform-replace" class="btn" type="button">REPLACE TARGET</button>
+                    <button id="transform-newdoc" class="btn ghost" type="button">OPEN AS NEW DOCUMENT</button>
+                    <button id="transform-copy" class="btn ghost" type="button">COPY OUTPUT</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-crypto" class="androidpp-mode-panel mode-panel">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">LOCAL ENCRYPTED NOTES</p>
+              <h2>Crypto</h2>
+              <p>
+                Protect text locally with a PBKDF2-SHA256 + AES-256-GCM encrypted container.
+                A provider hook is also exposed for real OpenPGP/GPG compatibility.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-crypto-grid">
+                <div>
+                  <label>
+                    Passphrase
+                    <input id="crypto-passphrase" type="password" autocomplete="new-password">
+                  </label>
+
+                  <label style="margin-top:.8rem">
+                    PBKDF2 iterations
+                    <input id="crypto-iterations" type="number" min="100000" max="2000000" step="50000" value="310000">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="crypto-encrypt" class="btn" type="button">ENCRYPT ACTIVE TEXT</button>
+                    <button id="crypto-decrypt" class="btn ghost" type="button">DECRYPT CONTAINER</button>
+                  </div>
+
+                  <div class="androidpp-help">
+                    Browser vault files are Android++ encrypted JSON containers, not OpenPGP
+                    packets. Real GPG/OpenPGP can be connected through the public provider API.
+                  </div>
+                </div>
+
+                <div>
+                  <label>
+                    Encrypted container
+                    <textarea id="crypto-container" rows="18" spellcheck="false"></textarea>
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="crypto-save" class="btn ghost" type="button">DOWNLOAD .ANDROIDPP-VAULT</button>
+                    <label class="file-button">
+                      LOAD VAULT
+                      <input id="crypto-load" type="file" accept=".androidpp-vault,.json,application/json">
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="androidpp-badge-row">
+                <span id="crypto-webcrypto" class="androidpp-badge">WEBCRYPTO</span>
+                <span id="crypto-pgp" class="androidpp-badge warn">OPENPGP PROVIDER: NONE</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-apk" class="androidpp-mode-panel mode-panel">
+            <div class="androidpp-mode-heading">
+              <p class="kicker">ISOLATED APK LAYER</p>
+              <h2>APK Container</h2>
+              <p>
+                Load the raw Android++ APK independently of editor startup. The package is
+                inspected as ZIP/APK data. WebView assets, when present, can be launched inside
+                a sandboxed network-blocked iframe.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="androidpp-apk-grid">
+                <div>
+                  <div id="apk-drop" class="androidpp-apk-drop">
+                    <h3>Android++ APK</h3>
+                    <p>Hosted path: <code>./androidpp.apk</code></p>
+
+                    <div class="button-row">
+                      <button id="apk-load-hosted" class="btn" type="button">LOAD HOSTED APK</button>
+                      <label class="file-button">
+                        SELECT LOCAL APK
+                        <input id="apk-file" type="file" accept=".apk,application/vnd.android.package-archive">
+                      </label>
+                    </div>
+
+                    <p>Drop an APK here. Inspection limit: 512 MiB.</p>
+                  </div>
+
+                  <div class="androidpp-metrics">
+                    <div><span>Size</span><strong id="apk-size">—</strong></div>
+                    <div><span>Entries</span><strong id="apk-entries">—</strong></div>
+                    <div><span>DEX files</span><strong id="apk-dex">—</strong></div>
+                    <div><span>Web assets</span><strong id="apk-web">—</strong></div>
+                  </div>
+
+                  <div class="androidpp-badge-row">
+                    <span id="apk-badge-zip" class="androidpp-badge">ZIP</span>
+                    <span id="apk-badge-manifest" class="androidpp-badge">MANIFEST</span>
+                    <span id="apk-badge-dex" class="androidpp-badge">DEX</span>
+                    <span id="apk-badge-web" class="androidpp-badge">WEBVIEW ASSETS</span>
+                    <span id="apk-badge-signature" class="androidpp-badge">SIGNATURE</span>
+                  </div>
+
+                  <label style="margin-top:.8rem">
+                    SHA-256
+                    <textarea id="apk-sha256" rows="3" readonly spellcheck="false"></textarea>
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="apk-run-web" class="btn" type="button" disabled>RUN WEB ASSET CONTAINER</button>
+                    <button id="apk-stop-container" class="btn ghost" type="button">RESET CONTAINER</button>
+                  </div>
+                </div>
+
+                <div>
+                  <pre id="apk-output" class="tool-output">No APK loaded. The browser-native editor above is already operational.</pre>
+
+                  <div id="apk-entry-list" class="androidpp-apk-entry-list"></div>
+                </div>
+              </div>
+
+              <div id="apk-container-placeholder" class="androidpp-container-placeholder">
+                APK web-asset container is not running.
+              </div>
+
+              <iframe
+                id="apk-container-frame"
+                class="androidpp-container-frame"
+                title="Android++ APK sandbox"
+                sandbox="allow-scripts"
+                referrerpolicy="no-referrer"
+                hidden></iframe>
+
+              <div class="androidpp-help">
+                Native Android DEX/Kotlin bytecode is not executed by ordinary browsers.
+                If the APK contains a WebView application bundle, Android++ can extract that
+                web content in memory and run it under a strict sandbox/CSP. A future WASM
+                Android runtime can be registered through the APK runtime-provider API.
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>Android++</h2>
+        <p>
+          Android++ is an offline Android code editor inspired by the fast multi-document
+          workflow of Notepad++, with local data transformations and encrypted-note workflows.
+          The web edition runs the editor directly in the browser and isolates APK handling
+          into a separate optional layer.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.6.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Android SDK · Kotlin</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Web Crypto · File API · sandboxed iframe</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Android / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Multi-document editor</td><td><span class="parity-badge yes">YES</span></td><td>Browser-native.</td></tr>
+              <tr><td>Local file open/download</td><td><span class="parity-badge yes">YES</span></td><td>File API + Blob downloads.</td></tr>
+              <tr><td>Find / replace</td><td><span class="parity-badge yes">YES</span></td><td>Literal + regex.</td></tr>
+              <tr><td>CyberChef-style transforms</td><td><span class="parity-badge yes">YES</span></td><td>Local transform module.</td></tr>
+              <tr><td>Encrypted notes</td><td><span class="parity-badge yes">YES</span></td><td>AES-256-GCM browser vault.</td></tr>
+              <tr><td>GPG/OpenPGP</td><td><span class="parity-badge partial">PROVIDER</span></td><td>Real OpenPGP provider hook.</td></tr>
+              <tr><td>APK inspection</td><td><span class="parity-badge yes">YES</span></td><td>Read-only ZIP/APK parser.</td></tr>
+              <tr><td>WebView asset container</td><td><span class="parity-badge yes">YES</span></td><td>Sandboxed when web assets exist.</td></tr>
+              <tr><td>Native DEX execution</td><td><span class="parity-badge no">NO</span></td><td>Requires Android runtime/emulator.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL-FIRST</p>
+      <h2>Security Boundary</h2>
+      <p>
+        Editor files remain local unless the user explicitly downloads them. The APK parser
+        does not install packages or execute DEX. Extracted WebView content is launched only
+        in a sandboxed iframe with a restrictive Content Security Policy blocking network
+        connections, forms, top navigation, and same-origin privilege.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="AIPDABE — browser-native Bitcoin block, transaction, address, mempool, UTXO-flow, and analytic-assistant workbench.">
+  <title>AIPDABE · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-aipdabe-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-aipdabe-1">
+  <script src="./hook.js?v=20260822-aipdabe-1" defer></script>
+  <script src="./script.js?v=20260822-aipdabe-1" defer></script>
+  <script src="./bitcoin-api.js?v=20260822-aipdabe-1" defer></script>
+  <script src="./utxo-graph.js?v=20260822-aipdabe-1" defer></script>
+  <script src="./analyst.js?v=20260822-aipdabe-1" defer></script>
+  <script src="./aipdabe.js?v=20260822-aipdabe-1" defer></script>
+</head>
+
+<body class="project project-aipdabe">
+<header>
+  <div id="zzx-header"></div>
+</header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="AIPDABE logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>AIPDABE</h1>
+      <p class="blurb">
+        Bitcoin block, transaction, address, mempool, UTXO-flow, and analytic-assistant
+        workbench with local visualization and reproducible JSON analysis.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/aipdabe" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>AIPDABE Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span id="status-fetch" class="runtime-badge">FETCH: CHECKING</span>
+          <span id="status-canvas" class="runtime-badge ok">CANVAS: YES</span>
+          <span id="status-json" class="runtime-badge ok">JSON: YES</span>
+          <span id="status-provider" class="runtime-badge partial">PROVIDER: PUBLIC</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="explorer" type="button">Explorer</button>
+            <button class="tool-tab mode-tab" data-mode="mempool" type="button">Mempool Intelligence</button>
+            <button class="tool-tab mode-tab" data-mode="flows" type="button">UTXO Flow</button>
+            <button class="tool-tab mode-tab" data-mode="analyst" type="button">Analyst</button>
+            <button class="tool-tab mode-tab" data-mode="providers" type="button">Data Providers</button>
+            <button class="tool-tab mode-tab" data-mode="import" type="button">JSON Import / Export</button>
+          </div>
+
+          <div class="aipdabe-sidebar-note">
+            <strong>READ-ONLY</strong>
+            <p>
+              The browser demo analyzes public Bitcoin data. It does not hold wallet keys,
+              sign transactions, or require Bitcoin Core RPC credentials in the page.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-explorer" class="aipdabe-mode-panel mode-panel active">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">BLOCKCHAIN EXPLORER</p>
+              <h2>Explorer</h2>
+              <p>
+                Resolve a transaction ID, block hash/height, or Bitcoin address through a
+                configurable Esplora-compatible data provider.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="aipdabe-query-grid">
+                <label>
+                  Query type
+                  <select id="explorer-type">
+                    <option value="tx">Transaction ID</option>
+                    <option value="block-height">Block height</option>
+                    <option value="block-hash">Block hash</option>
+                    <option value="address">Address</option>
+                  </select>
+                </label>
+
+                <button id="explorer-run" class="btn" type="button">ANALYZE</button>
+              </div>
+
+              <label style="margin-top:.7rem">
+                Query
+                <input id="explorer-query" type="text" spellcheck="false" autocomplete="off" placeholder="txid, block height/hash, or address">
+              </label>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="explorer-tip" class="btn ghost" type="button">LOAD CHAIN TIP</button>
+                <button id="explorer-clear" class="btn ghost" type="button">CLEAR</button>
+              </div>
+
+              <div class="aipdabe-status-grid">
+                <div><span>Result type</span><strong id="result-type">—</strong></div>
+                <div><span>Primary ID</span><strong id="result-id">—</strong></div>
+                <div><span>Confirmed</span><strong id="result-confirmed">—</strong></div>
+                <div><span>Data source</span><strong id="result-provider">—</strong></div>
+              </div>
+
+              <div class="aipdabe-data-grid" style="margin-top:.8rem">
+                <div>
+                  <h3>Raw / Parsed Data</h3>
+                  <pre id="explorer-json" class="tool-output aipdabe-json">No query loaded.</pre>
+                </div>
+                <div>
+                  <h3>Local Analysis</h3>
+                  <pre id="explorer-summary" class="aipdabe-summary">A structured summary will appear here.</pre>
+
+                  <div id="explorer-chips" class="aipdabe-chip-row"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-mempool" class="aipdabe-mode-panel mode-panel">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">NETWORK STATE</p>
+              <h2>Mempool Intelligence</h2>
+              <p>
+                Load a live public mempool snapshot and recommended fee estimates from
+                the configured provider.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="mempool-refresh" class="btn" type="button">REFRESH MEMPOOL</button>
+              </div>
+
+              <div class="aipdabe-metric-grid">
+                <div><span>Transactions</span><strong id="mempool-count">—</strong></div>
+                <div><span>Virtual size</span><strong id="mempool-vsize">—</strong></div>
+                <div><span>Total fees</span><strong id="mempool-fees">—</strong></div>
+                <div><span>Fastest fee</span><strong id="mempool-fastest">—</strong></div>
+                <div><span>Half-hour fee</span><strong id="mempool-halfhour">—</strong></div>
+                <div><span>Hour fee</span><strong id="mempool-hour">—</strong></div>
+                <div><span>Economy fee</span><strong id="mempool-economy">—</strong></div>
+                <div><span>Minimum fee</span><strong id="mempool-minimum">—</strong></div>
+              </div>
+
+              <div class="aipdabe-data-grid" style="margin-top:.8rem">
+                <pre id="mempool-json" class="tool-output aipdabe-json"></pre>
+                <pre id="mempool-summary" class="aipdabe-summary">Load a mempool snapshot to analyze network congestion.</pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-flows" class="aipdabe-mode-panel mode-panel">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">TRANSACTION GRAPH</p>
+              <h2>UTXO Flow</h2>
+              <p>
+                Visualize the currently loaded transaction as input nodes flowing through
+                the transaction into output UTXOs.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="flow-from-current" class="btn" type="button">GRAPH CURRENT TX</button>
+                <button id="flow-fit" class="btn ghost" type="button">FIT GRAPH</button>
+                <button id="flow-export" class="btn ghost" type="button">EXPORT GRAPH JSON</button>
+              </div>
+
+              <div class="aipdabe-graph-wrap" style="margin-top:.8rem">
+                <canvas id="aipdabe-graph" width="1200" height="650"></canvas>
+                <div class="aipdabe-graph-help">INPUTS → TRANSACTION → OUTPUT UTXOs</div>
+              </div>
+
+              <div id="flow-list" class="aipdabe-flow-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-analyst" class="aipdabe-mode-panel mode-panel">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">LOCAL ANALYTIC ASSISTANT</p>
+              <h2>Analyst</h2>
+              <p>
+                Ask questions about the currently loaded Bitcoin object. The built-in
+                analyst is deterministic and local; external model providers can be
+                registered separately without changing the page shell.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div id="analyst-log" class="aipdabe-assistant-log">
+                <div class="aipdabe-turn assistant">
+                  <span class="aipdabe-turn-role">AIPDABE</span>
+                  <pre class="aipdabe-turn-text">Load a transaction, block, address, or mempool snapshot, then ask for a summary, fees, inputs, outputs, confirmation state, UTXO flow, or anomalies.</pre>
+                </div>
+              </div>
+
+              <label style="margin-top:.8rem">
+                Question
+                <textarea id="analyst-question" rows="4" placeholder="Summarize this transaction."></textarea>
+              </label>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="analyst-ask" class="btn" type="button">ASK</button>
+                <button id="analyst-summary" class="btn ghost" type="button">SUMMARIZE CURRENT</button>
+                <button id="analyst-clear" class="btn ghost" type="button">CLEAR CHAT</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-providers" class="aipdabe-mode-panel mode-panel">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">DATA ACCESS</p>
+              <h2>Data Providers</h2>
+              <p>
+                Use the public mempool.space Esplora API by default, another compatible
+                Esplora endpoint, or a separately deployed read-only Bitcoin Core RPC proxy.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="aipdabe-provider-grid">
+                <article class="aipdabe-provider-card">
+                  <h3>Esplora</h3>
+                  <p>
+                    Direct browser access for transactions, blocks, addresses, mempool,
+                    and fee estimates.
+                  </p>
+
+                  <label>
+                    Base URL
+                    <input id="provider-esplora" type="url" value="https://mempool.space/api">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="provider-apply" class="btn" type="button">APPLY</button>
+                    <button id="provider-test" class="btn ghost" type="button">TEST</button>
+                  </div>
+                </article>
+
+                <article class="aipdabe-provider-card">
+                  <h3>Bitcoin Core RPC Proxy</h3>
+                  <p>
+                    Optional server-side read-only proxy. Do not place Bitcoin Core RPC
+                    usernames or passwords directly in browser JavaScript.
+                  </p>
+
+                  <label>
+                    Proxy URL
+                    <input id="provider-rpc-proxy" type="url" placeholder="https://your-host.example/rpc-proxy">
+                  </label>
+
+                  <div class="button-row" style="justify-content:flex-start">
+                    <button id="rpc-getblockchaininfo" class="btn ghost" type="button">GETBLOCKCHAININFO</button>
+                  </div>
+                </article>
+              </div>
+
+              <pre id="provider-output" class="tool-output"></pre>
+            </div>
+          </div>
+
+          <div id="mode-import" class="aipdabe-mode-panel mode-panel">
+            <div class="aipdabe-mode-heading">
+              <p class="kicker">REPRODUCIBLE ANALYSIS</p>
+              <h2>JSON Import / Export</h2>
+              <p>
+                Import previously captured transaction/block/address/mempool JSON for
+                offline analysis or export the current workspace state.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <label class="file-button">
+                IMPORT JSON
+                <input id="import-file" type="file" accept=".json,application/json">
+              </label>
+
+              <label style="margin-top:.8rem">
+                Paste JSON
+                <textarea id="import-json" rows="12" spellcheck="false"></textarea>
+              </label>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="import-paste" class="btn" type="button">LOAD PASTED JSON</button>
+                <button id="export-current" class="btn ghost" type="button">EXPORT CURRENT</button>
+                <button id="export-workspace" class="btn ghost" type="button">EXPORT WORKSPACE</button>
+              </div>
+
+              <pre id="import-output" class="tool-output"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>AIPDABE</h2>
+        <p>
+          AIPDABE combines Bitcoin block exploration, transaction inspection, address
+          analysis, mempool state, UTXO-flow visualization, and local human-readable
+          summaries in one research workbench.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · Flask · Pandas · SQLAlchemy</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Canvas · Esplora / read-only RPC proxy</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead>
+              <tr><th>Capability</th><th>Web</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Transaction lookup</td><td><span class="parity-badge yes">YES</span></td><td>Esplora-compatible API.</td></tr>
+              <tr><td>Block lookup</td><td><span class="parity-badge yes">YES</span></td><td>Hash and height resolution.</td></tr>
+              <tr><td>Address analysis</td><td><span class="parity-badge yes">YES</span></td><td>Summary + UTXOs.</td></tr>
+              <tr><td>Mempool intelligence</td><td><span class="parity-badge yes">YES</span></td><td>Snapshot + fee estimates.</td></tr>
+              <tr><td>UTXO-flow graph</td><td><span class="parity-badge yes">YES</span></td><td>Canvas visualization.</td></tr>
+              <tr><td>Human-readable analysis</td><td><span class="parity-badge yes">YES</span></td><td>Local deterministic analyst.</td></tr>
+              <tr><td>External AI/ML model</td><td><span class="parity-badge partial">OPTIONAL</span></td><td>Provider registration hook.</td></tr>
+              <tr><td>Direct Bitcoin Core RPC credentials</td><td><span class="parity-badge no">NO</span></td><td>Use server-side read-only proxy instead.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">READ-ONLY</p>
+      <h2>Browser Security Boundary</h2>
+      <p>
+        AIPDABE's web edition is an analysis interface. It does not request private keys,
+        seed phrases, wallet passwords, or Bitcoin Core RPC credentials. Public API results
+        and imported JSON are treated as untrusted data and rendered through text-safe DOM
+        operations or JSON serialization.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer>
+  <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

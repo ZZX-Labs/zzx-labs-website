@@ -1,0 +1,217 @@
+<!-- __partials/bitcoin-ticker-widget.html -->
+<!-- ZZX-Labs Bitcoin HUD wrapper. Manifest IDs map 1:1 to data-widget slots. -->
+<!-- Additive contract: existing slots are never silently renamed or removed. -->
+
+<div class="zzx-hud-handle" data-hud-handle aria-hidden="true">
+  <button
+    type="button"
+    class="zzx-hud-show"
+    data-hud-show
+    aria-label="Show Bitcoin HUD"
+  >HUD</button>
+</div>
+
+<div
+  class="btc-rail"
+  id="btc-rail"
+  data-hud-root
+  data-hud-state="full"
+  role="region"
+  aria-label="Bitcoin dashboard widgets"
+>
+
+  <!-- priority 0: Bitcoin Ticker -->
+  <div class="btc-slot" data-widget="bitcoin-ticker"></div>
+
+  <!-- priority 1: Currency Converter -->
+  <div class="btc-slot" data-widget="currency-converter"></div>
+
+  <!-- priority 2: BitAvg -->
+  <div class="btc-slot" data-widget="bitavg"></div>
+  <!-- priority 4: BitBilling -->
+  <div class="btc-slot" data-widget="bitbilling"></div>
+
+  <!-- priority 5: I-Ching -->
+  <div class="btc-slot" data-widget="iching"></div>
+
+  <!-- priority 10: 24h Price -->
+  <div class="btc-slot" data-widget="price-24h"></div>
+
+  <!-- priority 11: 24h Volume -->
+  <div class="btc-slot" data-widget="volume-24h"></div>
+
+  <!-- priority 20: 24h High / Low -->
+  <div class="btc-slot" data-widget="high-low-24h"></div>
+
+  <!-- priority 21: Mining Stats -->
+  <div class="btc-slot" data-widget="mining-stats"></div>
+  
+  <!-- priority 22: Mining Rewards / Pools -->
+  <div class="btc-slot" data-widget="mining-rewards"></div>
+
+  <!-- priority 30: Hashrate -->
+  <div class="btc-slot" data-widget="hashrate"></div>
+
+  <!-- priority 31: Hashrate by Nation -->
+  <div class="btc-slot" data-widget="hashrate-by-nation"></div>
+
+  <!-- priority 32: Global Power Grid -->
+  <div class="btc-slot" data-widget="global-power-grid"></div>
+
+  <!-- priority 33: Difficulty Adjustment -->
+  <div class="btc-slot" data-widget="difficulty-adjustment"></div>
+
+  <!-- priority 40: Nodes -->
+  <div class="btc-slot" data-widget="nodes"></div>
+
+  <!-- priority 41: Nodes by Nation -->
+  <div class="btc-slot" data-widget="nodes-by-nation"></div>
+
+  <!-- priority 42: Nodes by City -->
+  <div class="btc-slot" data-widget="nodes-by-city"></div>
+
+  <!-- priority 42.5: Nodes by County -->
+  <div class="btc-slot" data-widget="nodes-by-county"></div>
+
+  <!-- priority 42.75: Nodes by ASN -->
+  <div class="btc-slot" data-widget="nodes-by-asn"></div>
+
+  <!-- priority 43: Nodes by Version -->
+  <div class="btc-slot" data-widget="nodes-by-version"></div>
+
+  <!-- priority 44: Knots vs Core -->
+  <div class="btc-slot" data-widget="knots-vs-core"></div>
+
+  <!-- priority 45: Node Network Mix -->
+  <div class="btc-slot" data-widget="node-network-mix"></div>
+
+  <!-- priority 46: Node Latency -->
+  <div class="btc-slot" data-widget="node-latency"></div>
+
+  <!-- priority 47: Node Health -->
+  <div class="btc-slot" data-widget="node-health"></div>
+
+  <!-- priority 50: Fees -->
+  <div class="btc-slot" data-widget="fees"></div>
+
+  <!-- priority 51: Mempool -->
+  <div class="btc-slot" data-widget="mempool"></div>
+
+  <!-- Mempool Stats -->
+  <div class="btc-slot" data-widget="mempool-stats"></div><br>
+
+  <!-- priority 52: Mempool Specs -->
+  <div class="btc-slot" data-widget="mempool-specs"></div>
+
+  <!-- priority 52.6: Mempool Tiles -->
+  <div class="btc-slot" data-widget="mempool-tiles"></div>
+
+  <!-- priority 52.7: Mempool Mosaic -->
+  <div class="btc-slot" data-widget="mempool-mosaic"></div>
+
+  <!-- priority 52.8: Mempool Goggles -->
+  <div class="btc-slot" data-widget="mempool-goggles"></div><br>
+
+  <!-- priority 52.9: Mempool Visualizer -->
+  <div class="btc-slot" data-widget="mempool-visualizer"></div>
+
+  <!-- priority 53: TheMarketBTCCreated -->
+  <div class="btc-slot" data-widget="themarketbtccreated"></div>
+
+  <!-- priority 54: Deadopop -->
+  <div class="btc-slot" data-widget="deadopop"></div>
+
+  <!-- priority 60: Lightning -->
+  <div class="btc-slot" data-widget="lightning"></div>
+
+  <!-- priority 61: Lightning Detail -->
+  <div class="btc-slot" data-widget="lightning-detail"></div>
+
+  <!-- priority 70: Block Clock -->
+  <div class="btc-slot" data-widget="block-clock"></div>
+
+  <!-- priority 71: Tip -->
+  <div class="btc-slot" data-widget="tip"></div>
+
+  <!-- priority 72: Drift -->
+  <div class="btc-slot" data-widget="drift"></div>
+
+  <!-- priority 73: Clock Drift -->
+  <div class="btc-slot" data-widget="clock-drift"></div>
+
+  <!-- priority 73: Tip Drift -->
+  <div class="btc-slot" data-widget="tip-drift"></div>
+
+  <!-- priority 74: BitAge -->
+  <div class="btc-slot" data-widget="bitage"></div>
+  
+  <!-- priority 75: Block Stats -->
+  <div class="btc-slot" data-widget="block-stats"></div>
+
+  <!-- priority 80: Intel -->
+  <div class="btc-slot" data-widget="intel"></div>
+
+  <!-- priority 81: BTC Intel -->
+  <div class="btc-slot" data-widget="btc-intel"></div>
+
+  <!-- priority 82: Repository Updates -->
+  <div class="btc-slot" data-widget="btc-repo"></div>
+
+  <!-- priority 82.5: Bitcoin Core Pull Requests -->
+  <div class="btc-slot" data-widget="btc-prs"></div>
+
+  <!-- priority 83: Repo Commit Updates -->
+  <div class="btc-slot" data-widget="btc-commits"></div>
+
+  <!-- priority 84: Bitcoin News -->
+  <div class="btc-slot" data-widget="btc-news"></div>
+
+  <!-- priority 90: Satoshi Quote -->
+  <div class="btc-slot" data-widget="satoshi-quote"></div>
+
+  <!-- Culture: Live BTC GIF -->
+  <div class="btc-slot" data-widget="btc-gif"></div>
+
+  <!-- Culture: BTC GIF Price -->
+  <div class="btc-slot" data-widget="btc-gif-price"></div>
+
+  <!-- priority 100: Supply / Halving Suite -->
+  <div class="btc-slot" data-widget="btc-halving-suite"></div>
+
+  <!-- priority 101: BTC Mined -->
+  <div class="btc-slot" data-widget="btc-mined"></div>
+
+  <!-- priority 102: BTC To Mine -->
+  <div class="btc-slot" data-widget="btc-to-mine"></div>
+
+  <!-- priority 103: Sats Per Person -->
+  <div class="btc-slot" data-widget="spp"></div>
+
+  <!-- priority 110: Bitcoin Block Explorer -->
+  <div class="btc-slot" data-widget="btc-blockexplorer"></div>
+
+  <!-- priority 111: BitTrackIt -->
+  <div class="btc-slot" data-widget="bittrackit"></div>
+
+  <!-- priority 120: Notable Transactions -->
+  <div class="btc-slot" data-widget="btc-notabletxs"></div>
+
+  <!-- priority 130: Stolen BTC -->
+  <div class="btc-slot" data-widget="btc-stolen"></div>
+
+  <!-- BTC Tainted -->
+  <div class="btc-slot" data-widget="btc-tainted"></div>
+
+  <!-- priority 131: Burned BTC -->
+  <div class="btc-slot" data-widget="btc-burned"></div>
+
+  <!-- priority 132: Lost BTC -->
+  <div class="btc-slot" data-widget="btc-lost"></div>
+
+  <!-- priority 140: BitRNG -->
+  <div class="btc-slot" data-widget="bitrng"></div>
+
+  <!-- BitRNG Visualizer -->
+  <div class="btc-slot" data-widget="bitrng-visualizer"></div>
+
+</div>

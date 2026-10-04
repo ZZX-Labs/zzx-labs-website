@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Rust-based CyberChef primitives companion with reference recipe execution, Cargo library/CLI generation, WASM-bindgen interface scaffolding, deterministic vectors, target configuration, and portable bundle export.">
+<title>CyberChefRust · CyberChefKit · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-cyberchefrs-1"><link rel="stylesheet" href="./hook.css?v=20260824-cyberchefrs-1">
+<script src="./hook.js?v=20260824-cyberchefrs-1" defer></script><script src="./script.js?v=20260824-cyberchefrs-1" defer></script>
+<script src="./chef-core.js?v=20260824-cyberchefrs-1" defer></script><script src="./cyberchefrs.js?v=20260824-cyberchefrs-1" defer></script>
+</head><body class="project project-cyberchefrs"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CyberChefRust logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // CYBERCHEFKIT</p><h1>CyberChefRust</h1><p class="blurb">Rust-based CyberChef primitives companion with reference recipe execution, Cargo library/CLI generation, WASM-bindgen interface scaffolding, deterministic vectors, target configuration, and portable bundle export.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/cyberchefrs" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/cyberchefkit/">CYBERCHEFKIT</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container"><div class="section-head"><div><p class="kicker">RUST // SAFE PRIMITIVES + WASM</p><h2>CyberChefRust Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">REFERENCE ENGINE</span><span class="runtime-badge ok">RUST CODEGEN</span><span class="runtime-badge ok">CARGO</span><span class="runtime-badge ok">WASM SCAFFOLD</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list"><button class="tool-tab mode-tab active" data-mode="transform">Transform Lab</button><button class="tool-tab mode-tab" data-mode="rust">Rust Library</button><button class="tool-tab mode-tab" data-mode="wasm">WASM</button><button class="tool-tab mode-tab" data-mode="build">Cargo / Vectors</button><button class="tool-tab mode-tab" data-mode="export">Export</button></div></aside><section class="tool-workspace">
+<div id="mode-transform" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-2"><label>Input<textarea id="input" rows="12">CyberChefKit language-port verification payload.</textarea></label><label>Output<textarea id="output" rows="12" readonly></textarea></label></div>
+<div class="button-row" style="justify-content:flex-start"><button class="btn ghost quick" data-op="toBase64">BASE64</button><button class="btn ghost quick" data-op="toHex">HEX</button><button class="btn ghost quick" data-op="rot13">ROT13</button><button class="btn ghost quick" data-op="sha256">SHA-256</button><button class="btn ghost quick" data-op="urlEncode">URL ENCODE</button><button class="btn ghost quick" data-op="jsonPretty">JSON PRETTY</button></div>
+<label>Recipe JSON<textarea id="recipe" rows="10">[
+  {"op":"toBase64"},
+  {"op":"sha256"}
+]</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="run" class="btn">RUN RECIPE</button><button id="swap" class="btn ghost">SWAP</button><button id="clear" class="btn ghost">CLEAR</button></div>
+<pre id="trace" class="z-log"></pre></div></div>
+<div id="mode-rust" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-3"><label>Crate name<input id="crate" value="cyberchefrs"></label><label>Edition<select id="edition"><option>2024</option><option>2021</option></select></label><label>Error style<select id="error-style"><option value="result">Result</option><option value="anyhow">anyhow</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-rust" class="btn">GENERATE LIB + CLI</button></div><pre id="rust-output" class="z-log"></pre></div></div>
+<div id="mode-wasm" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-2"><label>WASM package name<input id="wasm-name" value="cyberchefrs_wasm"></label><label>Target<select id="wasm-target"><option>web</option><option>bundler</option><option>nodejs</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-wasm" class="btn">GENERATE WASM-BINDGEN INTERFACE</button></div><pre id="wasm-output" class="z-log"></pre></div></div>
+<div id="mode-build" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="vectors" class="btn">RUN VECTORS</button><button id="build-matrix" class="btn ghost">CARGO BUILD MATRIX</button></div><pre id="build-output" class="z-log"></pre></div></div>
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export" class="btn">EXPORT RUST BUNDLE JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CyberChefRust</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>CLA Apache</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · WebAssembly</dd></div><div><dt>Native</dt><dd>Rust · Cargo</dd></div></dl></article><article class="panel"><p class="kicker">WASM</p><h2>Safe web-facing interface scaffold</h2><p>The browser generates a wasm-bindgen-compatible API and target commands but does not fabricate a compiled `.wasm` artifact.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

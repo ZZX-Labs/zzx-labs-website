@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Android-oriented BlockClock companion page providing mobile-style real-time Bitcoin network monitoring, configurable alerts, compact visualization, offline/manual fallback, and APK build/install metadata without fabricating an APK binary.">
+  <title>BlockClock (APK) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blockclock-apk-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blockclock-apk-1">
+  <script src="./hook.js?v=20260824-blockclock-apk-1" defer></script>
+  <script src="./script.js?v=20260824-blockclock-apk-1" defer></script>
+  <script src="./blockclock-core.js?v=20260824-blockclock-apk-1" defer></script>
+  <script src="./blockclock-apk.js?v=20260824-blockclock-apk-1" defer></script>
+</head>
+
+<body class="project project-blockclock-apk">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlockClock (APK) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlockClock (APK)</h1>
+    <p class="blurb">Android-oriented BlockClock companion page providing mobile-style real-time Bitcoin network monitoring, configurable alerts, compact visualization, offline/manual fallback, and APK build/install metadata without fabricating an APK binary.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blockclock-apk" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ANDROID // BLOCKCLOCK MOBILE</p><h2>BlockClock APK Browser Companion</h2></div><div class="runtime-status"><span class="runtime-badge ok">ANDROID: KOTLIN</span><span id="ap-live" class="runtime-badge partial">DATA: MANUAL</span><span class="runtime-badge ok">ALERTS: LOCAL</span><span class="runtime-badge bad">APK: NOT BUNDLED</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="phone" type="button">Mobile Dashboard</button><button class="tool-tab mode-tab" data-mode="alerts" type="button">Alerts</button><button class="tool-tab mode-tab" data-mode="source" type="button">Network Source</button><button class="tool-tab mode-tab" data-mode="build" type="button">APK Build</button>
+</div><div class="z-sidebar-note"><strong>APK POLICY</strong><p>The manifest declares <code>/projects/software/blockclock-apk/blockclock.apk</code>, but no APK binary was supplied for this batch. This archive does not invent one.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-phone" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">HANDHELD MONITOR</p><h2>Mobile Dashboard</h2></div><div class="tool-card">
+<div class="z-card" style="max-width:440px;margin:0 auto">
+<p class="kicker">BLOCKCLOCK // ANDROID</p>
+<div class="z-metrics" style="grid-template-columns:1fr 1fr"><div><span>Height</span><strong id="ap-height">—</strong></div><div><span>Fast fee</span><strong id="ap-fee">—</strong></div><div><span>Mempool</span><strong id="ap-mempool">—</strong></div><div><span>Epoch</span><strong id="ap-epoch">—</strong></div></div>
+<canvas id="ap-canvas" class="z-canvas" width="600" height="300"></canvas><p id="ap-status">manual</p>
+</div></div></div>
+
+<div id="mode-alerts" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MOBILE ALERT RULES</p><h2>Alerts</h2></div><div class="tool-card"><div class="z-grid-3"><label>Fee alert sat/vB<input id="aa-fee" type="number" min="0" value="40"></label><label>Mempool alert TXs<input id="aa-count" type="number" min="0" value="150000"></label><label>New-block alert<select id="aa-block"><option value="yes">yes</option><option value="no">no</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="aa-permission" class="btn ghost">REQUEST BROWSER NOTIFICATIONS</button><button id="aa-test" class="btn">TEST RULES</button></div><pre id="aa-output" class="z-log"></pre></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIVE / OFFLINE FALLBACK</p><h2>Network Source</h2></div><div class="tool-card"><div class="z-grid-3"><label>API base<input id="as-url" value="https://mempool.space/api"></label><label>Polling seconds<input id="as-sec" type="number" min="2" value="15"></label><label>Mode<select id="as-mode"><option value="live">Live</option><option value="manual">Manual</option></select></label></div><div class="z-grid-3" style="margin-top:.7rem"><label>Manual height<input id="am-height" type="number" value="910000"></label><label>Manual mempool count<input id="am-count" type="number" value="50000"></label><label>Manual fastest fee<input id="am-fee" type="number" value="5"></label></div><div class="button-row" style="justify-content:flex-start"><button id="as-now" class="btn">UPDATE NOW</button><button id="as-auto" class="btn ghost">AUTO: OFF</button></div><pre id="as-output" class="z-log"></pre></div></div>
+
+<div id="mode-build" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ANDROID PACKAGE</p><h2>APK Build</h2></div><div class="tool-card">
+<pre class="z-log">Manifest target
+Title: BlockClock (APK)
+Version: 0.1.0-alpha
+Platform: Android
+Frameworks: Android SDK, Kotlin
+Declared deployment path:
+/projects/software/blockclock-apk/blockclock.apk
+
+This web deployment archive does NOT include blockclock.apk because no compiled APK was supplied.
+Build/sign the Android project separately, then place the real artifact at the declared path.</pre>
+</div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlockClock (APK)</h2><p>Android mobile Bitcoin network monitor and alerting interface.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platform</dt><dd>Android</dd></div><div><dt>Frameworks</dt><dd>Android SDK · Kotlin</dd></div><div><dt>Declared APK</dt><dd>/projects/software/blockclock-apk/blockclock.apk</dd></div></dl></article><article class="panel"><p class="kicker">WEB COMPANION</p><h2>No fake APK</h2><p>The browser version mirrors monitoring and alert behavior for the project page while leaving binary Android packaging to the actual Kotlin build pipeline.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

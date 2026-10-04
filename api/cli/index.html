@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>CLI API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>CLI API (cmder Integration)</h2>
+  <p>
+    The <strong>CLI API</strong> bridges our command-line interface (CLI) tools with the ZZX-Labs backend ecosystem. It enables secure, remote execution of shell commands, API calls, and administrative actions from within a hardened terminal interface—integrated with our custom <code>cmder</code> environment.
+  </p>
+  <p>
+    This API supports real-time command execution, output capture, log streaming, access scoping, and two-way encrypted messaging between user and host environments. Designed for sysadmins, devops, analysts, and researchers working within the ZZX-Labs infrastructure.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Core Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Remote Shell Access:</strong> Issue and return terminal commands securely through signed JSON.</li>
+    <li style="list-style-type: none;"><strong>Command Profiles:</strong> Commands are grouped under access tiers and can be filtered or expanded per user.</li>
+    <li style="list-style-type: none;"><strong>GPG-AES Layer:</strong> All input/output is protected via end-to-end encryption using PGP or AES-256-GCM.</li>
+    <li style="list-style-type: none;"><strong>Output Streaming:</strong> View stdout, stderr, and logs in real time.</li>
+    <li style="list-style-type: none;"><strong>Sandboxed Exec:</strong> Commands are rate-limited and run in containerized environments with rollback options.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Run Command</h3>
+    <p>Execute a terminal command over the authenticated API pipe. Returns stdout, stderr, and exit code.</p>
+    <pre><code class="language-json">{
+  "cmd": "df -h",
+  "auth": "gpg-signed-user-token",
+  "context": "disk"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Command Sets</h3>
+    <p>Chain together multiple commands or prebuilt scripts and submit as batch jobs. Useful for diagnostics, admin operations, or deploy routines.</p>
+    <pre><code class="language-json">{
+  "script": [
+    "uptime",
+    "whoami",
+    "ls -l /var/log"
+  ],
+  "user": "admin",
+  "gpg_key": "xxxx"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Output Stream</h3>
+    <p>View live command output from within the terminal, browser UI, or websocket-connected interface panel.</p>
+    <li style="list-style-type: none;"><a href="./cli/stream">Live Output Stream</a></li>
+  </div>
+
+  <div class="feature">
+    <h3>Command History</h3>
+    <p>Query all previously run commands, sorted by timestamp or user, with output previews and security labels.</p>
+    <li style="list-style-type: none;"><a href="./cli/history">Command History API</a></li>
+  </div>
+
+  <div class="feature">
+    <h3>Access Class Enforcement</h3>
+    <p>All API-triggered commands are filtered by access tier, context ID, or task domain. This ensures scoped execution under role-based controls.</p>
+    <pre><code class="language-json">{
+  "role": "auditor",
+  "allowed": [
+    "cat /var/log/",
+    "uptime"
+  ]
+}</code></pre>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Terminal Access?</h2>
+  <p>
+    CLI-based users, maintainers, and researchers may request API access to ZZX-Labs terminal interfaces for automation, monitoring, or batch processing.
+  </p>
+  <p>
+    Contact backend operations to receive a keypair and endpoint mapping profile.
+  </p>
+  <a href="../../contact" class="btn">Request CLI API Access</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Command, control, and configure ZZX-Labs from anywhere with encrypted terminal APIs.</p>
+    <a href="../../areas-of-expertise/software-dev" class="btn btn-primary">Explore DevOps Integration</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

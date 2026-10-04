@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Calculator API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Calculator</h2>
+  <p>
+    Use this calculator to perform custom arithmetic with live Bitcoin price data. Convert between BTC, fiat, and sats. Add tax, discounts, or simulate fees. Real-time results update every 250ms.
+  </p>
+  <p>
+    Ideal for merchants, Lightning developers, and Bitcoin-denominated accounting. Powered by ZZX-Labs' globally weighted BTC/USD spot price API.
+  </p>
+</section>
+
+<section class="container">
+  <form id="btc-calculator-form">
+    <label for="btc-calc-amount">Amount (in BTC):</label>
+    <input type="number" id="btc-calc-amount" step="0.00000001" placeholder="e.g., 0.00321" />
+
+    <label for="btc-fee">Fee/Discount %:</label>
+    <input type="number" id="btc-fee" step="0.1" placeholder="e.g., 2.5" />
+
+    <p id="btc-total">Total (after %): 0 BTC</p>
+    <p id="fiat-value">Fiat Equivalent: $0.00</p>
+  </form>
+</section>
+
+<script>
+  async function calculateTotal() {
+    const btc = parseFloat(document.getElementById('btc-calc-amount').value || 0);
+    const percent = parseFloat(document.getElementById('btc-fee').value || 0);
+
+    const netBtc = btc * (1 - percent / 100);
+    const res = await fetch('/api/bitcoin/price');
+    const { price } = await res.json();
+    const fiat = netBtc * price;
+
+    document.getElementById('btc-total').textContent = `Total (after %): ${netBtc.toFixed(8)} BTC`;
+    document.getElementById('fiat-value').textContent = `Fiat Equivalent: $${fiat.toFixed(2)}`;
+  }
+
+  document.getElementById('btc-calc-amount').addEventListener('input', calculateTotal);
+  document.getElementById('btc-fee').addEventListener('input', calculateTotal);
+  setInterval(calculateTotal, 250);
+</script>
+
+<section class="features">
+  <div class="feature">
+    <h3>Example Use Cases</h3>
+    <ul>
+      <li style="list-style-type: none;">Calculate BTC equivalent of invoices with discounts</li>
+      <li style="list-style-type: none;">Adjust for merchant fees or transaction costs</li>
+      <li style="list-style-type: none;">Convert post-tax BTC values into fiat instantly</li>
+    </ul>
+  </div>
+
+  <div class="feature">
+    <h3>Public API</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/price</code></pre>
+    <p>Returns the globally weighted real-time spot price.</p>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want Custom Financial Tools?</h2>
+  <p>
+    We develop embedded BTC calculators, automated invoice tools, and price engines for your business or software stack.
+  </p>
+  <a href="../../../contact" class="btn">Request Integration</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Account in Bitcoin. Calculate in reality.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">View Bitcoin Dev Tools</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin purchase and sale proof-of-worth tracker for per-entry cost basis, fee impact, unrealized/realized performance, lifetime portfolio metrics, live spot-price provider polling, and visual P/L analysis.">
+  <title>BitPav (Bitcoin Proof-of-Worth Tracker) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitpav-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitpav-1">
+  <script src="./hook.js?v=20260824-bitpav-1" defer></script>
+  <script src="./script.js?v=20260824-bitpav-1" defer></script>
+  <script src="./bitpav-core.js?v=20260824-bitpav-1" defer></script>
+  <script src="./bitpav.js?v=20260824-bitpav-1" defer></script>
+</head>
+
+<body class="project project-bitpav">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitPav (Bitcoin Proof-of-Worth Tracker) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitPav (Bitcoin Proof-of-Worth Tracker)</h1>
+    <p class="blurb">Bitcoin purchase and sale proof-of-worth tracker for per-entry cost basis, fee impact, unrealized/realized performance, lifetime portfolio metrics, live spot-price provider polling, and visual P/L analysis.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitpav" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN PROOF-OF-WORTH</p><h2>BitPav Browser Workbench</h2></div><div class="runtime-status"><span id="pv-net" class="runtime-badge partial">PRICE: MANUAL</span><span class="runtime-badge ok">LEDGER: LOCAL</span><span class="runtime-badge ok">P/L: LOCAL</span><span class="runtime-badge ok">INTERVAL: 250MS ENGINE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="ledger" type="button">Ledger</button>
+<button class="tool-tab mode-tab" data-mode="dashboard" type="button">Dashboard</button>
+<button class="tool-tab mode-tab" data-mode="price" type="button">Spot Price</button>
+<button class="tool-tab mode-tab" data-mode="chart" type="button">Chart</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export / Import</button>
+</div><div class="z-sidebar-note"><strong>PORTFOLIO ACCOUNTING</strong><p>BitPav computes a transparent lot-level approximation. It is not tax advice and does not choose a jurisdiction-specific accounting method for you.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-ledger" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">PURCHASE / SALE ENTRIES</p><h2>Ledger</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Type<select id="pl-type"><option value="buy">Buy</option><option value="sell">Sell</option></select></label><label>BTC amount<input id="pl-btc" type="number" step=".00000001" min=".00000001" value=".01"></label><label>Price USD/BTC<input id="pl-price" type="number" min=".01" value="100000"></label><label>Fee USD<input id="pl-fee" type="number" min="0" value="0"></label><label>Date/time<input id="pl-date" type="datetime-local"></label><label>Exchange / source<input id="pl-source" value="manual"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="pl-add" class="btn">ADD ENTRY</button><button id="pl-sample" class="btn ghost">LOAD SAMPLE</button></div><div id="pl-list" class="z-list"></div>
+</div></div>
+
+<div id="mode-dashboard" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIFETIME VALUE METRICS</p><h2>Dashboard</h2></div><div class="tool-card">
+<div class="z-metrics"><div><span>BTC held</span><strong id="pd-btc">0</strong></div><div><span>Net cost basis</span><strong id="pd-cost">$0</strong></div><div><span>Market value</span><strong id="pd-value">$0</strong></div><div><span>Total P/L</span><strong id="pd-pnl">$0</strong></div></div>
+<pre id="pd-output" class="z-log"></pre></div></div>
+
+<div id="mode-price" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIVE SPOT</p><h2>Spot Price</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Manual spot USD<input id="pp-manual" type="number" min=".01" value="100000"></label><label>Public price URL<input id="pp-url" type="url" value="https://api.coinbase.com/v2/prices/BTC-USD/spot"></label><label>Refresh interval ms<input id="pp-ms" type="number" min="250" value="250"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="pp-apply" class="btn ghost">APPLY MANUAL</button><button id="pp-fetch" class="btn">FETCH ONCE</button><button id="pp-auto" class="btn ghost">AUTO: OFF</button></div><pre id="pp-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-chart" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">VALUE / COST HISTORY</p><h2>Chart</h2></div><div class="tool-card"><canvas id="pc-canvas" class="z-canvas" width="1200" height="360"></canvas></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE LEDGER</p><h2>Export / Import</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="pe-json" class="btn">EXPORT JSON</button><button id="pe-csv" class="btn ghost">EXPORT CSV</button><label class="file-button">IMPORT JSON<input id="pe-import" type="file" accept=".json,application/json"></label></div><pre id="pe-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitPav</h2><p>Bitcoin purchase/sale and lifetime proof-of-worth tracker.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>PyQt5 · Requests · Pandas · Matplotlib · FFmpeg · SQLite</dd></div><div><dt>Web</dt><dd>localStorage · Fetch · Canvas</dd></div></dl></article><article class="panel"><p class="kicker">PRICE ENGINE</p><h2>Quarter-second capable</h2><p>The browser scheduler accepts a 250 ms interval, but actual successful polling is constrained by the selected provider's rate limits, network latency, CORS policy, and browser scheduling.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

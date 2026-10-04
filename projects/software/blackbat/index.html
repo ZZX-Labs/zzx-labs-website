@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="INTERNAL BlackBat BATS/ATSP Bitcoin accumulation research suite for position sizing, drawdown controls, multi-venue risk constraints, strategy simulation, and backtesting.">
+  <title>BlackBat · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blackbat-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blackbat-1">
+  <script src="./hook.js?v=20260824-blackbat-1" defer></script>
+  <script src="./script.js?v=20260824-blackbat-1" defer></script>
+  <script src="./blackbat-core.js?v=20260824-blackbat-1" defer></script>
+  <script src="./blackbat.js?v=20260824-blackbat-1" defer></script>
+</head>
+
+<body class="project project-blackbat">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlackBat logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlackBat</h1>
+    <p class="blurb">INTERNAL BlackBat BATS/ATSP Bitcoin accumulation research suite for position sizing, drawdown controls, multi-venue risk constraints, strategy simulation, and backtesting.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blackbat" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">INTERNAL // BATS / ATSP RESEARCH</p><h2>BlackBat Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge bad">INTERNAL</span><span class="runtime-badge ok">BACKTEST: LOCAL</span><span class="runtime-badge ok">RISK: LOCAL</span><span class="runtime-badge ok">LIVE ORDERS: DISABLED</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="data" type="button">Market Data</button>
+<button class="tool-tab mode-tab" data-mode="strategy" type="button">BATS / ATSP</button>
+<button class="tool-tab mode-tab" data-mode="risk" type="button">Risk Controls</button>
+<button class="tool-tab mode-tab" data-mode="backtest" type="button">Backtest</button>
+<button class="tool-tab mode-tab" data-mode="venues" type="button">Venue Controls</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>INTERNAL – NOT FOR PUBLIC DISTRIBUTION</strong><p>This page preserves the manifest status. It is a research simulator only and does not implement live exchange authentication or order submission.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-data" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">BTC MARKET SERIES</p><h2>Market Data</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><label class="file-button">IMPORT CSV<input id="bb-file" type="file" accept=".csv,text/csv"></label><button id="bb-sample" class="btn ghost">GENERATE SAMPLE</button></div><div class="z-metrics"><div><span>Bars</span><strong id="bb-bars">0</strong></div><div><span>Start</span><strong id="bb-start">—</strong></div><div><span>End</span><strong id="bb-end">—</strong></div><div><span>Max drawdown</span><strong id="bb-data-dd">—</strong></div></div><canvas id="bb-price-canvas" class="z-canvas" width="1200" height="320"></canvas></div></div>
+
+<div id="mode-strategy" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ACCUMULATION ALGORITHMS</p><h2>BATS / ATSP</h2></div><div class="tool-card"><div class="z-grid-3"><label>Algorithm<select id="bs-kind"><option value="bats">BATS drawdown accumulator</option><option value="atsp">ATSP trend + pullback</option><option value="dca">Baseline DCA</option></select></label><label>Base buy USD<input id="bs-base" type="number" min="1" value="100"></label><label>Trigger drawdown %<input id="bs-trigger" type="number" min=".1" value="5"></label><label>Trend period<input id="bs-period" type="number" min="2" value="30"></label><label>Max multiplier<input id="bs-mult" type="number" min="1" max="20" value="4"></label><label>Initial cash USD<input id="bs-cash" type="number" min="1" value="25000"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bs-preview" class="btn">PREVIEW SIGNALS</button></div><pre id="bs-output" class="z-log"></pre></div></div>
+
+<div id="mode-risk" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">POSITION / DRAWDOWN LIMITS</p><h2>Risk Controls</h2></div><div class="tool-card"><div class="z-grid-3"><label>Max deployment % cash/bar<input id="rk-deploy" type="number" min=".1" max="100" value="5"></label><label>Portfolio drawdown stop %<input id="rk-stop" type="number" min="1" max="100" value="30"></label><label>Max venue allocation %<input id="rk-venue" type="number" min="1" max="100" value="50"></label></div><pre id="rk-output" class="z-log"></pre></div></div>
+
+<div id="mode-backtest" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LONG-HORIZON SIMULATION</p><h2>Backtest</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bt-run" class="btn">RUN BACKTEST</button></div><div class="z-metrics"><div><span>BTC accumulated</span><strong id="bt-btc">—</strong></div><div><span>Cash remaining</span><strong id="bt-cash">—</strong></div><div><span>Final equity</span><strong id="bt-equity">—</strong></div><div><span>Max drawdown</span><strong id="bt-dd">—</strong></div></div><canvas id="bt-canvas" class="z-canvas" width="1200" height="340"></canvas><pre id="bt-output" class="z-log"></pre></div></div>
+
+<div id="mode-venues" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MULTI-EXCHANGE RISK CONTROLS</p><h2>Venue Controls</h2></div><div class="tool-card"><label>Venue allocation JSON<textarea id="vn-json" rows="12">[{"venue":"A","weight":0.5,"enabled":true},{"venue":"B","weight":0.3,"enabled":true},{"venue":"C","weight":0.2,"enabled":true}]</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="vn-check" class="btn">VALIDATE ALLOCATIONS</button></div><pre id="vn-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">INTERNAL RESEARCH RECORD</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bx-json" class="btn">EXPORT BACKTEST JSON</button><button id="bx-csv" class="btn ghost">EXPORT EQUITY CSV</button></div></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlackBat</h2><p>BATS/ATSP long-term Bitcoin accumulation research.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Status</dt><dd>INTERNAL – Not for public distribution</dd></div><div><dt>Native</dt><dd>Pandas · NumPy · Matplotlib · Requests · SQLAlchemy</dd></div><div><dt>Web</dt><dd>CSV · simulation · Canvas</dd></div></dl></article><article class="panel"><p class="kicker">EXECUTION BOUNDARY</p><h2>Research only</h2><p>Live exchange execution, credentials, and automated order placement are intentionally excluded from this static internal-facing simulator.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

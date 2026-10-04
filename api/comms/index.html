@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Communications API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+  <section class="container">
+    <h2>Secure Communications API</h2>
+    <p>
+      The Secure Communications API is ZZX-Labs' sovereign, self-hosted messaging interface. It supports GPG-encrypted communications for instant messaging, email, SMS, and even secure voice interactions using text-to-speech (TTS).
+    </p>
+    <p>
+      Designed for maximum privacy and decentralization, this stack routes all messages through our hardened server infrastructure, never relying on third-party intermediaries. Every packet is signed and optionally time-locked for high-assurance authentication.
+    </p>
+  </section>
+
+  <section class="container">
+    <h2>Capabilities</h2>
+    <ul>
+      <li><strong>GPG Instant Messaging:</strong> Zero-trust encrypted chat channels between users with verifiable key pairs.</li>
+      <li><strong>Secure Email:</strong> ProtonMail-compatible internal email stack using OpenPGP encryption.</li>
+      <li><strong>SMS Gateway:</strong> Supports encrypted short text delivery for devices configured via mobile mesh or LTE routers.</li>
+      <li><strong>TTS Voice Messaging:</strong> Converts text messages to synthetic audio and plays them over speakers or streams to partner devices.</li>
+    </ul>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <h3>GPG Chat API</h3>
+      <p>Send and receive encrypted chat messages using signed JSON payloads and in-session keypair validation.</p>
+      <pre><code class="language-json">{
+  "sender": "user@zzx",
+  "recipient": "admin@zzx",
+  "message": "gpg-encrypted-message",
+  "timestamp": "2025-05-01T19:20:00Z"
+}</code></pre>
+    </div>
+
+    <div class="feature">
+      <h3>Encrypted Email API</h3>
+      <p>Send OpenPGP-compatible emails over our internal mail infrastructure. Supports inboxes, filters, aliases, and GPG verification.</p>
+      <li style="list-style-type: none;"><a href="./comms/email">Access Email Endpoint</a></li>
+    </div>
+
+    <div class="feature">
+      <h3>Secure SMS API</h3>
+      <p>Send encrypted SMS messages via our mobile LTE relays or TOR mesh nodes to verified recipients.</p>
+      <pre><code class="language-json">{
+  "to": "+15551234567",
+  "message": "gpg-encrypted-payload",
+  "via": "TOR/LTE"
+}</code></pre>
+    </div>
+
+    <div class="feature">
+      <h3>TTS Voice API</h3>
+      <p>Convert encrypted text messages into audio and route them to designated speakers or encrypted streams.</p>
+      <pre><code class="language-json">{
+  "text": "Site status has changed. Dashboard access revoked.",
+  "voice": "en-US-Neural2-B",
+  "output": "base64-ogg-stream"
+}</code></pre>
+    </div>
+
+    <div class="feature">
+      <h3>Comms Key Management</h3>
+      <p>Manage per-session keys, persistent GPG keyrings, identity bindings, and revocation lists through this endpoint.</p>
+      <li style="list-style-type: none;"><a href="./comms/keys">Key Management</a></li>
+    </div>
+  </section>
+
+  <section class="container cta">
+    <h2>Want Encrypted Messaging?</h2>
+    <p>If you're a ZZX partner, you may request access to our internal encrypted comms APIs.</p>
+    <p>For federation, endpoint provisioning, or key escrow mirroring, reach out to our security team.</p>
+    <a href="../../contact" class="btn">Request Access</a>
+  </section>
+
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <p>Your voice, your message—privately delivered.</p>
+      <a href="../../areas-of-expertise/cysec" class="btn btn-primary">Explore CySec Capabilities</a>
+    </div>
+  </section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

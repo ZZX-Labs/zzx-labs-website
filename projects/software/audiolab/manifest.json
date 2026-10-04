@@ -1,0 +1,162 @@
+{
+  "slug": "audiolab",
+  "title": "AudioLab",
+  "name": "AudioLab",
+  "blurb": "AudioLab is an experimental sound design and analysis environment for waveform generation, signal processing, and multi-track manipulation. It provides tools for synthesis, spectral visualization, recording, filtering, and effects chaining — all within a modular PyQt5 interface. Designed for researchers, producers, and developers exploring audio physics, acoustics, and AI-driven sonic experimentation.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/audiolab/",
+  "github": "https://github.com/ZZX-Labs/audiolab",
+  "logo": "/projects/software/audiolab/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "python3",
+      "pyqt5",
+      "numpy",
+      "scipy",
+      "matplotlib",
+      "sounddevice",
+      "pyaudio",
+      "ffmpeg",
+      "librosa",
+      "pillow"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "FFmpeg",
+      "Matplotlib",
+      "Librosa"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./audiolab.js",
+    "modules": [
+      "./dsp.js",
+      "./waveform.js",
+      "./recorder.js",
+      "./audio-engine.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "capabilities": [
+      {
+        "name": "Waveform synthesis",
+        "web": "yes",
+        "notes": "Sine, square, sawtooth, triangle, white noise."
+      },
+      {
+        "name": "Live sound generation",
+        "web": "yes",
+        "notes": "OscillatorNode / AudioBufferSourceNode."
+      },
+      {
+        "name": "Multi-track playback",
+        "web": "yes",
+        "notes": "Decoded Web Audio buffers."
+      },
+      {
+        "name": "Per-track gain/pan",
+        "web": "yes",
+        "notes": "GainNode and StereoPannerNode."
+      },
+      {
+        "name": "Mute/solo/loop",
+        "web": "yes",
+        "notes": "Mixer state."
+      },
+      {
+        "name": "Biquad filtering",
+        "web": "yes",
+        "notes": "Low/high/band/notch/all-pass."
+      },
+      {
+        "name": "Distortion",
+        "web": "yes",
+        "notes": "WaveShaperNode."
+      },
+      {
+        "name": "Delay/feedback/wet mix",
+        "web": "yes",
+        "notes": "DelayNode + feedback routing."
+      },
+      {
+        "name": "Spectral visualization",
+        "web": "yes",
+        "notes": "AnalyserNode FFT + Canvas."
+      },
+      {
+        "name": "Oscilloscope",
+        "web": "yes",
+        "notes": "AnalyserNode time-domain data."
+      },
+      {
+        "name": "Recording",
+        "web": "yes",
+        "notes": "MediaRecorder with user permission."
+      },
+      {
+        "name": "Offline processing",
+        "web": "yes",
+        "notes": "Trim, normalize, fades, WAV export."
+      },
+      {
+        "name": "FFmpeg full pipeline",
+        "web": "partial",
+        "notes": "Browser implements a practical decoded-PCM subset."
+      },
+      {
+        "name": "Librosa analysis",
+        "web": "partial",
+        "notes": "Web Audio real-time metrics replace native Librosa for the static port."
+      }
+    ]
+  },
+  "tags": [
+    "audio",
+    "sound",
+    "synthesis",
+    "signal-processing",
+    "visualization",
+    "filter",
+    "fx",
+    "waveform",
+    "recording",
+    "analysis",
+    "pyqt5",
+    "gui",
+    "cli",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "audiolab.js",
+    "audio-engine.js",
+    "dsp.js",
+    "waveform.js",
+    "recorder.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

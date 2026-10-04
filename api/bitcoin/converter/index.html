@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Converter API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Unit Converter</h2>
+  <p>
+    Instantly convert between Bitcoin units (BTC, mBTC, μBTC, sat, msat, μsat) using live price data. The converter uses precise mathematical ratios and updates every 250ms for real-time accuracy.
+  </p>
+  <p>
+    This tool supports all major sub-denominations and displays both fiat and crypto equivalents. Ideal for wallets, invoices, microtransaction tools, and Lightning Network applications.
+  </p>
+</section>
+
+<section class="container">
+  <form id="btc-converter-form">
+    <label for="btc-input">Enter Amount:</label>
+    <input type="number" id="btc-input" placeholder="e.g., 0.01" />
+    <select id="unit-select">
+      <option value="btc">BTC</option>
+      <option value="mbtc">mBTC</option>
+      <option value="ubtc">μBTC</option>
+      <option value="sat">sat</option>
+      <option value="msat">msat</option>
+      <option value="usat">μsat</option>
+    </select>
+    <p id="conversion-result">Equivalent: 0</p>
+  </form>
+</section>
+
+<script>
+  function convertBTC(amount, unit) {
+    const sats = {
+      btc: 100000000,
+      mbtc: 100000,
+      ubtc: 100,
+      sat: 1,
+      msat: 0.001,
+      usat: 0.000001
+    };
+    return amount * sats[unit];
+  }
+
+  async function convert() {
+    const amount = parseFloat(document.getElementById('btc-input').value || 0);
+    const unit = document.getElementById('unit-select').value;
+    const satoshis = convertBTC(amount, unit);
+
+    const res = await fetch('/api/bitcoin/price');
+    const { price } = await res.json();
+    const fiat = (satoshis / 100000000) * price;
+
+    document.getElementById('conversion-result').textContent =
+      `Equivalent: ${satoshis.toLocaleString()} sats = $${fiat.toFixed(2)}`;
+  }
+
+  document.getElementById('btc-input').addEventListener('input', convert);
+  document.getElementById('unit-select').addEventListener('change', convert);
+  setInterval(convert, 250);
+</script>
+
+<section class="features">
+  <div class="feature">
+    <h3>Public API</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/price</code></pre>
+    <p>Returns the globally weighted spot price of BTC in USD.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Supported Units</h3>
+    <ul>
+      <li style="list-style-type: none;">BTC – 1 Bitcoin</li>
+      <li style="list-style-type: none;">mBTC – 1/1,000 Bitcoin</li>
+      <li style="list-style-type: none;">μBTC – 1/1,000,000 Bitcoin</li>
+      <li style="list-style-type: none;">sat – 1/100,000,000 Bitcoin</li>
+      <li style="list-style-type: none;">msat – 1/100,000,000,000 Bitcoin</li>
+      <li style="list-style-type: none;">μsat – 1/100,000,000,000,000 Bitcoin</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need a Custom Converter?</h2>
+  <p>
+    We build private converters, Lightning dashboards, embedded pricing tools, and hardware-optimized crypto conversion apps for partners and clients.
+  </p>
+  <a href="../../../contact" class="btn">Build With Us</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>From Bitcoin to μsat—convert with cryptographic accuracy.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Learn More</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

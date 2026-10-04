@@ -1,0 +1,157 @@
+<!-- __partials/widgets/nodes-by-version/widget.html -->
+<div class="btc-card nodes-by-version">
+  <div class="nodes-by-version__header">
+    <div>
+      <div class="btc-card__title">Nodes by Version</div>
+      <div class="nodes-by-version__eyebrow">
+        reachable-node user agents · shared ZZX Bitnodes snapshot
+      </div>
+    </div>
+
+    <span
+      class="btc-card__status"
+      data-nbv-status
+      data-status="offline"
+      aria-live="polite"
+    >loading</span>
+  </div>
+
+  <div class="nodes-by-version__hero">
+    <span>identified user agents</span>
+    <strong data-nbv-summary>—</strong>
+    <small data-nbv-sub>loading client/version distribution…</small>
+  </div>
+
+  <div class="nodes-by-version__metrics">
+    <div><span>versions / UAs</span><strong data-nbv-version-count>—</strong></div>
+    <div><span>top user agent</span><strong data-nbv-top-agent>—</strong></div>
+    <div><span>top-agent share</span><strong data-nbv-top-share>—</strong></div>
+    <div><span>identified share</span><strong data-nbv-coverage>—</strong></div>
+  </div>
+
+  <div class="nodes-by-version__families">
+    <div data-nbv-family-card="Bitcoin Core">
+      <span>Bitcoin Core</span>
+      <strong data-nbv-core>—</strong>
+    </div>
+    <div data-nbv-family-card="Bitcoin Knots">
+      <span>Bitcoin Knots</span>
+      <strong data-nbv-knots>—</strong>
+    </div>
+    <div data-nbv-family-card="Other">
+      <span>Other clients</span>
+      <strong data-nbv-other>—</strong>
+    </div>
+    <div>
+      <span>families</span>
+      <strong data-nbv-family-count>—</strong>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__mix" aria-label="Client family distribution">
+    <div class="nodes-by-version__mix-head">
+      <span>client-family mix</span>
+      <strong data-nbv-mix-label>—</strong>
+    </div>
+    <div class="nodes-by-version__mix-bar">
+      <span class="nodes-by-version__mix-core" data-nbv-mix-core></span>
+      <span class="nodes-by-version__mix-knots" data-nbv-mix-knots></span>
+      <span class="nodes-by-version__mix-other" data-nbv-mix-other></span>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__section-head">
+    <div class="nodes-by-version__section-title">
+      <span>Version × nation rows</span>
+      <strong data-nbv-visible-count>—</strong>
+    </div>
+    <span class="nodes-by-version__scroll-hint">all matching version/nation rows · scroll to browse</span>
+  </div>
+
+  <div class="nodes-by-version__controls">
+    <input
+      type="search"
+      data-nbv-search
+      placeholder="filter client / version / nation / ISO"
+      aria-label="Filter nodes by version"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <label>
+      <span>family</span>
+      <select data-nbv-family aria-label="Filter client family">
+        <option value="all">All families</option>
+        <option value="Bitcoin Core">Bitcoin Core</option>
+        <option value="Bitcoin Knots">Bitcoin Knots</option>
+        <option value="Other">Other clients</option>
+      </select>
+    </label>
+
+    <label>
+      <span>geography</span>
+      <select data-nbv-geo aria-label="Filter version rows by geography">
+        <option value="all">All rows</option>
+        <option value="located">Located only</option>
+        <option value="unlocated">Unlocated only</option>
+      </select>
+    </label>
+
+    <button
+      type="button"
+      class="zzx-widgets__btn"
+      data-nbv-refresh
+      aria-label="Refresh shared nodes snapshot"
+    >Refresh</button>
+  </div>
+
+  <div class="nodes-by-version__table-wrap" data-nbv-scroll>
+    <div
+      class="nodes-by-version__table"
+      role="table"
+      aria-label="Reachable Bitcoin nodes by user agent, version, family, and nation"
+    >
+      <div class="nodes-by-version__row nodes-by-version__head" role="row">
+        <div role="columnheader">#</div>
+        <div role="columnheader">User Agent / Version</div>
+        <div role="columnheader">Family</div>
+        <div role="columnheader">Nation</div>
+        <div class="nodes-by-version__num" role="columnheader">Nodes</div>
+        <div class="nodes-by-version__num" role="columnheader">Share</div>
+      </div>
+
+      <div data-nbv-body></div>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__details">
+    <div class="nodes-by-version__detail-row">
+      <span>reachable total</span>
+      <strong data-nbv-network-total>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
+      <span>decoded node rows</span>
+      <strong data-nbv-decoded>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
+      <span>latest height</span>
+      <strong data-nbv-height>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
+      <span>located / unlocated</span>
+      <strong data-nbv-location-summary>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
+      <span>snapshot</span>
+      <strong data-nbv-updated>—</strong>
+    </div>
+    <div class="nodes-by-version__detail-row">
+      <span>source</span>
+      <strong data-nbv-source>—</strong>
+    </div>
+  </div>
+
+  <div class="nodes-by-version__footer">
+    <span data-nbv-meta>one shared normalized snapshot · no duplicate node API calls</span>
+  </div>
+</div>

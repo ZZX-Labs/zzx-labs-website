@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Analytics API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Analytics Engine API</h2>
+  <p>
+    The Analytics API provides a secure endpoint for querying, monitoring, and exporting real-time data about ZZX-Labs platform usage.
+    It supports both passive telemetry (e.g., time-on-page, referral paths) and active event logging (e.g., API calls, clicks, scroll behavior).
+  </p>
+  <p>
+    Designed for privacy-respecting internal analytics, all data is stored locally, not sent to third parties. ZIRA may also integrate directly
+    to summarize trends and surface anomalies.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Core Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Live Stats:</strong> Track real-time metrics like active sessions, CPU usage, or total API requests.</li>
+    <li style="list-style-type: none;"><strong>Session Histories:</strong> Retrieve detailed logs by IP, session token, or user class.</li>
+    <li style="list-style-type: none;"><strong>Custom Dashboards:</strong> Build personalized analytics panels via API queries + ZIRA widgets.</li>
+    <li style="list-style-type: none;"><strong>Privacy-Respecting:</strong> No cookies or third-party beacons—analytics stay within your node.</li>
+    <li style="list-style-type: none;"><strong>Export JSON Reports:</strong> Download structured data reports for external audits or visualization.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Query Active Sessions</h3>
+    <p>Return the count and metadata of currently active user or system sessions.</p>
+    <pre><code class="language-json">{
+  "action": "get_sessions",
+  "auth_token": "gpg-auth-signed"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Analytics Snapshot</h3>
+    <p>Fetch a quick overview of live metrics for admin dashboards and ZIRA feeds.</p>
+    <pre><code class="language-json">{
+  "metrics": [
+    "active_users", 
+    "avg_time_on_page", 
+    "api_requests_24h"
+  ]
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Download Audit Report</h3>
+    <p>Generate and download a timestamped analytics report in machine-readable JSON.</p>
+    <pre><code class="language-json">{
+  "report": "site_analytics_q2.json",
+  "include": ["sessions", "API calls", "referrals"]
+}</code></pre>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Analytics Access?</h2>
+  <p>
+    Full analytics logs and dashboards are restricted to internal admins and trusted partners with GPG token access.
+  </p>
+  <p>
+    Contact our backend or visualization team to integrate analytics into your dashboards or enable reporting endpoints.
+  </p>
+  <a href="../../../contact" class="btn">Request Analytics API Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

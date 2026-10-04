@@ -1,0 +1,120 @@
+.wfb-archive-layout {
+  display: grid;
+  grid-template-columns: minmax(0,1.7fr) minmax(280px,.55fr);
+  gap: .8rem;
+}
+
+.wfb-archive-main,
+.wfb-edition-inspector {
+  min-width: 0;
+  padding: .8rem;
+  border: 1px solid var(--wfb-line-soft);
+  border-radius: 10px;
+  background: #080b08;
+}
+
+.wfb-timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  margin-bottom: .55rem;
+  color: #7d886d;
+  font: 700 .58rem var(--wfb-font);
+}
+
+.wfb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+}
+
+.wfb-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  color: #5d6655;
+  font: .49rem var(--wfb-font);
+}
+
+.wfb-legend i {
+  width: 11px;
+  height: 3px;
+  display: block;
+}
+
+.wfb-legend .is-indexed { background: var(--wfb-green); }
+.wfb-legend .is-partial { background: var(--wfb-amber); }
+.wfb-legend .is-unresolved { background: #333a31; }
+
+.wfb-timeline {
+  display: grid;
+  grid-template-columns: repeat(16,minmax(0,1fr));
+  gap: 4px;
+}
+
+.wfb-year {
+  min-width: 0;
+  min-height: 34px;
+  padding: .25rem;
+  border: 1px solid rgba(255,255,255,.045);
+  border-radius: 6px;
+  background: #060806;
+  color: #4c5448;
+  cursor: pointer;
+  font: 600 .52rem var(--wfb-font);
+}
+
+.wfb-year[data-status="indexed"] {
+  border-color: rgba(192,214,116,.16);
+  color: #899674;
+  background: rgba(192,214,116,.03);
+}
+
+.wfb-year[data-status="partial"] {
+  border-color: rgba(230,164,43,.16);
+  color: #a88854;
+  background: rgba(230,164,43,.025);
+}
+
+.wfb-year:hover,
+.wfb-year:focus,
+.wfb-year.is-selected {
+  border-color: var(--wfb-line-strong);
+  color: var(--wfb-green);
+  background: rgba(192,214,116,.07);
+}
+
+.wfb-edition-inspector h3 {
+  margin: .3rem 0 .55rem;
+  font: 700 1.35rem var(--wfb-font);
+}
+
+.wfb-edition-inspector dl {
+  display: grid;
+  gap: .3rem;
+  margin: 0;
+}
+
+.wfb-edition-inspector dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: .7rem;
+  padding-bottom: .28rem;
+  border-bottom: 1px dotted rgba(255,255,255,.065);
+}
+
+.wfb-edition-inspector dt,
+.wfb-edition-inspector dd {
+  margin: 0;
+  font: .54rem var(--wfb-font);
+}
+
+.wfb-edition-inspector dt { color: var(--wfb-dim); }
+.wfb-edition-inspector dd { color: #909d7b; text-align: right; }
+
+.wfb-edition-inspector > p:last-child {
+  margin: .65rem 0 0;
+  color: #66715b;
+  font: .58rem/1.55 var(--wfb-font);
+}

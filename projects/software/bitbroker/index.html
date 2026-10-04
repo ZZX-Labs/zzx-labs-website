@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Programmable Bitcoin order-router and market microstructure research toolkit for simulated accumulation, hedging, rebalancing, venue comparison, slippage modeling, and execution-plan generation across exchange/provider quotes.">
+  <title>BitBroker · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitbroker-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitbroker-1">
+  <script src="./hook.js?v=20260824-bitbroker-1" defer></script>
+  <script src="./script.js?v=20260824-bitbroker-1" defer></script>
+  <script src="./bitbroker-core.js?v=20260824-bitbroker-1" defer></script>
+  <script src="./bitbroker.js?v=20260824-bitbroker-1" defer></script>
+</head>
+
+<body class="project project-bitbroker">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitBroker logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitBroker</h1>
+    <p class="blurb">Programmable Bitcoin order-router and market microstructure research toolkit for simulated accumulation, hedging, rebalancing, venue comparison, slippage modeling, and execution-plan generation across exchange/provider quotes.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitbroker" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ORDER ROUTER / MICROSTRUCTURE RESEARCH</p><h2>BitBroker Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">ROUTER: SIMULATION</span><span class="runtime-badge ok">ORDERS: NOT SENT</span><span class="runtime-badge ok">QUOTES: LOCAL/PROVIDER</span><span class="runtime-badge ok">SECRETS: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="venues" type="button">Venues</button><button class="tool-tab mode-tab" data-mode="route" type="button">Route</button><button class="tool-tab mode-tab" data-mode="accumulate" type="button">Accumulate</button><button class="tool-tab mode-tab" data-mode="rebalance" type="button">Rebalance</button><button class="tool-tab mode-tab" data-mode="micro" type="button">Microstructure</button><button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>EXECUTION MODEL</strong><p>This static port creates execution plans only. It does not accept API secrets or submit live orders. Native CCXT execution remains outside the browser.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-venues" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">VENUE QUOTES</p><h2>Venues</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Venue<input id="bv-name" value="venue-a"></label><label>Bid USD<input id="bv-bid" type="number" value="99950"></label><label>Ask USD<input id="bv-ask" type="number" value="100050"></label><label>Ask depth BTC<input id="bv-depth" type="number" step=".001" value="2"></label><label>Fee bps<input id="bv-fee" type="number" step=".1" value="10"></label><label>Latency ms<input id="bv-latency" type="number" value="80"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bv-add" class="btn">ADD / UPDATE VENUE</button><button id="bv-sample" class="btn ghost">LOAD SAMPLE VENUES</button></div><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Venue</th><th>Bid</th><th>Ask</th><th>Depth BTC</th><th>Fee bps</th><th>Latency</th></tr></thead><tbody id="bv-body"></tbody></table></div>
+</div></div>
+
+<div id="mode-route" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SMART ROUTING MODEL</p><h2>Route</h2></div><div class="tool-card"><div class="z-grid-3"><label>Side<select id="br-side"><option value="buy">Buy BTC</option><option value="sell">Sell BTC</option></select></label><label>Quantity BTC<input id="br-qty" type="number" step=".0001" min=".0001" value=".25"></label><label>Slippage bps / BTC depth<input id="br-slip" type="number" step=".1" min="0" value="5"></label></div><div class="button-row" style="justify-content:flex-start"><button id="br-run" class="btn">BUILD ROUTE</button></div><pre id="br-output" class="z-log"></pre></div></div>
+
+<div id="mode-accumulate" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ACCUMULATION PLAN</p><h2>Accumulate</h2></div><div class="tool-card"><div class="z-grid-3"><label>Budget USD<input id="ba-budget" type="number" min="1" value="10000"></label><label>Slices<input id="ba-slices" type="number" min="1" max="1000" value="10"></label><label>Cadence minutes<input id="ba-cadence" type="number" min="1" value="60"></label></div><div class="button-row" style="justify-content:flex-start"><button id="ba-plan" class="btn">BUILD TWAP PLAN</button></div><pre id="ba-output" class="z-log"></pre></div></div>
+
+<div id="mode-rebalance" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTFOLIO REBALANCING</p><h2>Rebalance</h2></div><div class="tool-card"><div class="z-grid-3"><label>BTC holdings<input id="bb-btc" type="number" step=".0001" value="1"></label><label>Cash USD<input id="bb-usd" type="number" value="50000"></label><label>Target BTC %<input id="bb-target" type="number" min="0" max="100" value="70"></label></div><div class="button-row" style="justify-content:flex-start"><button id="bb-run" class="btn">CALCULATE REBALANCE</button></div><pre id="bb-output" class="z-log"></pre></div></div>
+
+<div id="mode-micro" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MARKET MICROSTRUCTURE</p><h2>Microstructure</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bm-run" class="btn">ANALYZE VENUES</button></div><pre id="bm-output" class="z-log"></pre><canvas id="bm-canvas" class="z-canvas" width="1200" height="320"></canvas></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">RESEARCH PLAN EXPORT</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bx-json" class="btn">EXPORT JSON</button><button id="bx-csv" class="btn ghost">EXPORT VENUES CSV</button></div></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitBroker</h2><p>Programmable Bitcoin routing, microstructure, accumulation, and rebalancing research.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.2.0-beta</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>PyQt5 · Requests · Pandas · SQLAlchemy · Matplotlib · CCXT</dd></div><div><dt>Web</dt><dd>Simulation · provider hooks · Canvas</dd></div></dl></article><article class="panel"><p class="kicker">EXECUTION BOUNDARY</p><h2>No exchange credentials</h2><p>Use native CCXT or a trusted server-side execution adapter for real orders. The browser is intentionally limited to research and plan generation.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

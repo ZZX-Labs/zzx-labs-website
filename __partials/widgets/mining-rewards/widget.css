@@ -1,0 +1,196 @@
+/* __partials/widgets/mining-rewards/widget.css */
+
+.mining-rewards{
+  --mr-green:var(--zzx-accent,#c0d674);
+  --mr-gold:var(--zzx-accent-alt,#e6a42b);
+  --mr-red:var(--zzx-error,#d67474);
+  --mr-muted:var(--zzx-muted,#b7bf9a);
+  --mr-dim:var(--zzx-dim,#777);
+  --mr-line:rgba(255,255,255,.09);
+  --mr-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.mining-rewards__header,
+.mining-rewards__footer,
+.mining-rewards__pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.mining-rewards__header{align-items:flex-start}
+
+.mining-rewards__eyebrow,
+.mining-rewards__hero > span,
+.mining-rewards__metrics span{
+  color:var(--mr-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.mining-rewards__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--mr-line);
+  border-bottom:1px solid var(--mr-line);
+}
+
+.mining-rewards__hero strong{
+  min-width:0;
+  color:var(--mr-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.35rem;
+  line-height:1.05;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mining-rewards__hero small{
+  color:var(--mr-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mining-rewards__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.mining-rewards__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--mr-line);
+  border-radius:6px;
+  background:var(--mr-panel);
+}
+
+.mining-rewards__metrics span,
+.mining-rewards__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mining-rewards__metrics strong{
+  margin-top:.1rem;
+  color:var(--mr-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.mining-rewards__table-wrap{
+  margin-top:.5rem;
+  overflow:auto;
+  border:1px solid var(--mr-line);
+  border-radius:6px;
+}
+
+.mining-rewards__table{
+  min-width:660px;
+}
+
+.mining-rewards__row{
+  display:grid;
+  grid-template-columns:38px minmax(150px,1fr) 72px 72px 110px 120px;
+  gap:.4rem;
+  align-items:center;
+  min-width:0;
+  padding:.36rem .42rem;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.67rem;
+}
+
+.mining-rewards__head{
+  border-top:0;
+  background:rgba(0,0,0,.34);
+  color:var(--mr-gold);
+  text-transform:uppercase;
+}
+
+.mining-rewards__row > div{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mining-rewards__row:not(.mining-rewards__head) > div{
+  color:var(--mr-muted);
+}
+
+.mining-rewards__row:not(.mining-rewards__head) > div:nth-child(2),
+.mining-rewards__row:not(.mining-rewards__head) > div:nth-child(5){
+  color:var(--mr-green);
+}
+
+.mining-rewards__num{text-align:right}
+
+.mining-rewards__badge{
+  margin-left:.3rem;
+  color:var(--mr-gold);
+  font-size:.57rem;
+}
+
+.mining-rewards__empty{
+  padding:.7rem;
+  color:var(--mr-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.mining-rewards__pager{
+  justify-content:center;
+  margin-top:.45rem;
+  color:var(--mr-muted);
+  font-size:.68rem;
+}
+
+.mining-rewards__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--mr-line);
+  color:var(--mr-muted);
+  font-size:.68rem;
+}
+
+.mining-rewards__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .mining-rewards__metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:420px){
+  .mining-rewards__metrics{
+    grid-template-columns:1fr;
+  }
+
+  .mining-rewards__footer{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}

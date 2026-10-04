@@ -1,0 +1,139 @@
+{
+  "slug": "astral-clock",
+  "title": "Astral Clock (Universal Time System)",
+  "name": "Astral Clock",
+  "blurb": "Astral Clock defines a single unified time standard for the entire known universe — synchronizing clocks between Earth, its Moon, Mars, Ganymede, and other celestial bodies. It calculates orbital drift, gravitational offset, and signal delay to establish an exact shared time across planets, moons, stars, and galaxies. Designed for space navigation, interplanetary coordination, and future off-world civilization infrastructure.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/astral-clock/",
+  "github": "https://github.com/ZZX-Labs/astralclock",
+  "logo": "/projects/software/astral-clock/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Android",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "python3",
+      "pyqt5",
+      "numpy",
+      "astropy",
+      "scipy",
+      "matplotlib",
+      "requests",
+      "pillow",
+      "datetime"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "Astropy",
+      "Matplotlib"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./astral-clock.js",
+    "modules": [
+      "./celestial.js",
+      "./time-model.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "reference_epoch": "2026-01-01T00:00:00.000Z",
+    "reference_clock": "Earth UTC",
+    "capabilities": [
+      {
+        "name": "Live multi-body clock",
+        "web": "yes",
+        "notes": "Earth, Moon, Mars, Ganymede."
+      },
+      {
+        "name": "Coordinate-time conversion",
+        "web": "yes",
+        "notes": "Earth-UTC-anchored epoch/rate mapping."
+      },
+      {
+        "name": "Gravitational time-rate model",
+        "web": "yes",
+        "notes": "Weak-field GM/(rc²) approximation."
+      },
+      {
+        "name": "Velocity time-rate model",
+        "web": "yes",
+        "notes": "First-order v²/(2c²) term."
+      },
+      {
+        "name": "Accumulated drift",
+        "web": "yes",
+        "notes": "Pairwise projected proper-time difference."
+      },
+      {
+        "name": "Signal delay",
+        "web": "yes",
+        "notes": "Distance divided by c."
+      },
+      {
+        "name": "Accelerated simulation",
+        "web": "yes",
+        "notes": "0–500 year local simulation."
+      },
+      {
+        "name": "Drift visualization",
+        "web": "yes",
+        "notes": "Canvas."
+      },
+      {
+        "name": "Custom celestial body",
+        "web": "yes",
+        "notes": "Temporary local model."
+      },
+      {
+        "name": "Astropy precision ephemeris",
+        "web": "partial",
+        "notes": "Browser edition uses representative constants/distances."
+      }
+    ]
+  },
+  "tags": [
+    "astronomy",
+    "time",
+    "synchronization",
+    "planetary",
+    "space",
+    "interplanetary",
+    "clock",
+    "navigation",
+    "cosmic",
+    "universal",
+    "simulation",
+    "pyqt5",
+    "gui",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "astral-clock.js",
+    "celestial.js",
+    "time-model.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

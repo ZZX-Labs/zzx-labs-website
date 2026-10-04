@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin address, UTXO, and transaction tracker with labels, notes, public Esplora lookups, watchlist persistence, transaction inspection, and exportable local audit trails.">
+  <title>Bit-Tracker · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-bit-tracker-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-bit-tracker-1">
+  <script src="./hook.js?v=20260822-bit-tracker-1" defer></script>
+  <script src="./script.js?v=20260822-bit-tracker-1" defer></script>
+  <script src="./tracker-core.js?v=20260822-bit-tracker-1" defer></script>
+  <script src="./bit-tracker.js?v=20260822-bit-tracker-1" defer></script>
+</head>
+
+<body class="project project-bit-tracker">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bit-Tracker logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bit-Tracker</h1>
+    <p class="blurb">Bitcoin address, UTXO, and transaction tracker with labels, notes, public Esplora lookups, watchlist persistence, transaction inspection, and exportable local audit trails.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bit-tracker" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ADDRESS / UTXO / TX TRACKING</p><h2>Bit-Tracker Browser Workbench</h2></div><div class="runtime-status"><span id="tracker-net" class="runtime-badge partial">NETWORK: IDLE</span><span class="runtime-badge ok">WATCHLIST: LOCAL</span><span class="runtime-badge ok">KEYS: NONE</span><span class="runtime-badge ok">AUDIT: LOCAL</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="watchlist" type="button">Watchlist</button>
+<button class="tool-tab mode-tab" data-mode="address" type="button">Address</button>
+<button class="tool-tab mode-tab" data-mode="utxo" type="button">UTXOs</button>
+<button class="tool-tab mode-tab" data-mode="tx" type="button">Transaction</button>
+<button class="tool-tab mode-tab" data-mode="audit" type="button">Audit Trail</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>PUBLIC BLOCKCHAIN DATA ONLY</strong><p>Track public Bitcoin addresses/transactions. Never enter seed phrases, private keys, xprvs, wallet passwords, or RPC credentials.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-watchlist" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">LABELED WATCHLIST</p><h2>Watchlist</h2><p>Add public Bitcoin addresses with labels and notes, then refresh selected or all entries.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Bitcoin address<input id="watch-address" type="text" autocomplete="off"></label><label>Label<input id="watch-label" type="text" value="watch"></label><label>Category<input id="watch-category" type="text" value="research"></label></div>
+<label style="margin-top:.7rem">Notes<textarea id="watch-notes" rows="3"></textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="watch-add" class="btn" type="button">ADD ADDRESS</button><button id="watch-refresh-all" class="btn ghost" type="button">REFRESH ALL</button></div>
+<div class="z-metrics"><div><span>Tracked</span><strong id="watch-count">0</strong></div><div><span>Total funded</span><strong id="watch-funded">0 sats</strong></div><div><span>Total spent</span><strong id="watch-spent">0 sats</strong></div><div><span>Known balance</span><strong id="watch-balance">0 sats</strong></div></div>
+<div id="watch-list" class="z-list" style="margin-top:.8rem"></div>
+</div></div>
+
+<div id="mode-address" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ADDRESS SUMMARY</p><h2>Address</h2><p>Inspect the selected address's chain and mempool funding/spending counters.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="address-refresh" class="btn" type="button">REFRESH SELECTED</button></div>
+<div class="z-metrics"><div><span>Chain funded</span><strong id="addr-funded">—</strong></div><div><span>Chain spent</span><strong id="addr-spent">—</strong></div><div><span>Chain tx count</span><strong id="addr-txs">—</strong></div><div><span>Balance</span><strong id="addr-balance">—</strong></div></div>
+<pre id="address-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-utxo" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">UNSPENT OUTPUTS</p><h2>UTXOs</h2><p>List currently unspent outputs returned by the configured Esplora API for the selected address.</p></div><div class="tool-card">
+<div class="z-metrics"><div><span>UTXOs</span><strong id="utxo-count">0</strong></div><div><span>Total</span><strong id="utxo-total">0 sats</strong></div><div><span>Confirmed</span><strong id="utxo-confirmed">0</strong></div><div><span>Unconfirmed</span><strong id="utxo-unconfirmed">0</strong></div></div>
+<div class="z-table-wrap" style="margin-top:.8rem"><table class="z-table"><thead><tr><th>TXID:vout</th><th>Value sats</th><th>Status</th><th>Block</th></tr></thead><tbody id="utxo-body"></tbody></table></div>
+</div></div>
+
+<div id="mode-tx" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TRANSACTION INSPECTOR</p><h2>Transaction</h2><p>Look up a public transaction ID and inspect its basic input/output/status data.</p></div><div class="tool-card">
+<div class="z-grid-2"><label>TXID<input id="tx-id" type="text" autocomplete="off"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="tx-lookup" class="btn" type="button">LOOK UP TX</button></div></div>
+<pre id="tx-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL RESEARCH LOG</p><h2>Audit Trail</h2><p>Record watchlist changes, refreshes, and transaction lookups with timestamps.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="audit-export-json" class="btn" type="button">EXPORT JSON</button><button id="audit-export-csv" class="btn ghost" type="button">EXPORT CSV</button><button id="audit-clear" class="btn ghost" type="button">CLEAR AUDIT</button></div>
+<pre id="audit-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ESPLORA SOURCE</p><h2>Source</h2><p>Configure the public blockchain-data API used for address, UTXO, and transaction lookups.</p></div><div class="tool-card">
+<label>API base<input id="source-api" type="url" value="https://mempool.space/api"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="source-save" class="btn" type="button">SAVE SOURCE</button><button id="source-reset" class="btn ghost" type="button">RESET DEFAULT</button></div>
+<pre id="source-output" class="z-log"></pre>
+<div class="z-note">Use your own Esplora/mempool mirror for privacy-sensitive research. Queries to a third-party service reveal the addresses or transaction IDs being requested to that service.</div>
+</div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bit-Tracker</h2><p>Address, UTXO, and transaction tracking with labels, notes, public blockchain lookups, and exportable audit trails.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · SQLAlchemy · SQLite · Pandas</dd></div><div><dt>Web</dt><dd>Fetch · localStorage · Esplora</dd></div></dl></article><article class="panel"><p class="kicker">PRIVACY NOTE</p><h2>Public data, observable queries</h2><p>The data is public blockchain data, but third-party API queries can still reveal research interests. A self-hosted source is preferable for sensitive analysis.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

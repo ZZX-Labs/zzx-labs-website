@@ -1,0 +1,265 @@
+/* __partials/credits/credits.css */
+/* DROP-IN REPLACEMENT — Modal-only, footer-safe, non-invasive
+   - Styles ONLY the footer credits button + credits modal
+   - Does NOT affect HUD / widgets / header / layout
+   - NO bullets inside credits modal (even if HTML contains <ul>)
+*/
+
+/* ----------------------------
+   Footer credits button
+----------------------------- */
+.footer-credits-btn {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  color: #c0d674;
+  border-radius: 10px;
+  padding: 0.35rem 0.6rem;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", monospace;
+  font-size: 0.85rem;
+  line-height: 1;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.footer-credits-btn:hover {
+  border-color: #e6a42b;
+  color: #e6a42b;
+}
+
+.footer-credits-btn:focus-visible {
+  outline: 2px solid #e6a42b;
+  outline-offset: 2px;
+}
+
+/* Footer topline layout (reinforce only) */
+.footer-topline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.footer-copy { margin: 0; }
+
+@media (min-width: 900px) {
+  .footer-credits-btn { margin-left: 1.25rem; }
+}
+
+/* ----------------------------
+   Credits modal overlay
+----------------------------- */
+#zzx-credits-modal[hidden] { display: none !important; }
+
+#zzx-credits-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000; /* above HUD handle */
+  display: grid;
+  place-items: end center;
+  padding: 1rem;
+  box-sizing: border-box;
+
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* ----------------------------
+   Modal dialog
+----------------------------- */
+#zzx-credits-dialog {
+  width: 100%;
+  max-width: min(var(--header-rail, 1100px), 96vw);
+  max-height: min(70vh, 680px);
+
+  background: #0b0b0b;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+
+  overflow: hidden;
+  color: #c0d674;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", monospace;
+}
+
+/* Header row */
+.zzx-credits-head,
+.zzx-credits__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+
+  padding: .75rem .9rem;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+#zzx-credits-title,
+.zzx-credits-head h2,
+.zzx-credits__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: #e6a42b;
+}
+
+/* Close button (support ALL historical classnames) */
+.zzx-credits__close,
+.zzx-credits-close,
+.zzx-credits-x {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  color: #c0d674;
+
+  border-radius: 10px;
+  padding: .35rem .6rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.zzx-credits__close:hover,
+.zzx-credits-close:hover,
+.zzx-credits-x:hover {
+  border-color: #e6a42b;
+  color: #e6a42b;
+}
+
+.zzx-credits__close:focus-visible,
+.zzx-credits-close:focus-visible,
+.zzx-credits-x:focus-visible {
+  outline: 2px solid #e6a42b;
+  outline-offset: 2px;
+}
+
+/* ----------------------------
+   Modal body
+----------------------------- */
+#zzx-credits-body {
+  padding: .85rem .95rem 1rem;
+  overflow: auto;
+  max-height: calc(min(70vh, 680px) - 56px);
+}
+
+/* Typography inside modal */
+#zzx-credits-body h1,
+#zzx-credits-body h2,
+#zzx-credits-body h3,
+#zzx-credits-body h4 {
+  color: #e6a42b;
+  margin: .35rem 0 .55rem;
+  line-height: 1.2;
+}
+
+#zzx-credits-body p {
+  margin: .4rem 0 .75rem;
+  color: #b7bf9a;
+}
+
+#zzx-credits-body a {
+  color: #c0d674;
+  text-decoration: none;
+}
+
+#zzx-credits-body a:hover {
+  color: #e6a42b;
+  text-decoration: underline;
+}
+
+#zzx-credits-body hr {
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,.10);
+  margin: 1rem 0;
+}
+
+/* ✅ NO BULLETS anywhere inside credits modal */
+#zzx-credits-body ul,
+#zzx-credits-body ol {
+  list-style: none;
+  margin: .35rem 0 .9rem;
+  padding: 0;
+  display: grid;
+  gap: .35rem;
+}
+
+#zzx-credits-body li {
+  margin: 0;
+  padding: 0;
+  color: #c0d674;
+}
+
+/* ----------------------------
+   Credits content helpers (NO bullets)
+----------------------------- */
+#zzx-credits-body .zzx-credits-sections { display: grid; gap: .75rem; }
+#zzx-credits-body .zzx-credits-section h4 { margin: .15rem 0 .35rem; color: #e6a42b; }
+
+#zzx-credits-body .zzx-credits-muted { opacity: .65; }
+
+#zzx-credits-body .zzx-credits-block { display: grid; gap: .85rem; }
+#zzx-credits-body .zzx-credits-block p { margin: .35rem 0 .75rem; color: #b7bf9a; }
+
+#zzx-credits-body .zzx-credits-lines { display: grid; gap: .55rem; }
+#zzx-credits-body .zzx-credits-line {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: .6rem;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  #zzx-credits-body .zzx-credits-line { grid-template-columns: 1fr; }
+}
+#zzx-credits-body .zzx-credits-k { color: #c0d674; opacity: .95; }
+#zzx-credits-body .zzx-credits-v { color: #b7bf9a; }
+
+/* Chips: single definition (no duplicate/conflict) */
+#zzx-credits-body .zzx-credits-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin-top: .5rem;
+}
+
+#zzx-credits-body .zzx-credits-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem .55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.03);
+  color: #c0d674;
+  text-decoration: none;
+  line-height: 1;
+}
+
+#zzx-credits-body .zzx-credits-chip:hover {
+  border-color: #e6a42b;
+  color: #e6a42b;
+  text-decoration: none;
+}
+
+#zzx-credits-body .zzx-credits-fineprint {
+  margin-top: .9rem;
+  color: #8a8f98;
+  font-size: .85rem;
+  line-height: 1.35;
+}
+
+/* ----------------------------
+   Reduced motion
+----------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #zzx-credits-modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

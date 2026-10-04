@@ -1,0 +1,161 @@
+{
+  "slug": "alexberossusgpt",
+  "title": "AlexBerossusGPT",
+  "name": "AlexBerossusGPT",
+  "blurb": "General-purpose learning, teaching, and review assistant for studying any subject through structured lessons, source-grounded retrieval, quizzes, flashcards, active recall, and spaced repetition.",
+  "description": "AlexBerossusGPT is a broad learning and review environment for any subject or area of knowledge. It combines source ingestion, local retrieval, curriculum planning, tutoring, quiz generation, flashcards, spaced repetition, progress tracking, and optional model-backed instruction.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/alexberossusgpt/",
+  "github": "https://github.com/ZZX-Labs/alexberossusgpt",
+  "logo": "/projects/software/alexberossusgpt/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "fastapi",
+      "uvicorn",
+      "sqlalchemy",
+      "psycopg2",
+      "faiss-cpu",
+      "numpy",
+      "pydantic",
+      "requests",
+      "jinja2"
+    ],
+    "frameworks": [
+      "FastAPI",
+      "SQLAlchemy",
+      "FAISS"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./alexberossusgpt.js",
+    "modules": [
+      "./corpus.js",
+      "./tutor.js",
+      "./quiz.js",
+      "./review.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "network_required": false,
+    "optional_network": [
+      "Local Ollama",
+      "Trusted compatible model proxy"
+    ],
+    "capabilities": [
+      {
+        "name": "Study-source ingestion",
+        "web": "yes",
+        "notes": "TXT, Markdown, JSON, and pasted text."
+      },
+      {
+        "name": "Local corpus indexing",
+        "web": "yes",
+        "notes": "Chunking and lexical retrieval."
+      },
+      {
+        "name": "Retrieval",
+        "web": "yes",
+        "notes": "BM25-style local scoring."
+      },
+      {
+        "name": "Study-plan generation",
+        "web": "yes",
+        "notes": "Configurable subject, level, depth, goal, and units."
+      },
+      {
+        "name": "Source-grounded tutoring",
+        "web": "yes",
+        "notes": "Transparent retrieval from imported sources."
+      },
+      {
+        "name": "Optional model-backed tutoring",
+        "web": "yes",
+        "notes": "Ollama or trusted server proxy."
+      },
+      {
+        "name": "Quiz generation",
+        "web": "yes",
+        "notes": "Cloze and short-answer questions from corpus."
+      },
+      {
+        "name": "Quiz grading",
+        "web": "yes",
+        "notes": "Exact/lexical similarity scoring."
+      },
+      {
+        "name": "Flashcards",
+        "web": "yes",
+        "notes": "Generated from definitions and salient sentences."
+      },
+      {
+        "name": "Spaced repetition",
+        "web": "yes",
+        "notes": "SM-2-style browser-local scheduling."
+      },
+      {
+        "name": "Progress tracking",
+        "web": "yes",
+        "notes": "LocalStorage."
+      },
+      {
+        "name": "Workspace export/import",
+        "web": "yes",
+        "notes": "JSON."
+      },
+      {
+        "name": "FAISS native index",
+        "web": "partial",
+        "notes": "Browser uses lightweight lexical index rather than native FAISS."
+      }
+    ]
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "gpt",
+    "learning",
+    "education",
+    "teaching",
+    "study",
+    "review",
+    "retrieval",
+    "rag",
+    "flashcards",
+    "quiz",
+    "spaced-repetition",
+    "research",
+    "assistant",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "alexberossusgpt.js",
+    "corpus.js",
+    "tutor.js",
+    "quiz.js",
+    "review.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

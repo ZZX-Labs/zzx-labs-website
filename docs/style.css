@@ -1,0 +1,103 @@
+/* docs/style.css
+   Page-local for /docs/index.html
+   - 6px gaps between feature “cards” (tweakable)
+   - ~3px gaps between list items
+   - Bulletless lists (cards, TOCs, footer)
+   - Does not affect ticker styles
+*/
+
+/* ===== Features grid ===== */
+body main section.features {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 6px !important;       /* 4–8px range, set to 6px here */
+  margin-top: 1rem !important;
+}
+
+body main section.features .feature {
+  border: 1px solid rgba(120,130,150,.25) !important;
+  border-radius: 10px !important;
+  padding: .8rem 1rem !important;
+  background: rgba(255,255,255,.02) !important;
+}
+
+/* Headings inside cards */
+body main section.features .feature > h3 {
+  margin: 0 0 .5rem 0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+}
+
+/* ===== Bulletless lists inside features ===== */
+body main section.features .feature ul,
+body main section.features .feature ol {
+  list-style: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+body main section.features .feature li,
+body main section.features .feature > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;   /* ~3px gap between links */
+  padding: 0 !important;
+}
+body main section.features .feature li::marker,
+body main section.features .feature > li::marker {
+  content: "" !important;
+}
+body main section.features .feature li > a,
+body main section.features .feature > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.features .feature li > a:hover,
+body main section.features .feature > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Bulletless TOC lists (h2 + ul) ===== */
+body main section.container h2 + ul {
+  list-style: none !important;
+  margin: .5rem 0 0 0 !important;
+  padding-left: 0 !important;
+}
+body main section.container h2 + ul > li {
+  list-style-type: none !important;
+  margin: 3px 0 !important;
+  padding: 0 !important;
+}
+body main section.container h2 + ul > li > a {
+  display: inline-block !important;
+  padding: 2px 0 !important;
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  transition: color .2s, border-color .2s !important;
+}
+body main section.container h2 + ul > li > a:hover {
+  border-bottom-color: currentColor !important;
+  color: var(--accent, #e6a42b) !important;
+}
+
+/* ===== Footer lists ===== */
+body .footer .footer-links,
+body .footer .footer-links li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .footer .footer-links li { margin: 3px 0 !important; }
+body .footer .footer-links a {
+  text-decoration: none !important;
+  border-bottom: 1px dashed rgba(120,130,150,.3) !important;
+  display: inline-block !important;
+  padding: 2px 0 !important;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  body main section.features { grid-template-columns: 1fr !important; }
+}

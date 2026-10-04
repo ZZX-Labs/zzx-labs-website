@@ -1,0 +1,30 @@
+[Unit]
+Description=ZZX-Labs Flask API
+After=network-online.target zzx-bitnodes-crawler.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+User=zzx
+Group=zzx
+
+WorkingDirectory=/srv/zzx-labs/__server
+
+Environment=PYTHONUNBUFFERED=1
+Environment=ZZX_LABS_ROOT=/srv/zzx-labs
+
+ExecStart=/usr/bin/python3 /srv/zzx-labs/__server/zzx-labs.py gunicorn \
+    --host 127.0.0.1 \
+    --port 5000 \
+    --workers 4 \
+    --threads 8
+
+Restart=always
+RestartSec=10
+
+StandardOutput=append:/srv/zzx-labs/log/flask.log
+StandardError=append:/srv/zzx-labs/log/flask.error.log
+
+[Install]
+WantedBy=multi-user.target

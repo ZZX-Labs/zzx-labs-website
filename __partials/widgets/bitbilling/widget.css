@@ -1,0 +1,147 @@
+/* __partials/widgets/bitbilling/widget.css */
+
+.bitbilling{
+  --bb-green:var(--zzx-accent,#c0d674);
+  --bb-gold:var(--zzx-accent-alt,#e6a42b);
+  --bb-muted:var(--zzx-muted,#b7bf9a);
+  --bb-dim:var(--zzx-dim,#777);
+  --bb-line:rgba(255,255,255,.09);
+  width:100%;
+  min-width:0;
+}
+
+.bitbilling__header,
+.bitbilling__actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  min-width:0;
+}
+
+.bitbilling__header{align-items:flex-start}
+
+.bitbilling__eyebrow,
+.bitbilling label > span,
+.bitbilling__hero > span,
+.bitbilling__metrics span,
+.bitbilling__note{
+  color:var(--bb-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.bitbilling__inputs{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.bitbilling__inputs label{
+  display:grid;
+  gap:.17rem;
+  min-width:0;
+}
+
+.bitbilling__memo{grid-column:1 / -1}
+
+.bitbilling input,
+.bitbilling select{
+  width:100%;
+  min-width:0;
+  padding:.34rem .42rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--bb-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.76rem;
+}
+
+.bitbilling input:focus,
+.bitbilling select:focus{border-color:var(--bb-gold)}
+
+.bitbilling__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--bb-line);
+  border-bottom:1px solid var(--bb-line);
+}
+
+.bitbilling__hero strong{
+  color:var(--bb-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.4rem;
+  line-height:1;
+  font-weight:500;
+}
+
+.bitbilling__hero small{
+  color:var(--bb-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.bitbilling__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.bitbilling__metrics div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--bb-line);
+  border-radius:6px;
+  background:rgba(255,255,255,.018);
+}
+
+.bitbilling__metrics span,
+.bitbilling__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.bitbilling__metrics strong{
+  margin-top:.1rem;
+  color:var(--bb-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.bitbilling__actions{
+  justify-content:flex-start;
+  flex-wrap:wrap;
+  margin-top:.5rem;
+}
+
+.bitbilling__note{
+  margin-top:.42rem;
+  text-transform:none;
+  letter-spacing:.01em;
+  line-height:1.35;
+}
+
+.zzx-project-link{margin-top:.38rem;font-size:.67rem}
+.zzx-project-link a{color:var(--bb-gold)}
+
+@media(max-width:720px){
+  .bitbilling__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:420px){
+  .bitbilling__inputs,
+  .bitbilling__metrics{grid-template-columns:1fr}
+  .bitbilling__memo{grid-column:auto}
+  .bitbilling__actions{display:grid;grid-template-columns:1fr}
+}

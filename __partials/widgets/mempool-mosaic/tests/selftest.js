@@ -1,0 +1,14 @@
+"use strict";
+const fs=require('fs'),path=require('path'),cp=require('child_process');
+const root=path.resolve(__dirname,'..');
+const assert=(c,m)=>{if(!c)throw new Error(m)};
+const html=fs.readFileSync(path.join(root,'widget.html'),'utf8');const css=fs.readFileSync(path.join(root,'widget.css'),'utf8');const widget=fs.readFileSync(path.join(root,'widget.js'),'utf8');
+for(const token of ['data-mm-canvas','data-mm-block','data-mm-tooltip','data-mm-refresh'])assert(html.includes(token),`missing ${token}`);
+for(const bad of ['widget-shell.js','js/packer.js','js/scaler.js','js/themes.js','treemap.js'])assert(!widget.includes(bad),`stale production dependency ${bad}`);
+for(const good of ['mosaic-packer.js','animation.js','controller.js','reader-store.js'])assert(widget.includes(`===== ${'x'} =====`)?true:widget.includes('ZZXMempoolMosaic'));
+assert(!/ZZXMempoolTiles|data-mt-|\.mempool-tiles/.test(widget+html+css),'Tiles namespace leak');
+const before=fs.readFileSync(path.join(root,'widget.js'));
+cp.execFileSync('python3',[path.join(root,'build.py')],{stdio:'ignore'});
+const after=fs.readFileSync(path.join(root,'widget.js'));
+assert(before.equals(after),'build.py does not reproduce widget.js');
+console.log('mempool-mosaic bundle selftest: PASS');

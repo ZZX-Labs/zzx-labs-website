@@ -1,0 +1,192 @@
+/* __partials/bitcoin-ticker-widget.css
+   ZZX-Labs Bitcoin HUD shell + anti-flash primitives.
+
+   This file owns only the outer HUD shell, slot geometry, the recovery handle,
+   the three HUD modes, and enough card styling to prevent an unstyled flash.
+   Rich widget/card controls live in widgets/_core/widget-core.css.
+*/
+
+:root {
+  --zzx-accent: #c0d674;
+  --zzx-accent-alt: #e6a42b;
+  --zzx-bg: #0b0b0b;
+  --zzx-border: rgba(255, 255, 255, 0.14);
+  --zzx-border-strong: #2a2a2a;
+  --zzx-rail: min(var(--header-rail, 1100px), 100%);
+  --zzx-gap: 0.6rem;
+  --zzx-font-mono: "IBMPlexMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Recovery handle: hidden unless the HUD itself is hidden. hud-state.js also
+   applies an inline fallback for browsers without :has(). */
+.zzx-hud-handle {
+  position: sticky;
+  top: 0.35rem;
+  z-index: 9999;
+  display: none;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: var(--zzx-rail);
+  margin: 0.25rem auto;
+  padding-inline: 0.5rem;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+@supports selector(:has(*)) {
+  body:has([data-hud-root][data-hud-state="hidden"]) .zzx-hud-handle {
+    display: flex;
+  }
+}
+
+@supports not selector(:has(*)) {
+  .zzx-hud-handle {
+    display: flex;
+  }
+}
+
+.zzx-hud-show {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0.3rem 0.7rem;
+  background: #000;
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border);
+  border-radius: 10px;
+  font-family: var(--zzx-font-mono);
+  cursor: pointer;
+}
+
+.zzx-hud-show:hover,
+.zzx-hud-show:focus-visible {
+  color: var(--zzx-accent-alt);
+  border-color: var(--zzx-accent-alt);
+}
+
+.zzx-hud-show:focus-visible {
+  outline: 2px solid var(--zzx-accent-alt);
+  outline-offset: 2px;
+}
+
+/* Main rail: stable two-column grid; manifest size does not matter. */
+.btc-rail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--zzx-gap);
+  width: 100%;
+  max-width: var(--zzx-rail);
+  min-width: 0;
+  margin: 0.45rem auto;
+  padding-inline: 0.5rem;
+  box-sizing: border-box;
+}
+
+[data-hud-root][data-hud-state="hidden"] {
+  display: none !important;
+}
+
+.btc-slot {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Widget Module switches collapse presentation only.  The mounted widget and
+   its provider state remain alive behind the slot. */
+.btc-slot[data-ticker-visible="false"] {
+  display: none !important;
+}
+
+/* Prevent empty/disabled slots from leaving holes while the core mounts. */
+.btc-slot:empty,
+.btc-slot[data-widget-enabled="0"] {
+  display: none;
+}
+
+/* Canonical full-width items. Both historical selector conventions remain valid. */
+.btc-slot[data-widget="runtime"],
+.btc-slot[data-widget="bitcoin-ticker"],
+.btc-slot[data-widget="bitrng"],
+.btc-slot[data-widget="mempool-visualizer"],
+.btc-slot[data-widget-slot="runtime"],
+.btc-slot[data-widget-slot="bitcoin-ticker"],
+.btc-slot[data-widget-slot="bitrng"],
+.btc-slot[data-widget-slot="mempool-visualizer"] {
+  grid-column: 1 / -1;
+}
+
+/* Anti-flash card baseline. Detailed controls are in widget-core.css. */
+.btc-card,
+.zzx-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0.55rem 0.65rem;
+  background: var(--zzx-bg);
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border-strong);
+  border-radius: 10px;
+  font-family: var(--zzx-font-mono);
+}
+
+/* Ticker-only mode: the control bar is not a slot and therefore remains visible. */
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot {
+  display: none !important;
+}
+
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="runtime"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget="bitcoin-ticker"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="runtime"],
+[data-hud-root][data-hud-state="ticker-only"] .btc-slot[data-widget-slot="bitcoin-ticker"] {
+  display: flex !important;
+  grid-column: 1 / -1;
+}
+
+/* HUD-scoped containment only; never mutate arbitrary site media. */
+.btc-rail .btc-card,
+.btc-rail .zzx-card,
+.btc-rail [data-widget-root] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.btc-rail canvas,
+.btc-rail svg,
+.btc-rail img,
+.btc-rail video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.btc-rail pre,
+.btc-rail code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 620px) {
+  .btc-rail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    padding-inline: 0.35rem;
+  }
+
+  .btc-slot[data-widget="runtime"],
+  .btc-slot[data-widget="bitcoin-ticker"],
+  .btc-slot[data-widget="bitrng"],
+  .btc-slot[data-widget="mempool-visualizer"],
+  .btc-slot[data-widget-slot="runtime"],
+  .btc-slot[data-widget-slot="bitcoin-ticker"],
+  .btc-slot[data-widget-slot="bitrng"],
+  .btc-slot[data-widget-slot="mempool-visualizer"] {
+    grid-column: 1;
+  }
+}

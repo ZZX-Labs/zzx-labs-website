@@ -1,0 +1,37 @@
+{
+  "schema": "zzx-bpi-collector-config-v1",
+  "exchange_cycle_ms": 2500,
+  "max_workers": 128,
+  "request_timeout_seconds": 4.0,
+  "fx_refresh_ms": 60000,
+  "commodity_refresh_ms": 60000,
+  "debt_refresh_ms": 1800000,
+  "proxy": {
+    "mode": "environment-or-explicit",
+    "environment": [
+      "HTTP_PROXY",
+      "HTTPS_PROXY",
+      "NO_PROXY",
+      "ZZX_BPI_PROXY"
+    ],
+    "automatic_geo_bypass": false
+  },
+  "validation": {
+    "require_finite_price": true,
+    "require_positive_price": true,
+    "require_finite_nonnegative_btc_volume": true,
+    "base_assets": [
+      "BTC",
+      "XBT"
+    ],
+    "quote_assets": "recognized fiat/forex only"
+  },
+  "market_stale_after_ms": 15000,
+  "history": {
+    "durable_server_path": "/var/lib/zzx-bpi/history.sqlite3",
+    "sqlite_journal_mode": "WAL",
+    "sqlite_synchronous": "FULL",
+    "append_only_observations": true
+  },
+  "static_history_flush_ms": 60000
+}

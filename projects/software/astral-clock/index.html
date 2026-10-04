@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Astral Clock — multi-body coordinate-time, drift, relativistic offset, and signal-delay workstation for Earth, Moon, Mars, Ganymede, and custom celestial bodies.">
+  <title>Astral Clock · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-astral-clock-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-astral-clock-1">
+  <script src="./hook.js?v=20260822-astral-clock-1" defer></script>
+  <script src="./script.js?v=20260822-astral-clock-1" defer></script>
+  <script src="./celestial.js?v=20260822-astral-clock-1" defer></script>
+  <script src="./time-model.js?v=20260822-astral-clock-1" defer></script>
+  <script src="./astral-clock.js?v=20260822-astral-clock-1" defer></script>
+</head>
+
+<body class="project project-astral-clock">
+<header><div id="zzx-header"></div></header>
+
+<main>
+  <section class="zzx-project-hero">
+    <div class="container hero-inner">
+      <img class="project-logo" src="./logo.png" alt="Astral Clock logo">
+      <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+      <h1>Astral Clock</h1>
+      <p class="blurb">
+        Universal Time System simulator for comparing Earth, Moon, Mars, Ganymede,
+        and custom celestial reference clocks using relativistic rate modeling,
+        accumulated drift, and light-speed signal delay.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn" href="#demo">RUN WEB DEMO</a>
+        <a class="btn alt" href="https://github.com/ZZX-Labs/astralclock" target="_blank" rel="noopener noreferrer">GITHUB</a>
+        <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-section">
+    <div class="container section demo-container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">INSTALL-FREE CAPABILITY LAYER</p>
+          <h2>Astral Clock Browser Workbench</h2>
+        </div>
+
+        <div class="runtime-status">
+          <span class="runtime-badge ok">CLOCK: LIVE</span>
+          <span class="runtime-badge ok">RELATIVITY: LOCAL</span>
+          <span class="runtime-badge ok">SIGNAL: c</span>
+          <span class="runtime-badge ok">NETWORK: NONE</span>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <aside class="tool-list-wrap">
+          <h3>Capabilities</h3>
+          <div class="tool-list" role="tablist">
+            <button class="tool-tab mode-tab active" data-mode="clock" type="button">Universal Clock</button>
+            <button class="tool-tab mode-tab" data-mode="convert" type="button">Time Converter</button>
+            <button class="tool-tab mode-tab" data-mode="drift" type="button">Drift &amp; Relativity</button>
+            <button class="tool-tab mode-tab" data-mode="signal" type="button">Signal Delay</button>
+            <button class="tool-tab mode-tab" data-mode="simulation" type="button">Simulation</button>
+            <button class="tool-tab mode-tab" data-mode="bodies" type="button">Celestial Bodies</button>
+            <button class="tool-tab mode-tab" data-mode="model" type="button">Model</button>
+          </div>
+
+          <div class="ac-sidebar-note">
+            <strong>REFERENCE-FRAME MODEL</strong>
+            <p>
+              Relativity does not provide a single observer-independent universal “now.”
+              This browser implementation therefore treats Astral Time as an explicit
+              Earth-UTC-anchored coordinate-time convention and reports modeled proper-time drift.
+            </p>
+          </div>
+        </aside>
+
+        <section class="tool-workspace" aria-live="polite">
+          <div id="mode-clock" class="ac-mode-panel mode-panel active">
+            <div class="ac-mode-heading">
+              <p class="kicker">EARTH-UTC-ANCHORED COORDINATE TIME</p>
+              <h2>Universal Clock</h2>
+              <p>
+                Live Earth UTC plus modeled surface-clock readings for the Moon, Mars, and
+                Ganymede relative to a shared epoch.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-clock-grid">
+                <article class="ac-clock-card">
+                  <div class="ac-clock-head"><h3>Earth</h3><span>REFERENCE</span></div>
+                  <div id="clock-earth" class="ac-time">—</div>
+                  <div class="ac-clock-meta">
+                    <span>Offset <strong id="offset-earth">0 ns</strong></span>
+                    <span>Rate <strong id="rate-earth">1.000000000000</strong></span>
+                  </div>
+                </article>
+
+                <article class="ac-clock-card">
+                  <div class="ac-clock-head"><h3>Moon</h3><span>LUNAR SURFACE</span></div>
+                  <div id="clock-moon" class="ac-time">—</div>
+                  <div class="ac-clock-meta">
+                    <span>Offset <strong id="offset-moon">—</strong></span>
+                    <span>Rate <strong id="rate-moon">—</strong></span>
+                  </div>
+                </article>
+
+                <article class="ac-clock-card">
+                  <div class="ac-clock-head"><h3>Mars</h3><span>MARTIAN SURFACE</span></div>
+                  <div id="clock-mars" class="ac-time">—</div>
+                  <div class="ac-clock-meta">
+                    <span>Offset <strong id="offset-mars">—</strong></span>
+                    <span>Rate <strong id="rate-mars">—</strong></span>
+                  </div>
+                </article>
+
+                <article class="ac-clock-card">
+                  <div class="ac-clock-head"><h3>Ganymede</h3><span>JOVIAN MOON</span></div>
+                  <div id="clock-ganymede" class="ac-time">—</div>
+                  <div class="ac-clock-meta">
+                    <span>Offset <strong id="offset-ganymede">—</strong></span>
+                    <span>Rate <strong id="rate-ganymede">—</strong></span>
+                  </div>
+                </article>
+              </div>
+
+              <div class="ac-metrics">
+                <div><span>Epoch</span><strong>2026-01-01T00:00:00Z</strong></div>
+                <div><span>Reference</span><strong>Earth UTC</strong></div>
+                <div><span>Model</span><strong>weak-field + velocity</strong></div>
+                <div><span>Update</span><strong>100 ms</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-convert" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">COORDINATE CONVERSION</p>
+              <h2>Time Converter</h2>
+              <p>
+                Convert an Earth-anchored coordinate timestamp into the modeled proper-time
+                reading of another supported body, or invert between any two modeled clocks.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-grid-3">
+                <label>
+                  Source body
+                  <select id="convert-from"></select>
+                </label>
+                <label>
+                  Target body
+                  <select id="convert-to"></select>
+                </label>
+                <label>
+                  Source date/time
+                  <input id="convert-time" type="datetime-local" step="0.001">
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="convert-now" class="btn ghost" type="button">USE NOW</button>
+                <button id="convert-run" class="btn" type="button">CONVERT</button>
+                <button id="convert-swap" class="btn ghost" type="button">SWAP</button>
+              </div>
+
+              <div id="convert-result" class="ac-result">Choose source and target bodies.</div>
+            </div>
+          </div>
+
+          <div id="mode-drift" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">RATE DIFFERENCE</p>
+              <h2>Drift &amp; Relativity</h2>
+              <p>
+                Compare weak-field gravitational and special-relativistic velocity effects,
+                then project accumulated clock drift over a selected duration.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-grid-3">
+                <label>Body A<select id="drift-a"></select></label>
+                <label>Body B<select id="drift-b"></select></label>
+                <label>
+                  Duration
+                  <select id="drift-duration">
+                    <option value="86400">1 day</option>
+                    <option value="31557600" selected>1 Julian year</option>
+                    <option value="315576000">10 years</option>
+                    <option value="3155760000">100 years</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="drift-run" class="btn" type="button">CALCULATE DRIFT</button>
+              </div>
+
+              <div class="ac-metrics">
+                <div><span>Rate A</span><strong id="drift-rate-a">—</strong></div>
+                <div><span>Rate B</span><strong id="drift-rate-b">—</strong></div>
+                <div><span>Rate difference</span><strong id="drift-rate-diff">—</strong></div>
+                <div><span>Accumulated drift</span><strong id="drift-total">—</strong></div>
+              </div>
+
+              <canvas id="drift-canvas" class="ac-canvas" width="1200" height="320"></canvas>
+            </div>
+          </div>
+
+          <div id="mode-signal" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">LIGHT-SPEED LATENCY</p>
+              <h2>Signal Delay</h2>
+              <p>
+                Calculate one-way and round-trip light-time from a supplied path distance.
+                Representative body-pair distances are supplied as presets and can be overridden.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-grid-3">
+                <label>From<select id="signal-from"></select></label>
+                <label>To<select id="signal-to"></select></label>
+                <label>
+                  Distance km
+                  <input id="signal-distance" type="number" min="0" step="1">
+                </label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="signal-preset" class="btn ghost" type="button">LOAD REPRESENTATIVE DISTANCE</button>
+                <button id="signal-run" class="btn" type="button">CALCULATE</button>
+              </div>
+
+              <div class="ac-metrics">
+                <div><span>Distance</span><strong id="signal-distance-out">—</strong></div>
+                <div><span>One way</span><strong id="signal-oneway">—</strong></div>
+                <div><span>Round trip</span><strong id="signal-roundtrip">—</strong></div>
+                <div><span>Light speed</span><strong>299,792.458 km/s</strong></div>
+              </div>
+
+              <div id="signal-result" class="ac-result">No signal path calculated.</div>
+            </div>
+          </div>
+
+          <div id="mode-simulation" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">ACCELERATED CLOCK EVOLUTION</p>
+              <h2>Simulation</h2>
+              <p>
+                Advance the shared Earth coordinate epoch from minutes to centuries and inspect
+                accumulated body-clock offsets under the current model.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-timeline">
+                <label>
+                  Elapsed simulation years
+                  <input id="sim-years" class="ac-range" type="range" min="0" max="500" step="0.1" value="0">
+                </label>
+                <strong id="sim-years-label">0.0 years</strong>
+              </div>
+
+              <div class="ac-clock-grid" style="margin-top:.8rem">
+                <article class="ac-clock-card"><div class="ac-clock-head"><h3>Moon</h3><span>VS EARTH</span></div><div id="sim-moon" class="ac-time">0 ns</div></article>
+                <article class="ac-clock-card"><div class="ac-clock-head"><h3>Mars</h3><span>VS EARTH</span></div><div id="sim-mars" class="ac-time">0 ns</div></article>
+                <article class="ac-clock-card"><div class="ac-clock-head"><h3>Ganymede</h3><span>VS EARTH</span></div><div id="sim-ganymede" class="ac-time">0 ns</div></article>
+                <article class="ac-clock-card"><div class="ac-clock-head"><h3>Earth elapsed</h3><span>REFERENCE</span></div><div id="sim-earth" class="ac-time">0.0 years</div></article>
+              </div>
+
+              <canvas id="sim-canvas" class="ac-canvas" width="1200" height="320"></canvas>
+            </div>
+          </div>
+
+          <div id="mode-bodies" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">REFERENCE BODY CATALOG</p>
+              <h2>Celestial Bodies</h2>
+              <p>
+                Inspect the constants used by the local model and add a temporary custom
+                body for comparison.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="table-wrap">
+                <table class="ac-body-table">
+                  <thead>
+                    <tr><th>Body</th><th>Mass kg</th><th>Radius km</th><th>Surface v km/s</th><th>External/orbital v km/s</th></tr>
+                  </thead>
+                  <tbody id="body-table"></tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top:1rem">Custom Body</h3>
+              <div class="ac-custom-grid">
+                <label>Name<input id="custom-name" type="text" value="Custom Body"></label>
+                <label>Mass kg<input id="custom-mass" type="number" min="0" step="any" value="5.9722e24"></label>
+                <label>Radius km<input id="custom-radius" type="number" min="0.001" step="any" value="6378.137"></label>
+                <label>Rotation period hours<input id="custom-rotation" type="number" min="0.001" step="any" value="23.9345"></label>
+                <label>External/orbital velocity km/s<input id="custom-orbit-v" type="number" min="0" step="any" value="29.78"></label>
+                <label>Reference distance km<input id="custom-distance" type="number" min="0" step="any" value="1000000"></label>
+              </div>
+
+              <div class="button-row" style="justify-content:flex-start">
+                <button id="custom-add" class="btn" type="button">ADD / UPDATE CUSTOM BODY</button>
+              </div>
+
+              <div id="custom-result" class="ac-result">Custom body is not active.</div>
+            </div>
+          </div>
+
+          <div id="mode-model" class="ac-mode-panel mode-panel">
+            <div class="ac-mode-heading">
+              <p class="kicker">PHYSICAL MODEL</p>
+              <h2>Model</h2>
+              <p>
+                Astral Clock uses a transparent approximation intended for simulation and
+                engineering visualization, not precision ephemeris or relativistic navigation.
+              </p>
+            </div>
+
+            <div class="tool-card">
+              <div class="ac-formula">Weak-field surface proper-time rate approximation:
+
+dτ/dt ≈ 1 - GM/(r c²) - v²/(2 c²)
+
+where:
+G = 6.67430×10⁻¹¹ m³ kg⁻¹ s⁻²
+c = 299,792,458 m/s
+M = body mass
+r = body radius
+v = combined modeled rotational/external velocity
+
+Clock mapping relative to an Earth reference epoch:
+
+τ_body(t) = epoch + (t - epoch) × rate_body / rate_Earth
+
+Signal delay:
+
+t_signal = distance / c
+
+The browser model uses representative constants and distances. It does not
+claim observer-independent simultaneity, exact orbital ephemerides, full
+general-relativistic metric integration, Shapiro delay, atmospheric delay,
+or precision spacecraft-navigation accuracy.</div>
+
+              <div class="ac-chip-row">
+                <span class="ac-chip ok">WEAK FIELD</span>
+                <span class="ac-chip ok">VELOCITY TERM</span>
+                <span class="ac-chip ok">LIGHT-TIME</span>
+                <span class="ac-chip warn">REPRESENTATIVE DISTANCES</span>
+                <span class="ac-chip warn">NOT PRECISION EPHEMERIS</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="grid grid-2">
+      <article class="panel">
+        <p class="kicker">PROJECT</p>
+        <h2>Astral Clock</h2>
+        <p>
+          Astral Clock explores a shared coordinate-time convention for interplanetary
+          coordination while exposing the modeled proper-time differences caused by
+          gravitational potential and velocity.
+        </p>
+
+        <dl class="meta-grid">
+          <div><dt>Version</dt><dd>0.1.0-alpha</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+          <div><dt>Native</dt><dd>Python · PyQt5 · NumPy · SciPy · Astropy</dd></div>
+          <div><dt>Web</dt><dd>JavaScript · Canvas · Date/Time</dd></div>
+        </dl>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">WEB PARITY</p>
+        <h2>Native / Browser Matrix</h2>
+        <div class="table-wrap">
+          <table class="parity-table">
+            <thead><tr><th>Capability</th><th>Web</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Multi-body clock</td><td><span class="parity-badge yes">YES</span></td><td>Earth/Moon/Mars/Ganymede.</td></tr>
+              <tr><td>Time conversion</td><td><span class="parity-badge yes">YES</span></td><td>Epoch/rate mapping.</td></tr>
+              <tr><td>Gravitational offset</td><td><span class="parity-badge yes">YES</span></td><td>Weak-field approximation.</td></tr>
+              <tr><td>Velocity dilation</td><td><span class="parity-badge yes">YES</span></td><td>First-order SR term.</td></tr>
+              <tr><td>Signal delay</td><td><span class="parity-badge yes">YES</span></td><td>Distance / c.</td></tr>
+              <tr><td>Drift plotting</td><td><span class="parity-badge yes">YES</span></td><td>Canvas.</td></tr>
+              <tr><td>Astropy ephemerides</td><td><span class="parity-badge partial">MODEL</span></td><td>Static representative constants in browser edition.</td></tr>
+              <tr><td>Custom bodies</td><td><span class="parity-badge yes">YES</span></td><td>Temporary local body model.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <article class="security-panel">
+      <p class="kicker">LOCAL COMPUTATION</p>
+      <h2>No Network Required</h2>
+      <p>
+        All clock, relativity, drift, simulation, and light-time calculations in this
+        static web edition run locally. No astronomy API is required for the supplied model.
+      </p>
+    </article>
+  </section>
+</main>
+
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>

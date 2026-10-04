@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Video Stream API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Video Stream API</h2>
+  <p>
+    The <strong>Video Stream API</strong> provides secure access to live, looped, or archived video feeds from ZZX-Labs infrastructure. Feeds are used in surveillance terminals, multimedia dashboards, livestream applications, and data visualization systems.
+  </p>
+  <p>
+    All streams are authenticated by access tier. Live feeds require stream keys, while archived footage is accessed via hashed tokens and time-based URLs. Public demo streams are available via the endpoints below.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Live Streaming:</strong> Secure live video feeds broadcast from IP cams or virtual media nodes.</li>
+    <li style="list-style-type: none;"><strong>Archived Playback:</strong> MP4/OGG content from <code>static/video/videos/</code> made available for download or streaming.</li>
+    <li style="list-style-type: none;"><strong>Overlay Support:</strong> Stream layers can support captions, frame overlays, or visual indicators.</li>
+    <li style="list-style-type: none;"><strong>Authenticated Access:</strong> Access granted via session keys, tokens, or badge profile tiers.</li>
+    <li style="list-style-type: none;"><strong>Real-time Dashboard Feed:</strong> Integrated into admin terminals or visual data panels.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Live Feed Endpoint</h3>
+    <p>Access an MJPEG, WebM, or HLS stream of a live feed via the secure API. Replace the key with an authorized stream token.</p>
+    <pre><code class="language-bash">curl https://zzx-labs.io/api/media/video/stream?key=your-stream-key</code></pre>
+    <video controls width="100%" poster="/static/images/video-thumbnail.jpg">
+      <source src="../../../static/video/feeds/live-feed-01.mp4" type="video/mp4">
+      Your browser does not support HTML5 video.
+    </video>
+  </div>
+
+  <div class="feature">
+    <h3>Archived Video Access</h3>
+    <p>Stream or download pre-recorded MP4s stored in <code>/static/video/videos/</code>. Encrypted filenames may require decoding or session token unlock.</p>
+    <li style="list-style-type: none;"><a href="/static/video/videos/demo-clip.mp4">Demo Clip</a></li>
+  </div>
+
+  <div class="feature">
+    <h3>JSON Metadata for Streams</h3>
+    <p>Returns JSON metadata about available streams, status, encoding, and format options.</p>
+    <pre><code class="language-json">{
+  "stream_id": "live-feed-01",
+  "status": "online",
+  "encoding": "H.264",
+  "bitrate": "1.2 Mbps",
+  "latency": "500ms"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Video Playback Embeds</h3>
+    <p>Embed content in dashboards or visual panels. Supports autoplay, loop, mute, and frame overlays for training mode or analysis mode.</p>
+    <pre><code class="language-html">&lt;video autoplay loop muted&gt;
+  &lt;source src="/static/video/videos/loop-1.mp4" type="video/mp4"&gt;
+&lt;/video&gt;</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Admin Dashboard Integration</h3>
+    <p>Feeds injected directly into admin visual dashboards, such as the surveillance or analytics panel. Optional zoom/pan overlays supported.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/visuals">Admin Visual Dashboard</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want to Deploy a ZZX Stream?</h2>
+  <p>We support secure livestream deployments, archival feed integrations, and custom dashboard renderings. Our platform supports both real and synthetic (AI-generated) video feeds for unique applications.</p>
+  <a href="../../contact" class="btn">Contact ZZX-Labs</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Real-time visuals for secure dashboards and research-grade streaming.</p>
+    <a href="../../projects/istv" class="btn btn-primary">Explore ISTV</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

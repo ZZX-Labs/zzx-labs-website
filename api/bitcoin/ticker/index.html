@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Ticker API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+ <section class="container">
+      <h2>Bitcoin Ticker Widget</h2>
+      <p>
+        This live Bitcoin ticker module displays the real-time spot price across a curated volume-weighted exchange index. Built with ultra-lightweight JS and CSS, it is embeddable and customizable.
+      </p>
+      <p>
+        The widget updates every 250ms and supports multiple fiat currencies for display. Available as a standalone snippet or via API integration.
+      </p>
+    </section>
+
+    <section class="features">
+      <div class="feature">
+        <h3>Embed Example</h3>
+        <pre><code class="language-html">&lt;div id="ticker-container"&gt;&lt;/div&gt;
+&lt;script src="https://zzx-labs.io/bitcoin/ticker/ticker.js"&gt;&lt;/script&gt;</code></pre>
+        <p>Drop-in script to load the live ticker on any page.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Customization</h3>
+        <pre><code class="language-javascript">TickerWidget.init({
+  fiat: "USD",
+  color: "#e6a42b",
+  bg: "#282828",
+  font: "IBM Plex Mono"
+});</code></pre>
+        <p>Configure color, font, layout, currency, and refresh rate.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Live Ticker Sample</h3>
+        <div id="ticker-container"></div>
+        <script>
+          fetch('../../bitcoin/ticker/ticker.html')
+            .then(res => res.text())
+            .then(html => {
+              document.getElementById('ticker-container').innerHTML = html;
+              const s = document.createElement('script');
+              s.src = '../../bitcoin/ticker/ticker.js';
+              document.body.appendChild(s);
+            });
+        </script>
+      </div>
+
+      <div class="feature">
+        <h3>Public Endpoint</h3>
+        <pre><code class="language-bash">GET /api/bitcoin/price</code></pre>
+        <p>Returns JSON with the current weighted price.</p>
+      </div>
+    </section>
+
+    <section class="container cta">
+      <h2>Want to Customize or Brand Your Own Ticker?</h2>
+      <p>
+        ZZX-Labs offers consulting and integration services for embedding your own version of this ticker, including dark/light modes, multi-fiat output, or visual overlays.
+      </p>
+      <a href="../../../contact" class="btn">Contact Us</a>
+    </section>
+
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p>Fast. Lightweight. Bitcoin-native.</p>
+        <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Explore Bitcoin Expertise</a>
+      </div>
+    </section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

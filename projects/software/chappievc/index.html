@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="INTERNAL real-time robot/mech/droid voice-effects workbench using browser microphone/file audio, vocoder-like filtering, ring modulation, distortion, delay, glitch gating, spectrum visualization, and preset control."><title>ChappieVC (Voice Changer) · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-chappievc-1"><link rel="stylesheet" href="./hook.css?v=20260824-chappievc-1">
+<script src="./hook.js?v=20260824-chappievc-1" defer></script><script src="./script.js?v=20260824-chappievc-1" defer></script>
+  <script src="./chappie-core.js?v=20260824-chappievc-1" defer></script>
+  <script src="./chappievc.js?v=20260824-chappievc-1" defer></script></head>
+<body class="project project-chappievc"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="ChappieVC (Voice Changer) logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p><h1>ChappieVC (Voice Changer)</h1><p class="blurb">INTERNAL real-time robot/mech/droid voice-effects workbench using browser microphone/file audio, vocoder-like filtering, ring modulation, distortion, delay, glitch gating, spectrum visualization, and preset control.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/chappievc" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">INTERNAL // ROBOTIC VOICE FX</p><h2>ChappieVC Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge bad">INTERNAL</span><span id="audio-state" class="runtime-badge partial">AUDIO: IDLE</span><span class="runtime-badge ok">WEB AUDIO</span><span class="runtime-badge partial">NEURAL: NATIVE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="live">Live FX</button><button class="tool-tab mode-tab" data-mode="presets">Presets</button><button class="tool-tab mode-tab" data-mode="spectrum">Spectrum</button><button class="tool-tab mode-tab" data-mode="midi">MIDI Map</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div><div class="z-sidebar-note"><strong>INTERNAL – NOT FOR PUBLIC DISTRIBUTION</strong><p>Generic robot/mech/droid effects only. The browser baseline does not clone or imitate a specific person's voice.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-live" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="mic" class="btn">START MICROPHONE</button><button id="stop" class="btn ghost">STOP</button><label class="file-button">OPEN AUDIO<input id="file" type="file" accept="audio/*"></label></div>
+<audio id="player" controls style="width:100%"></audio>
+<div class="z-grid-3"><label>Drive<input id="drive" type="range" min="0" max="1" step=".01" value=".25"></label><label>Ring mod Hz<input id="ring" type="range" min="10" max="250" value="75"></label><label>Filter Hz<input id="filter" type="range" min="300" max="8000" value="2400"></label><label>Delay ms<input id="delay" type="range" min="0" max="180" value="45"></label><label>Wet %<input id="wet" type="range" min="0" max="100" value="65"></label><label>Glitch gate %<input id="glitch" type="range" min="0" max="100" value="8"></label></div>
+<pre id="live-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-presets" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button class="btn preset" data-preset="robot">ROBOT</button><button class="btn preset" data-preset="mech">MECH</button><button class="btn preset" data-preset="droid">DROID</button><button class="btn preset" data-preset="glitch">GLITCH</button></div><pre id="preset-output" class="z-log"></pre></div></div>
+
+<div id="mode-spectrum" class="z-mode-panel mode-panel"><div class="tool-card"><canvas id="spectrum" class="z-canvas" width="1200" height="360"></canvas></div></div>
+
+<div id="mode-midi" class="z-mode-panel mode-panel"><div class="tool-card"><p>Optional Web MIDI mapping for hardware controllers. MIDI values can be mapped to filter, ring-mod frequency, delay, and wet mix.</p><div class="button-row" style="justify-content:flex-start"><button id="midi" class="btn">ENABLE WEB MIDI</button></div><pre id="midi-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-preset" class="btn">EXPORT PRESET JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>ChappieVC</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Status</dt><dd>INTERNAL – Not for public distribution</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>PyTorch · Torchaudio · PyQt5 · FFmpeg · PyAudio · sounddevice · Mido</dd></div></dl></article><article class="panel"><p class="kicker">WEB BASELINE</p><h2>DSP effects, not neural cloning</h2><p>Web Audio supplies a real-time robotic effects chain. Neural pitch/formant models remain native-side and are not represented as browser parity.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

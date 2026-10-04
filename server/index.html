@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="description" content="ZZX-Labs R&D host server deployment portal.">
+
+    <title>Host Server Portal | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../static/icons/favicon.ico">
+
+    <link rel="stylesheet" href="../static/styles.css">
+    <link rel="stylesheet" href="./server.css">
+
+    <script src="../static/script.js" defer></script>
+    <script src="./server.js" defer></script>
+</head>
+<body data-server-root-page="home">
+<header>
+    <div id="zzx-header"></div>
+</header>
+
+<main class="host-main">
+    <div id="ticker-container"></div>
+
+    <section class="host-hero">
+        <div class="host-overlay"></div>
+
+        <div class="host-content">
+            <p class="host-kicker">ZZX-Labs R&D</p>
+            <h1>Host Server Portal</h1>
+
+            <p class="host-subtitle">
+                Deployment and host-operations portal for Linux services,
+                systemd units, crawler daemons, Flask APIs, nginx routing,
+                startup tasks, timers, environment files, and production mirror planning.
+            </p>
+
+            <div class="host-warning">
+                <strong>Host Notice:</strong>
+                This directory is for deployment references and public-safe service files.
+                Do not commit production secrets, private environment files, SSH keys,
+                hostnames, internal IP addresses, credentials, private logs, or recovery material.
+            </div>
+
+            <div class="host-status-grid">
+                <div class="host-status-card">
+                    <span>Portal</span>
+                    <strong>Host Server</strong>
+                </div>
+
+                <div class="host-status-card">
+                    <span>Init</span>
+                    <strong>systemd</strong>
+                </div>
+
+                <div class="host-status-card">
+                    <span>Mode</span>
+                    <strong>Deployment Docs</strong>
+                </div>
+
+                <div class="host-status-card">
+                    <span>Updated</span>
+                    <strong id="host-updated">—</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="host-section">
+        <div class="host-section-heading">
+            <h2>Server Deployment Areas</h2>
+            <p>Host-side resources for Linux deployment, daemon control, service supervision, and operational mirrors.</p>
+        </div>
+
+        <div class="host-grid">
+            <a href="./systemd/" class="host-card host-card-primary">
+                <span>systemd</span>
+                <h3>systemd Services</h3>
+                <p>Service units, timers, daemon launchers, restart policies, and Linux host process supervision.</p>
+            </a>
+
+            <a href="../__server/" class="host-card host-card-primary">
+                <span>Frontend</span>
+                <h3>__server Portal</h3>
+                <p>Static server resource portal for nginx, Flask, Docker, SFTP, email, storage, and ZIRA.</p>
+            </a>
+
+            <a href="../__server/nginx/" class="host-card host-card-primary">
+                <span>Proxy</span>
+                <h3>nginx Portal</h3>
+                <p>nginx routing, reverse proxy, static serving, API proxy, cache rules, and security headers.</p>
+            </a>
+
+            <a href="../__server/flask/" class="host-card host-card-primary">
+                <span>API</span>
+                <h3>Flask Portal</h3>
+                <p>Flask API launcher, API documentation, backend service planning, and local host integration.</p>
+            </a>
+
+            <a href="../bitcoin/bitnodes/" class="host-card">
+                <span>Bitnodes</span>
+                <h3>BitnodesZZX</h3>
+                <p>Bitcoin node crawler frontend, API snapshots, enrichment, mapping, and daemon status outputs.</p>
+            </a>
+
+            <a href="../bitcoin/bpi/" class="host-card">
+                <span>BPI</span>
+                <h3>ZZXBPI</h3>
+                <p>Bitcoin price index, exchange data, widgets, and JSON feeds served from the public repo.</p>
+            </a>
+
+            <a href="../bitcoin/mempoolspace/" class="host-card">
+                <span>Mempool</span>
+                <h3>MempoolspaceZZX</h3>
+                <p>Local mempool.space mirror, fee data, blockspace views, and Bitcoin network dashboards.</p>
+            </a>
+
+            <a href="../_dashboard/" class="host-card">
+                <span>NOC</span>
+                <h3>System Dashboard</h3>
+                <p>Operations dashboard for uptime, logs, system status, traffic overview, and service health.</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="host-section">
+        <div class="host-section-heading">
+            <h2>Known Host Service Files</h2>
+            <p>Current host-side service references under `server/systemd/`.</p>
+        </div>
+
+        <div class="host-table-wrap">
+            <table class="host-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Path</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Bitnodes Crawler</td>
+                        <td><a href="./systemd/zzx-bitnodes-crawler.service">server/systemd/zzx-bitnodes-crawler.service</a></td>
+                        <td>Persistent Bitnodes daemon service using `tools/bitnodes/bitnodesd.py` or wrapper routing.</td>
+                    </tr>
+                    <tr>
+                        <td>Future Flask API</td>
+                        <td><a href="./systemd/">server/systemd/</a></td>
+                        <td>Recommended location for `zzx-labs-api.service` and related backend units.</td>
+                    </tr>
+                    <tr>
+                        <td>Future Timers</td>
+                        <td><a href="./systemd/">server/systemd/</a></td>
+                        <td>Recommended location for snapshot, backup, crawl, enrichment, and map-build timers.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="host-section">
+        <div class="host-section-heading">
+            <h2>Recommended Host Layout</h2>
+            <p>Linux deployment structure for a production or private mirror host.</p>
+        </div>
+
+        <pre class="host-code"><code>/srv/zzx-labs/
+├── index.html
+├── static/
+├── bitcoin/
+│   ├── bpi/
+│   ├── bitnodes/
+│   └── mempoolspace/
+├── tools/
+│   └── bitnodes/
+├── __server/
+│   ├── zzx-labs.py
+│   ├── zzx-labs-server.py
+│   ├── nginx.conf
+│   └── docker-compose.yml
+├── server/
+│   └── systemd/
+├── run/
+│   ├── bitnodesd.pid
+│   └── bitnodesd.status.json
+└── log/
+    ├── bitnodes/
+    ├── flask.log
+    └── nginx/</code></pre>
+    </section>
+
+    <section class="host-section">
+        <div class="host-section-heading">
+            <h2>Host Operations Policy</h2>
+            <p>Rules for safe deployment documentation and clean production practice.</p>
+        </div>
+
+        <div class="host-policy-grid">
+            <div class="host-policy-card">
+                <h3>Public-Safe Units</h3>
+                <p>Commit reusable service templates, but keep private hostnames, secrets, and environment values out of Git.</p>
+            </div>
+
+            <div class="host-policy-card">
+                <h3>Use Environment Files</h3>
+                <p>Place host-specific runtime values in `/etc/zzx-labs/*.env` and never commit those files.</p>
+            </div>
+
+            <div class="host-policy-card">
+                <h3>Separate Logs</h3>
+                <p>Write logs to controlled runtime paths, sanitize any public summaries, and avoid publishing raw logs.</p>
+            </div>
+
+            <div class="host-policy-card">
+                <h3>Restart Cleanly</h3>
+                <p>Use systemd restart policies for crawlers, APIs, timers, mirrors, and long-running host services.</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

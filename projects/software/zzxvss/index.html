@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="description" content="Verification Security System — Age-gated verification and credential vault for 18+ and 21+ adult content ecosystems. Uses secure facial imaging scans, photo ID capture, and facial-recognition matching to verify users while storing all documents in heavily encrypted form. User verification records can only be decrypted via per-user, court-authority key signing, providing a privacy-preserving, compliance-ready verification backbone for third-party platforms.">
+<title>ZZX-VSS · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./hook.css"><link rel="stylesheet" href="./zzxvss.css">
+<script src="./hook.js" defer></script><script src="./script.js" defer></script><script src="./zzxvss.js" defer></script>
+</head><body class="project project-zzxvss"><header><div id="zzx-header"></div></header><main>
+<section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="ZZX-VSS logo" onerror="this.hidden=true">
+<p class="kicker">VERIFICATION SECURITY SYSTEM // 18+ / 21+ // ENCRYPTED DUAL-CONTROL RECORDS</p>
+<h1>ZZX-VSS</h1><p class="blurb">Verification Security System — Age-gated verification and credential vault for 18+ and 21+ adult content ecosystems. Uses secure facial imaging scans, photo ID capture, and facial-recognition matching to verify users while storing all documents in heavily encrypted form. User verification records can only be decrypted via per-user, court-authority key signing, providing a privacy-preserving, compliance-ready verification backbone for third-party platforms.</p>
+<div class="fx-warn">ADULT VERIFICATION – Compliance/Infrastructure only (no content). This workbench is infrastructure/prototype software, not a representation that any specific jurisdiction's KYC or age-assurance rules are automatically satisfied.</div>
+</div></section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="workbench"><aside class="tool-list-wrap"><h3>ZZX-VSS</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="intake">Intake</button>
+<button class="tool-tab mode-tab" data-mode="verify">Verify</button>
+<button class="tool-tab mode-tab" data-mode="vault">Vault</button>
+<button class="tool-tab mode-tab" data-mode="release">Release</button>
+<button class="tool-tab mode-tab" data-mode="policy">Policy</button>
+</div></aside><section class="tool-workspace">
+
+<div id="mode-intake" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="fx-row-3">
+<label>Subject ID<input id="subject-id" placeholder="local-user-identifier"></label>
+<label>Jurisdiction<input id="jurisdiction" placeholder="operator-defined"></label>
+<label>Date of birth<input id="dob" type="date"></label>
+<label>Age threshold<select id="threshold"><option value="18">18+</option><option value="21">21+</option></select></label>
+</div>
+<div class="button-row"><label class="file-button">SELECT ID IMAGE<input id="id-file" type="file" accept="image/*"></label><label class="file-button">SELECT SELFIE / REFERENCE<input id="selfie-file" type="file" accept="image/*"></label></div>
+<div class="vss-preview"><figure><figcaption>ID image</figcaption><img id="id-preview" hidden alt="Selected ID image preview"><code id="id-hash"></code></figure><figure><figcaption>Selfie/reference</figcaption><img id="selfie-preview" hidden alt="Selected selfie/reference preview"><code id="selfie-hash"></code></figure></div>
+<div class="fx-note">Files are processed locally in this browser workbench. SHA-256 hashes are displayed before sealing.</div>
+</div></div>
+
+<div id="mode-verify" class="z-mode-panel mode-panel"><div class="tool-card">
+<button id="age-check" class="btn">CHECK AGE THRESHOLD</button>
+<div class="fx-kpis"><div><span>Age status</span><strong id="age-status">UNVERIFIED</strong></div><div><span>Facial age estimation</span><strong>OFF</strong></div><div><span>1:N identity search</span><strong>OFF</strong></div><div><span>Human review</span><strong>REQUIRED</strong></div></div>
+<pre id="age-out" class="z-log"></pre>
+<h3>1:1 verification result record</h3>
+<div class="fx-row-3"><label>Method<select id="match-method"><option>manual-review</option><option>native-1to1-face-verify</option><option>external-verifier-import</option></select></label><label>Score / distance<input id="match-score" type="number" step=".0001"></label><label>Decision<select id="match-decision"><option>pending</option><option>candidate-match</option><option>no-match</option><option>manual-approved</option><option>manual-rejected</option></select></label><label>Operator<input id="operator"></label></div>
+<button id="match-record" class="btn ghost">RECORD VERIFICATION RESULT</button><pre id="match-out" class="z-log"></pre>
+</div></div>
+
+<div id="mode-vault" class="z-mode-panel mode-panel"><div class="tool-card">
+<label>Local vault passphrase<input id="vault-pass" type="password" autocomplete="new-password"></label>
+<div class="button-row"><button id="seal" class="btn">SEAL ENCRYPTED ENVELOPE</button><button id="export-envelope" class="btn ghost">EXPORT ENVELOPE</button></div>
+<div class="fx-kpis"><div><span>Envelope</span><strong id="sealed">OPEN</strong></div><div><span>Cipher</span><strong>AES-256-GCM</strong></div><div><span>KDF</span><strong>PBKDF2-SHA256</strong></div><div><span>Dual control</span><strong>ON</strong></div></div>
+<pre id="vault-out" class="z-log"></pre>
+</div></div>
+
+<div id="mode-release" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="fx-warn">The browser demo requires user authorization, an authority approval artifact, and explicit human review. It does not grant automatic court access.</div>
+<label>Authority approval / signed-authorization descriptor<textarea id="authority-text" rows="6"></textarea></label>
+<button id="authority" class="btn">HASH AUTHORITY APPROVAL</button><pre id="authority-out" class="z-log"></pre>
+<label><input id="user-approve" type="checkbox"> user authorization present</label>
+<label><input id="review-approve" type="checkbox"> human reviewer approves release</label>
+<button id="release" class="btn ghost">REQUEST CONTROLLED RELEASE</button><pre id="release-out" class="z-log"></pre>
+</div></div>
+
+<div id="mode-policy" class="z-mode-panel mode-panel"><div class="tool-card">
+<label>Retention days<input id="retention" type="number" min="1" value="30"></label>
+<button id="policy" class="btn">BUILD PRIVACY / RETENTION POLICY</button>
+<pre id="policy-out" class="z-log"></pre>
+<pre class="z-log">native/
+  crypto_vault.py
+  age_gate.py
+  face_verify.py
+  requirements.txt
+  README.md</pre>
+</div></div>
+
+</section></div></div></section></main><footer><div id="zzx-footer"></div></footer></body></html>

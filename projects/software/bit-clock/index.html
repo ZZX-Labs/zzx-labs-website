@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin time and block-height clock with live chain height, halving countdowns, epoch progress, subsidy schedule, issuance totals, and emission visualization.">
+  <title>Bit-Clock · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260824-bit-clock-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bit-clock-1">
+  <script src="./hook.js?v=20260824-bit-clock-1" defer></script>
+  <script src="./script.js?v=20260824-bit-clock-1" defer></script>
+  <script src="./bit-clock-core.js?v=20260824-bit-clock-1" defer></script>
+  <script src="./bit-clock.js?v=20260824-bit-clock-1" defer></script>
+</head>
+
+<body class="project project-bit-clock">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bit-Clock logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bit-Clock</h1>
+    <p class="blurb">Bitcoin time and block-height clock with live chain height, halving countdowns, epoch progress, subsidy schedule, issuance totals, and emission visualization.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bit-clock" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN BLOCK / EPOCH CLOCK</p><h2>Bit-Clock Browser Workbench</h2></div><div class="runtime-status"><span id="bc-net" class="runtime-badge partial">CHAIN: IDLE</span><span class="runtime-badge ok">HALVING: LOCAL MATH</span><span class="runtime-badge ok">SUPPLY: LOCAL MATH</span><span class="runtime-badge ok">NETWORK: OPTIONAL</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="clock" type="button">Clock</button>
+<button class="tool-tab mode-tab" data-mode="epoch" type="button">Epoch</button>
+<button class="tool-tab mode-tab" data-mode="subsidy" type="button">Subsidy</button>
+<button class="tool-tab mode-tab" data-mode="emission" type="button">Emission</button>
+<button class="tool-tab mode-tab" data-mode="manual" type="button">Manual Height</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>COUNTDOWN BASIS</strong><p>Time-to-halving is estimated as remaining blocks × 600 seconds. Actual block production varies.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-clock" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">LIVE CHAIN CLOCK</p><h2>Clock</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="bc-refresh" class="btn" type="button">REFRESH HEIGHT</button><button id="bc-auto" class="btn ghost" type="button">AUTO: OFF</button></div>
+<div class="z-metrics"><div><span>Block height</span><strong id="bc-height">—</strong></div><div><span>Current subsidy</span><strong id="bc-subsidy">—</strong></div><div><span>Next halving</span><strong id="bc-next">—</strong></div><div><span>ETA estimate</span><strong id="bc-eta">—</strong></div></div>
+<div class="z-progress"><div id="bc-progress"></div></div><pre id="bc-output" class="z-log"></pre></div></div>
+
+<div id="mode-epoch" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">210,000-BLOCK EPOCH</p><h2>Epoch</h2></div><div class="tool-card"><div class="z-metrics"><div><span>Epoch</span><strong id="ep-index">—</strong></div><div><span>Block in epoch</span><strong id="ep-block">—</strong></div><div><span>Blocks remaining</span><strong id="ep-remain">—</strong></div><div><span>Progress</span><strong id="ep-progress">—</strong></div></div><canvas id="ep-canvas" class="z-canvas" width="1200" height="320"></canvas></div></div>
+
+<div id="mode-subsidy" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SUBSIDY SCHEDULE</p><h2>Subsidy</h2></div><div class="tool-card"><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Epoch</th><th>Start height</th><th>End height</th><th>BTC/block</th><th>Epoch issuance BTC</th></tr></thead><tbody id="sub-body"></tbody></table></div></div></div>
+
+<div id="mode-emission" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ISSUANCE CURVE</p><h2>Emission</h2><p>Calculate subsidy-only issuance through the selected height, excluding fees.</p></div><div class="tool-card"><div class="z-metrics"><div><span>Issued BTC</span><strong id="em-issued">—</strong></div><div><span>Remaining to 21M</span><strong id="em-remain">—</strong></div><div><span>Issued %</span><strong id="em-percent">—</strong></div><div><span>Next block subsidy</span><strong id="em-next">—</strong></div></div><canvas id="em-canvas" class="z-canvas" width="1200" height="340"></canvas></div></div>
+
+<div id="mode-manual" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">OFFLINE HEIGHT MODE</p><h2>Manual Height</h2><p>Use Bit-Clock without network access by entering a known block height.</p></div><div class="tool-card"><div class="z-grid-2"><label>Block height<input id="manual-height" type="number" min="0" value="900000"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="manual-apply" class="btn" type="button">APPLY HEIGHT</button></div></div></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BLOCK HEIGHT SOURCE</p><h2>Source</h2></div><div class="tool-card"><label>API base<input id="bc-api" type="url" value="https://mempool.space/api"></label><div class="button-row" style="justify-content:flex-start"><button id="bc-save" class="btn" type="button">SAVE</button><button id="bc-reset" class="btn ghost" type="button">RESET</button></div><pre id="bc-source-output" class="z-log"></pre></div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bit-Clock</h2><p>Bitcoin block-height clock, halving countdown, epoch statistics, subsidy schedule, and emission visualizer.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Requests · Pandas · Matplotlib · NumPy</dd></div><div><dt>Web</dt><dd>Fetch · Canvas · deterministic issuance math</dd></div></dl></article><article class="panel"><p class="kicker">ISSUANCE MODEL</p><h2>Consensus subsidy schedule</h2><p>Subsidy halves every 210,000 blocks from 50 BTC. Estimates shown here concern block subsidy only; transaction fees are separate.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

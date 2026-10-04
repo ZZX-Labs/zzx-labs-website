@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Corpus-building and retrieval pipelines for domain-specific LLM tooling with ingestion, deduplication, chunking, local vectorization, retrieval, dataset export, and evaluation.">
+  <title>Berossus · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260822-berossus-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-berossus-1">
+  <script src="./hook.js?v=20260822-berossus-1" defer></script>
+  <script src="./script.js?v=20260822-berossus-1" defer></script>
+  <script src="./corpus.js?v=20260822-berossus-1" defer></script>
+  <script src="./berossus.js?v=20260822-berossus-1" defer></script>
+</head>
+
+<body class="project project-berossus">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Berossus logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Berossus</h1>
+    <p class="blurb">Corpus-building and retrieval pipelines for domain-specific LLM tooling with ingestion, deduplication, chunking, local vectorization, retrieval, dataset export, and evaluation.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/berossus" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">CORPUS + RETRIEVAL PIPELINE</p><h2>Berossus Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">CORPUS: LOCAL</span><span class="runtime-badge ok">DEDUPE: SHA-256</span><span class="runtime-badge ok">VECTOR: HASHED</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="ingest" type="button">Ingest</button>
+<button class="tool-tab mode-tab" data-mode="chunks" type="button">Chunk &amp; Dedupe</button>
+<button class="tool-tab mode-tab" data-mode="search" type="button">Retrieval</button>
+<button class="tool-tab mode-tab" data-mode="eval" type="button">Evaluation</button>
+<button class="tool-tab mode-tab" data-mode="dataset" type="button">Dataset Export</button>
+<button class="tool-tab mode-tab" data-mode="workspace" type="button">Workspace</button>
+</div><div class="p-sidebar-note"><strong>LOCAL EMBEDDING BASELINE</strong><p>The static port uses deterministic hashed lexical vectors for cosine retrieval. A real SentenceTransformers/FAISS backend can replace it in the native stack.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-ingest" class="p-mode-panel mode-panel active"><div class="p-mode-heading"><p class="kicker">DOCUMENT INGESTION</p><h2>Ingest</h2><p>Add local TXT, Markdown, JSON, CSV, or pasted text to the corpus.</p></div><div class="tool-card"><div class="p-grid-main"><div id="ingest-drop" class="p-dropzone"><h3>Drop Corpus Files</h3><p>Text-oriented files are read locally.</p><label class="file-button">SELECT FILES<input id="ingest-files" type="file" multiple accept=".txt,.md,.markdown,.json,.csv,text/*,application/json"></label></div><div><label>Document title<input id="paste-title" type="text" value="Pasted note"></label><label style="margin-top:.6rem">Paste text<textarea id="paste-text" rows="8"></textarea></label><button id="paste-add" class="btn" type="button" style="margin-top:.6rem">ADD PASTED TEXT</button></div></div><div class="p-metrics"><div><span>Documents</span><strong id="metric-docs">0</strong></div><div><span>Characters</span><strong id="metric-chars">0</strong></div><div><span>Chunks</span><strong id="metric-chunks">0</strong></div><div><span>Duplicates removed</span><strong id="metric-dupes">0</strong></div></div><pre id="ingest-output" class="p-log"></pre></div></div>
+
+<div id="mode-chunks" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">CONTROLLED CORPUS PREPARATION</p><h2>Chunk &amp; Dedupe</h2><p>Rebuild chunks with configurable character windows and exact SHA-256 deduplication.</p></div><div class="tool-card"><div class="p-grid-3"><label>Chunk characters<input id="chunk-size" type="number" min="200" max="8000" value="1200"></label><label>Overlap characters<input id="chunk-overlap" type="number" min="0" max="2000" value="150"></label><label>Vector dimensions<input id="vector-dims" type="number" min="64" max="2048" value="384"></label></div><div class="button-row" style="justify-content:flex-start"><button id="chunks-rebuild" class="btn" type="button">REBUILD CHUNKS</button></div><div class="p-table-wrap"><table class="p-table"><thead><tr><th>ID</th><th>Document</th><th>Characters</th><th>Hash</th></tr></thead><tbody id="chunk-body"></tbody></table></div></div></div>
+
+<div id="mode-search" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">LOCAL RETRIEVAL</p><h2>Retrieval</h2><p>Search the chunk index using hashed-vector cosine similarity plus lexical scoring.</p></div><div class="tool-card"><div class="p-grid-2"><label>Query<input id="search-query" type="text" placeholder="What does the corpus say about ..."></label><label>Top K<input id="search-k" type="number" min="1" max="50" value="8"></label></div><div class="button-row" style="justify-content:flex-start"><button id="search-run" class="btn" type="button">SEARCH</button></div><div id="search-results" class="p-list"></div></div></div>
+
+<div id="mode-eval" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">RETRIEVAL EVALUATION</p><h2>Evaluation</h2><p>Define query/expected-document pairs and calculate hit@k and reciprocal rank.</p></div><div class="tool-card"><label>Evaluation JSON<textarea id="eval-json" rows="12">[
+  {"query":"example query","expectedTitle":"example.md"}
+]</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="eval-run" class="btn" type="button">RUN EVALUATION</button></div><pre id="eval-output" class="p-log"></pre></div></div>
+
+<div id="mode-dataset" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">CONTROLLED DATASET OUTPUT</p><h2>Dataset Export</h2><p>Export deduplicated chunks as JSONL records suitable for downstream curation, retrieval, or controlled fine-tuning pipelines.</p></div><div class="tool-card"><div class="p-grid-2"><label>Dataset name<input id="dataset-name" type="text" value="berossus-corpus"></label><label>Minimum characters<input id="dataset-minchars" type="number" min="1" value="100"></label></div><div class="button-row" style="justify-content:flex-start"><button id="dataset-jsonl" class="btn" type="button">EXPORT JSONL</button><button id="dataset-manifest" class="btn ghost" type="button">EXPORT MANIFEST</button></div><pre id="dataset-output" class="p-log"></pre></div></div>
+
+<div id="mode-workspace" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">PORTABLE WORKSPACE</p><h2>Workspace</h2><p>Export or import the full local corpus, chunk settings, and retrieval index metadata.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="workspace-export" class="btn" type="button">EXPORT WORKSPACE</button><label class="file-button">IMPORT WORKSPACE<input id="workspace-import" type="file" accept=".json,application/json"></label><button id="workspace-clear" class="btn ghost" type="button">CLEAR</button></div><pre id="workspace-output" class="p-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Berossus</h2><p>Domain-corpus ingestion, deduplication, chunking, vector retrieval, evaluation, and controlled dataset export.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.3.0-beta</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>PyTorch · Transformers · SentenceTransformers · FAISS</dd></div><div><dt>Web</dt><dd>JavaScript · Web Crypto · hashed vectors</dd></div></dl></article><article class="panel"><p class="kicker">BROWSER VECTOR MODEL</p><h2>Deterministic Baseline</h2><p>The web edition provides a real local retrieval index without downloading a model. It uses signed hashed token features and cosine similarity; native SentenceTransformers/FAISS remains the semantic-embedding path.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

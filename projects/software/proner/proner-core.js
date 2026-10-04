@@ -1,0 +1,11 @@
+(()=>{"use strict";
+const P={};P.enc=new TextEncoder();P.dec=new TextDecoder();
+P.hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+P.unhex=h=>new Uint8Array((h.match(/../g)||[]).map(x=>parseInt(x,16)));
+P.sha256=async f=>P.hex(new Uint8Array(await crypto.subtle.digest("SHA-256",await f.arrayBuffer())));
+P.derive=async(pass,salt)=>crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},await crypto.subtle.importKey("raw",P.enc.encode(pass),"PBKDF2",false,["deriveKey"]),{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+P.encrypt=async(obj,pass)=>{const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await P.derive(pass,salt),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,P.enc.encode(JSON.stringify(obj))));return{schema:"zzx.proner.encrypted-library.v1",cipher:"AES-256-GCM",kdf:"PBKDF2-SHA256-250000",salt:P.hex(salt),iv:P.hex(iv),ciphertext:P.hex(ct)}};
+P.decrypt=async(pkg,pass)=>{const key=await P.derive(pass,P.unhex(pkg.salt)),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:P.unhex(pkg.iv)},key,P.unhex(pkg.ciphertext));return JSON.parse(P.dec.decode(pt))};
+P.download=(text,name,type="application/json")=>{const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),800)};
+window.PRONERCore=Object.freeze(P);
+})();

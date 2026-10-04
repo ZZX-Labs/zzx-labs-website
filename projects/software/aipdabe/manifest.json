@@ -1,0 +1,164 @@
+{
+  "slug": "aipdabe",
+  "title": "AIPDABE",
+  "name": "AIPDABE",
+  "blurb": "AI-assisted Bitcoin block exploration and analysis engine integrating blockchain parsing, transaction inspection, mempool intelligence, UTXO-flow visualization, and human-readable summaries.",
+  "description": "AIPDABE is a Bitcoin research workbench for transactions, blocks, addresses, mempool state, UTXO flows, and structured analytic summaries. The browser edition uses public Esplora-compatible APIs, optional read-only RPC proxy integration, Canvas visualization, local deterministic analysis, and JSON import/export.",
+  "version": "0.1.0-alpha",
+  "web_version": "0.1.0-alpha-web",
+  "license": "MIT",
+  "author": "[0xdeadbeef] of ZZX-Labs R&D",
+  "href": "/projects/software/aipdabe/",
+  "github": "https://github.com/ZZX-Labs/aipdabe",
+  "logo": "/projects/software/aipdabe/logo.png",
+  "platforms": [
+    "Linux",
+    "Windows",
+    "macOS",
+    "Kali",
+    "Web"
+  ],
+  "native": {
+    "language": "Python 3",
+    "dependencies": [
+      "pyqt5",
+      "requests",
+      "matplotlib",
+      "pandas",
+      "sqlalchemy",
+      "flask",
+      "gunicorn"
+    ],
+    "frameworks": [
+      "Qt",
+      "PyQt5",
+      "Flask",
+      "Gunicorn"
+    ]
+  },
+  "web": {
+    "language": "JavaScript",
+    "entry": "./index.html",
+    "runtime": "./script.js",
+    "project_module": "./aipdabe.js",
+    "modules": [
+      "./bitcoin-api.js",
+      "./utxo-graph.js",
+      "./analyst.js"
+    ],
+    "hooks": [
+      "./hook.js",
+      "./hook.css"
+    ],
+    "default_provider": "https://mempool.space/api",
+    "capabilities": [
+      {
+        "name": "Transaction lookup",
+        "web": "yes",
+        "notes": "Esplora-compatible provider."
+      },
+      {
+        "name": "Transaction status",
+        "web": "yes",
+        "notes": "Confirmation and block status."
+      },
+      {
+        "name": "Block lookup by hash",
+        "web": "yes",
+        "notes": "Esplora-compatible provider."
+      },
+      {
+        "name": "Block lookup by height",
+        "web": "yes",
+        "notes": "Height-to-hash resolution followed by block lookup."
+      },
+      {
+        "name": "Address summary",
+        "web": "yes",
+        "notes": "Chain and mempool statistics."
+      },
+      {
+        "name": "Address UTXOs",
+        "web": "yes",
+        "notes": "Unspent-output listing."
+      },
+      {
+        "name": "Mempool snapshot",
+        "web": "yes",
+        "notes": "Transaction count, virtual size, and aggregate fees."
+      },
+      {
+        "name": "Fee recommendations",
+        "web": "yes",
+        "notes": "Provider-recommended sat/vB bands."
+      },
+      {
+        "name": "UTXO-flow visualization",
+        "web": "yes",
+        "notes": "Canvas graph of inputs, transaction, and outputs."
+      },
+      {
+        "name": "Human-readable summaries",
+        "web": "yes",
+        "notes": "Local deterministic analytic engine."
+      },
+      {
+        "name": "Assistant questions",
+        "web": "yes",
+        "notes": "Local context-aware answers for loaded Bitcoin objects."
+      },
+      {
+        "name": "External assistant provider",
+        "web": "optional",
+        "notes": "Register a custom provider function through the public JavaScript API."
+      },
+      {
+        "name": "Bitcoin Core RPC",
+        "web": "partial",
+        "notes": "Supported through a separately deployed read-only server-side proxy; credentials are not stored in browser code."
+      },
+      {
+        "name": "JSON offline analysis",
+        "web": "yes",
+        "notes": "Import previously captured objects."
+      },
+      {
+        "name": "Workspace export",
+        "web": "yes",
+        "notes": "JSON export of current analysis state."
+      }
+    ]
+  },
+  "tags": [
+    "bitcoin",
+    "block-explorer",
+    "blockchain",
+    "analytics",
+    "mempool",
+    "utxo",
+    "transactions",
+    "forensics",
+    "cybersecurity",
+    "ai",
+    "ml",
+    "cli",
+    "gui",
+    "pyqt5",
+    "web",
+    "zzx"
+  ],
+  "files": [
+    "index.html",
+    "style.css",
+    "script.js",
+    "aipdabe.js",
+    "bitcoin-api.js",
+    "utxo-graph.js",
+    "analyst.js",
+    "hook.css",
+    "hook.js",
+    "manifest.json",
+    "README.md",
+    "logo.png"
+  ]
+}

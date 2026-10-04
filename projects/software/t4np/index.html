@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#121212">
+<meta name="description" content="T4NP is a preventative source-code protection suite built around transparent, jurisdiction-aware defensive release controls. The root controller coordinates eight operator-defined jurisdiction profiles for source inventory, provenance, checksum manifests, license/build gates, human review, and explicit distribution policy.">
+<title>T4NP · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./hook.css">
+<link rel="stylesheet" href="./t4np.css">
+<script src="./hook.js" defer></script>
+<script src="./script.js" defer></script>
+<script src="./t4np.js" defer></script>
+</head>
+<body class="project project-t4np">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+<div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="T4NP logo" onerror="this.hidden=true">
+<p class="kicker">THE 4 NOBLE PILLARS // SOURCE PROTECTION // 8 JURISDICTION PROFILES</p>
+<h1>T4NP</h1>
+<p class="blurb">T4NP is a preventative source-code protection suite built around transparent, jurisdiction-aware defensive release controls. The root controller coordinates eight operator-defined jurisdiction profiles for source inventory, provenance, checksum manifests, license/build gates, human review, and explicit distribution policy.</p>
+
+<div class="family-nav">
+<a href="/projects/software/t4np/">T4NP</a>
+<a href="/projects/software/t4np/redpanda/">RedPanda</a><a href="/projects/software/t4np/amurtiger/">AmurTiger</a><a href="/projects/software/t4np/manchuriantiger/">ManchurianTiger</a><a href="/projects/software/t4np/persianleopard/">PersianLeopard</a><a href="/projects/software/t4np/nubianibex/">NubianIbex</a><a href="/projects/software/t4np/markhorsheep/">MarkhorSheep</a><a href="/projects/software/t4np/arabianleopard/">ArabianLeopard</a><a href="/projects/software/t4np/westafricanlion/">WestAfricanLion</a>
+</div>
+
+<div class="family-summary">
+<div><span>Modules</span><strong>8</strong></div>
+<div><span>Family schema</span><strong>v2</strong></div>
+<div><span>Source hashing</span><strong>SHA-256</strong></div>
+<div><span>Execution model</span><strong>DEFENSIVE / LOCAL</strong></div>
+</div>
+
+<div class="fx-warn">
+<strong>INTERNAL – Not for public distribution.</strong>
+The root controller implements transparent defensive release controls, provenance,
+checksums, license/build gates, and explicit distribution policy. It does not damage
+source code, execute remotely, collect credentials, or plant hidden persistence.
+</div>
+</div>
+</section>
+
+<section id="demo" class="demo-section">
+<div class="container section demo-container">
+<div class="section-head">
+<div>
+<p class="kicker">T4NP ROOT CONTROLLER</p>
+<h2>Family Policy Workbench</h2>
+</div>
+<div class="runtime-status"><span class="runtime-badge">8 MODULES</span></div>
+</div>
+
+<div class="workbench">
+<aside class="tool-list-wrap">
+<h3>T4NP</h3>
+<div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="source">Source</button>
+<button class="tool-tab mode-tab" data-mode="family">Family</button>
+<button class="tool-tab mode-tab" data-mode="policy">Policy</button>
+<button class="tool-tab mode-tab" data-mode="guards">Guards</button>
+<button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div>
+</aside>
+
+<section class="tool-workspace">
+
+<div id="mode-source" class="z-mode-panel mode-panel active">
+<div class="tool-card">
+<label class="file-button">HASH LOCAL SOURCE FILES<input id="source" type="file" multiple></label>
+
+<div class="fx-row">
+<label>Project<input id="project" value="protected-source-project"></label>
+<label>Protection profile
+<select id="profile"><option value="redpanda">RedPanda — PRC / China</option><option value="amurtiger">AmurTiger — Russia</option><option value="manchuriantiger">ManchurianTiger — DPRK / North Korea</option><option value="persianleopard">PersianLeopard — Iran</option><option value="nubianibex">NubianIbex — Israel</option><option value="markhorsheep">MarkhorSheep — Pakistan</option><option value="arabianleopard">ArabianLeopard — Saudi Arabia</option><option value="westafricanlion">WestAfricanLion — Nigeria</option></select>
+</label>
+</div>
+
+<div class="button-row">
+<button id="open-module" class="btn ghost">OPEN SELECTED MODULE</button>
+</div>
+
+<div class="fx-kpis">
+<div><span>Files</span><strong id="file-count">0</strong></div>
+<div><span>Bytes</span><strong id="bytes">0</strong></div>
+<div><span>Hash</span><strong>SHA-256</strong></div>
+<div><span>Remote execution</span><strong>OFF</strong></div>
+</div>
+
+<div class="fx-table-wrap">
+<table class="fx-table">
+<thead><tr><th>File</th><th>Bytes</th><th>SHA-256</th></tr></thead>
+<tbody id="file-body"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div id="mode-family" class="z-mode-panel mode-panel">
+<div class="tool-card">
+<div class="family-summary">
+<div><span>Modules</span><strong id="module-count">0</strong></div>
+<div><span>Country codes</span><strong id="country-count">0</strong></div>
+<div><span>Family schema</span><strong id="family-schema">—</strong></div>
+<div><span>Root route</span><strong>/t4np/</strong></div>
+</div>
+
+<div id="module-grid" class="module-grid"></div>
+
+<div class="family-status">
+<strong>Reserved candidate</strong>
+<p id="candidate">—</p>
+</div>
+
+<div class="fx-note">
+Jurisdiction profiles are operator-defined release-policy profiles. They are not presented
+as objective geopolitical risk ratings or legal determinations.
+</div>
+</div>
+</div>
+
+<div id="mode-policy" class="z-mode-panel mode-panel">
+<div class="tool-card">
+<div class="policy-flags">
+<label><input id="signed-manifest" type="checkbox" checked> Signed/reviewed manifest</label>
+<label><input id="checksums" type="checkbox" checked> Checksums</label>
+<label><input id="license-gate" type="checkbox" checked> License gate</label>
+<label><input id="build-guard" type="checkbox" checked> Build guard</label>
+<label><input id="provenance" type="checkbox" checked> Provenance banner</label>
+<label><input id="deny-marker" type="checkbox" checked> Distribution-deny marker</label>
+<label><input id="human-review" type="checkbox" checked> Human review required</label>
+<label><input id="fail-closed" type="checkbox" checked> Fail closed</label>
+</div>
+
+<div class="button-row">
+<button id="build" class="btn">BUILD PROTECTION PLAN</button>
+<button id="policy" class="btn ghost">GENERATE DECLARATIVE POLICY</button>
+</div>
+
+<pre id="policy-output" class="z-log"></pre>
+<pre id="output" class="z-log"></pre>
+</div>
+</div>
+
+<div id="mode-guards" class="z-mode-panel mode-panel">
+<div class="tool-card">
+<div id="guards"></div>
+</div>
+</div>
+
+<div id="mode-export" class="z-mode-panel mode-panel">
+<div class="tool-card">
+<button id="export" class="btn">EXPORT PROTECTION PLAN JSON</button>
+<div class="fx-note">
+The exported plan includes the canonical T4NP family map so downstream release tooling
+can verify profile names, routes, jurisdiction codes, and policy state from one artifact.
+</div>
+</div>
+</div>
+
+</section>
+</div>
+</div>
+</section>
+
+</main>
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>

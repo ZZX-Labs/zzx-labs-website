@@ -1,0 +1,13 @@
+(() => {
+"use strict";const $=id=>document.getElementById(id),KEY="zzx-bitgaming-lb-v1",state={scores:JSON.parse(localStorage.getItem(KEY)||"[]"),payments:{},provider:null};
+function save(){localStorage.setItem(KEY,JSON.stringify(state.scores));}
+function render(){const body=$("gl-body");body.replaceChildren();const best=new Map();for(const x of state.scores){const p=best.get(x.player);if(!p||x.score>p.score)best.set(x.player,x);}const rows=[...best.values()].sort((a,b)=>b.score-a.score);rows.forEach((x,i)=>{const tr=document.createElement("tr");[i+1,x.player,x.score,state.payments[x.player]||0].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td);});body.appendChild(tr);});if(!rows.length)body.innerHTML='<tr><td colspan="4">No scores.</td></tr>';}
+function submitScore(player,score){state.scores.push({player:String(player),score:Number(score)||0,at:new Date().toISOString()});save();render();}
+function payment(e){state.payments[e.player]=(state.payments[e.player]||0)+Math.max(0,+e.amountSats||0);$("gp-output").textContent=JSON.stringify({event:e,totalSatsForPlayer:state.payments[e.player]},null,2);render();}
+$("go-run").addEventListener("click",()=>{$("go-output").textContent=JSON.stringify(BitGamingCore.odds($("go-win").value,$("go-total").value,$("go-edge").value),null,2);});
+$("gr-new").addEventListener("click",()=>{$("gr-server").value=BitGamingCore.randomHex();});$("gr-run").addEventListener("click",async()=>{try{$("gr-output").textContent=JSON.stringify(await BitGamingCore.draw({serverSeed:$("gr-server").value,clientSeed:$("gr-client").value,max:+$("gr-max").value||100}),null,2);}catch(e){$("gr-output").textContent=`ERROR: ${e.message}`;}});
+$("gp-event").addEventListener("click",()=>payment({id:`manual-${Date.now()}`,player:$("gp-player").value,amountSats:+$("gp-sats").value||0,reason:$("gp-reason").value}));$("gp-provider").addEventListener("click",async()=>{try{if(!state.provider)throw new Error("No provider registered.");const ev=await state.provider();for(const e of ev||[])payment(e);}catch(e){$("gp-output").textContent=`ERROR: ${e.message}`;}});
+$("gl-add").addEventListener("click",()=>submitScore($("gl-player").value,$("gl-score").value));$("gl-clear").addEventListener("click",()=>{state.scores=[];save();render();});$("gr-server").value=BitGamingCore.randomHex();render();
+window.BitGaming=Object.freeze({version:"0.1.0-alpha-web",draw:BitGamingCore.draw,odds:BitGamingCore.odds,submitScore,registerPaymentProvider(fn){state.provider=fn;},getLeaderboard:()=>JSON.parse(JSON.stringify(state.scores))});
+window.ZZXHooks?.emit("bitgaming:ready",{version:"0.1.0-alpha-web"});
+})();

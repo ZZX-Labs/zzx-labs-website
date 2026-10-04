@@ -1,0 +1,1 @@
+(()=>{"use strict";function diff(a,b,t=20){if(!a||!b||a.length!==b.length)return{changedPct:0,changed:0,total:0};let c=0,n=a.length/4;for(let i=0;i<a.length;i+=4){const d=(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]))/3;if(d>=t)c++}return{changedPct:n?100*c/n:0,changed:c,total:n}}window.CarterCore=Object.freeze({diff})})();

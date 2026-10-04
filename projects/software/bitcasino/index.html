@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="BTC-native casino-engine research workbench built on BitContracts concepts with provably-fair commit/reveal game logic, modular title plugins, simulated bankroll management, reserve metadata, and player-side verification.">
+  <title>BitCasino · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcasino-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcasino-1">
+  <script src="./hook.js?v=20260824-bitcasino-1" defer></script>
+  <script src="./script.js?v=20260824-bitcasino-1" defer></script>
+  <script src="./bitcasino-core.js?v=20260824-bitcasino-1" defer></script>
+  <script src="./bitcasino.js?v=20260824-bitcasino-1" defer></script>
+</head>
+
+<body class="project project-bitcasino">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitCasino logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitCasino</h1>
+    <p class="blurb">BTC-native casino-engine research workbench built on BitContracts concepts with provably-fair commit/reveal game logic, modular title plugins, simulated bankroll management, reserve metadata, and player-side verification.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcasino" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PROVABLY-FAIR CASINO ENGINE</p><h2>BitCasino Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">RNG: HMAC-SHA256</span><span class="runtime-badge ok">PLUGINS: LOCAL</span><span class="runtime-badge ok">BANKROLL: SIMULATED</span><span class="runtime-badge ok">FUNDS: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="lobby" type="button">Lobby</button><button class="tool-tab mode-tab" data-mode="fair" type="button">Fairness</button><button class="tool-tab mode-tab" data-mode="bankroll" type="button">Bankroll</button><button class="tool-tab mode-tab" data-mode="reserves" type="button">Reserves</button><button class="tool-tab mode-tab" data-mode="settle" type="button">LN Settlement</button><button class="tool-tab mode-tab" data-mode="verify" type="button">Verify</button>
+</div><div class="z-sidebar-note"><strong>ENGINE DEMO</strong><p>This static build uses simulated credits and settlement metadata. It does not accept wagers, hold Bitcoin, connect to wallets, or transmit payouts.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-lobby" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">MODULAR TITLE PLUGINS</p><h2>Lobby</h2></div><div class="tool-card">
+<div class="z-grid-3"><label>Game<select id="cs-game"><option value="coin">Coin Flip</option><option value="dice">Dice</option><option value="range">Range Draw</option></select></label><label>Simulated stake credits<input id="cs-stake" type="number" min="1" value="100"></label><label>Range max<input id="cs-max" type="number" min="2" value="100"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="cs-play" class="btn" type="button">PLAY SIMULATION</button></div><pre id="cs-output" class="z-log"></pre></div></div>
+
+<div id="mode-fair" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">COMMIT / REVEAL</p><h2>Fairness</h2></div><div class="tool-card"><div class="z-grid-2"><label>Server seed<input id="cf-server"></label><label>Player seed<input id="cf-player" value="player-001"></label></div><div class="button-row" style="justify-content:flex-start"><button id="cf-random" class="btn ghost">RANDOM SERVER SEED</button><button id="cf-commit" class="btn">COMMIT</button></div><pre id="cf-output" class="z-log"></pre></div></div>
+
+<div id="mode-bankroll" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SIMULATED BANKROLL</p><h2>Bankroll</h2></div><div class="tool-card"><div class="z-grid-3"><label>Initial credits<input id="cb-start" type="number" min="1" value="100000"></label><label>Max stake %<input id="cb-maxstake" type="number" min=".1" max="100" step=".1" value="1"></label><label>House edge %<input id="cb-edge" type="number" min="0" max="20" step=".01" value="1"></label></div><div class="button-row" style="justify-content:flex-start"><button id="cb-reset" class="btn">RESET BANKROLL</button></div><div class="z-metrics"><div><span>Credits</span><strong id="cb-balance">—</strong></div><div><span>Rounds</span><strong id="cb-rounds">0</strong></div><div><span>Net</span><strong id="cb-net">0</strong></div><div><span>Max stake</span><strong id="cb-limit">—</strong></div></div></div></div>
+
+<div id="mode-reserves" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MULTISIG RESERVE METADATA</p><h2>Reserves</h2></div><div class="tool-card"><div class="z-grid-3"><label>Reserve policy<input id="cr-policy" value="2-of-3"></label><label>Descriptor reference<input id="cr-desc" placeholder="watch-only descriptor / policy id"></label><label>Attested reserve sats<input id="cr-sats" type="number" min="0" value="0"></label></div><div class="button-row" style="justify-content:flex-start"><button id="cr-save" class="btn">SAVE METADATA</button></div><pre id="cr-output" class="z-log"></pre></div></div>
+
+<div id="mode-settle" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LIGHTNING PROVIDER HOOK</p><h2>LN Settlement</h2></div><div class="tool-card"><div class="z-grid-3"><label>Player reference<input id="cl-player" value="player-001"></label><label>Amount sats<input id="cl-sats" type="number" min="0" value="100"></label><label>Invoice/payment reference<input id="cl-ref"></label></div><div class="button-row" style="justify-content:flex-start"><button id="cl-build" class="btn">BUILD INSTRUCTION</button><button id="cl-send" class="btn ghost">CALL REGISTERED PROVIDER</button></div><pre id="cl-output" class="z-log"></pre></div></div>
+
+<div id="mode-verify" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PLAYER-SIDE VERIFICATION</p><h2>Verify</h2></div><div class="tool-card"><label>Round proof JSON<textarea id="cv-json" rows="16"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="cv-run" class="btn">VERIFY</button><button id="cv-export" class="btn ghost">EXPORT LAST PROOF</button></div><pre id="cv-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitCasino</h2><p>Provably-fair plugin casino engine and bankroll/reserve research layer.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Android</dd></div><div><dt>Native</dt><dd>PyQt5 · SQLAlchemy · NumPy · Requests · FFmpeg</dd></div><div><dt>Web</dt><dd>Web Crypto · local simulation</dd></div></dl></article><article class="panel"><p class="kicker">BOUNDARY</p><h2>Auditable logic, no custody</h2><p>The browser demonstrates fairness, plugins, bankroll rules, reserve metadata, and external settlement hooks without handling funds.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

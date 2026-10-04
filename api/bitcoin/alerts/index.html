@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Alerts API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Alert System</h2>
+  <p>
+    ZZX-Labs' Bitcoin Alert System enables real-time notification triggers based on price thresholds, mempool congestion, fee volatility, hash rate anomalies, and block interval delays. Alerts are configurable and can be streamed or logged locally.
+  </p>
+  <p>
+    This tool is used in trading bots, operational dashboards, Lightning node monitors, and wallet-side services. Alerts are triggered every 250ms if conditions are met.
+  </p>
+</section>
+
+<section class="container">
+  <form id="alert-form">
+    <label for="price-threshold">Set Price Alert (USD):</label>
+    <input type="number" id="price-threshold" placeholder="e.g., 30000">
+    <button type="button" onclick="checkPriceAlert()">Enable Alert</button>
+    <p id="alert-status">No alert set.</p>
+  </form>
+</section>
+
+<script>
+  let alertValue = null;
+
+  function checkPriceAlert() {
+    alertValue = parseFloat(document.getElementById('price-threshold').value);
+    document.getElementById('alert-status').textContent = `Alert set for $${alertValue}`;
+  }
+
+  async function monitorAlert() {
+    if (!alertValue) return;
+    try {
+      const res = await fetch('/api/bitcoin/price');
+      const data = await res.json();
+      const price = parseFloat(data.price);
+      if (price >= alertValue) {
+        document.getElementById('alert-status').textContent = `⚠️ Alert: BTC has reached $${price}`;
+        // play alert sound (optional)
+        const audio = new Audio('/static/audio/alerts/alert.mp3');
+        audio.play();
+        alertValue = null; // reset after trigger
+      }
+    } catch (err) {
+      console.error('Error fetching price:', err);
+    }
+  }
+
+  setInterval(monitorAlert, 250);
+</script>
+
+<section class="features">
+  <div class="feature">
+    <h3>Alert API</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/alerts</code></pre>
+    <p>Returns status of current live alert conditions.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Common Alerts</h3>
+    <ul>
+      <li style="list-style-type: none;">BTC crosses a fiat price level</li>
+      <li style="list-style-type: none;">Mempool exceeds X MB</li>
+      <li style="list-style-type: none;">Blocks delayed over 15m</li>
+      <li style="list-style-type: none;">Transaction fees spike 5x</li>
+      <li style="list-style-type: none;">Hashrate drops >20% suddenly</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Enterprise-Grade Alerting?</h2>
+  <p>
+    ZZX-Labs deploys alerting and audit systems for large-scale wallet, mining, and infrastructure use cases. Contact us to configure your own alert schema.
+  </p>
+  <a href="../../../contact" class="btn">Request Alert System</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Stay ahead of volatility. Monitor the pulse of the chain.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Explore Chain Monitoring</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

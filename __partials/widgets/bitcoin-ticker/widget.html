@@ -1,0 +1,365 @@
+<section class="btc-card bitcoin-ticker" data-bitcoin-ticker aria-label="Bitcoin price ticker">
+  <header class="bitcoin-ticker__header">
+    <div class="bitcoin-ticker__heading">
+      <span class="bitcoin-ticker__eyebrow">ZZX-LABS / BITCOIN</span>
+      <h2 class="btc-card__title bitcoin-ticker__title">Bitcoin Ticker</h2>
+    </div>
+    <div class="btc-card__status bitcoin-ticker__state" aria-live="polite">
+      <span class="bitcoin-ticker__dot" data-state-dot aria-hidden="true"></span>
+      <span data-state-text>Loading</span>
+    </div>
+  </header>
+
+  <div class="bitcoin-ticker__controls" aria-label="Ticker controls">
+    <label class="bitcoin-ticker__control">
+      <span>Price Mode</span>
+      <select data-source-select aria-label="Bitcoin price mode">
+        <option value="off">Unweighted</option>
+        <option value="bpi">BPI Weighted</option>
+        <option value="global-bpi">Global BPI Weighted</option>
+      </select>
+    </label>
+
+    <label class="bitcoin-ticker__control">
+      <span>Quote</span>
+      <select data-currency-select aria-label="Quote currency">
+        <option value="USD">USD — US Dollar</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="bitcoin-ticker__hero" aria-live="polite">
+    <div class="bitcoin-ticker__primary">
+      <span class="bitcoin-ticker__unit">1 BTC</span>
+      <span class="bitcoin-ticker__price"><span data-currency-symbol>$</span><span data-btc>—</span></span>
+      <span class="bitcoin-ticker__quote" data-currency-label>USD</span>
+    </div>
+    <div class="bitcoin-ticker__market">
+      <span data-source-label>Unweighted</span><span aria-hidden="true">·</span><span data-update-age>waiting for data</span>
+    </div>
+  </div>
+
+  <div class="bitcoin-ticker__denoms" aria-label="Bitcoin denomination values" data-denom-grid></div>
+
+  <div class="bitcoin-ticker__stats" aria-label="24 hour market statistics">
+    <div class="bitcoin-ticker__stat"><span>24h High</span><strong data-high>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>24h Low</span><strong data-low>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>24h Volume</span><strong data-volume>—</strong></div>
+    <div class="bitcoin-ticker__stat"><span>Spread</span><strong data-spread>—</strong></div>
+  </div>
+
+  <nav class="bitcoin-ticker__panel-nav" aria-label="Ticker data panels" data-panel-nav></nav>
+
+  <div class="bitcoin-ticker__panel-stack">
+    <section class="bitcoin-ticker__panel" data-panel="fx" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">conversion matrix</span><h3>Exchange Rates</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="fx">Collapse</button>
+      </header>
+      <div class="bitcoin-ticker__fx-tools">
+        <input type="search" data-fx-search placeholder="filter fiat code / currency" aria-label="Filter exchange rates">
+        <span data-fx-count>—</span>
+      </div>
+      <div class="bitcoin-ticker__fx-grid" data-fx-grid></div>
+    </section>
+
+
+    <section class="bitcoin-ticker__panel" data-panel="exchanges" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">live market inputs</span><h3>Exchange Markets</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="exchanges">Collapse</button>
+      </header>
+      <div class="bitcoin-ticker__exchange-table-wrap">
+        <table class="bitcoin-ticker__exchange-table">
+          <thead><tr><th>exchange</th><th>quote</th><th>USD price</th><th>24h BTC volume</th><th>weight</th><th>updated</th></tr></thead>
+          <tbody data-exchange-market-rows></tbody>
+        </table>
+      </div>
+      <div class="bitcoin-ticker__panel-note" data-exchange-market-meta>live local BPI mirror</div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="references" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div>
+          <span class="bitcoin-ticker__section-kicker">conversions · purchasing power equivalents</span>
+          <h3>Conversions / Purchasing Power Equivalents</h3>
+        </div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="references">Collapse</button>
+      </header>
+
+      <p class="bitcoin-ticker__panel-note" data-reference-description>
+        Select a U.S.-equivalent purchasing-power category. Verified reference values are normalized to USD and converted through the active BPI price; unavailable values are never guessed.
+      </p>
+
+      <div class="bitcoin-ticker__reference-controls">
+        <input
+          type="search"
+          data-reference-search
+          placeholder="filter this reference page"
+          aria-label="Filter reference items on this page"
+        >
+        <select
+          data-reference-page-select
+          aria-label="Purchasing power reference page"
+        ></select>
+      </div>
+
+      <nav
+        class="bitcoin-ticker__reference-page-nav"
+        data-reference-page-nav
+        aria-label="Purchasing power market types"
+      ></nav>
+
+      <div class="bitcoin-ticker__reference-page-status" data-reference-page-status>
+        Reference page
+      </div>
+
+      <div class="bitcoin-ticker__comparative-grid" data-comparative-grid></div>
+
+      <div class="bitcoin-ticker__commodity-meta">
+        <span data-comparatives-state>0/0 priced</span>
+        <span data-commodity-source>reference prices unavailable</span>
+        <span data-commodity-updated>—</span>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="debts" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">sovereign liability</span><h3>National Debts</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="debts">Collapse</button>
+      </header>
+
+      <p class="bitcoin-ticker__panel-note">
+        All ISO country/territory entries remain selectable. Official public debt is preferred; otherwise a same-year World Bank central-government-debt/GDP estimate is shown. Missing values remain unavailable.
+      </p>
+
+      <div class="bitcoin-ticker__debt">
+        <header class="bitcoin-ticker__debt-head">
+          <select data-debt-country aria-label="National debt country"><option value="US">United States</option></select>
+        </header>
+        <strong class="bitcoin-ticker__debt-total" data-debt-total>—</strong>
+
+        <div class="bitcoin-ticker__debt-grid">
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Debt ÷ currently-issued BTC</span>
+            <strong class="bitcoin-ticker__negative" data-debt-per-issued>—</strong>
+            <small data-issued-supply>issued supply —</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Debt ÷ terminal consensus BTC</span>
+            <strong class="bitcoin-ticker__negative" data-debt-per-terminal>—</strong>
+            <small data-terminal-supply>20,999,999.9769 BTC denominator</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Issued BTC ÷ $1 debt</span>
+            <strong data-issued-per-debt-dollar>—</strong>
+            <small>BTC per USD liability</small>
+          </div>
+          <div class="bitcoin-ticker__debt-cell">
+            <span>Terminal BTC ÷ $1 debt</span>
+            <strong data-terminal-per-debt-dollar>—</strong>
+            <small>BTC per USD liability</small>
+          </div>
+        </div>
+        <div class="bitcoin-ticker__debt-meta">
+          <span data-debt-source>national debt data unavailable</span>
+          <span data-chain-height>height —</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="balances" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div>
+          <span class="bitcoin-ticker__section-kicker">sovereign reserve assets</span>
+          <h3>National Balances / Surpluses</h3>
+        </div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="balances">Collapse</button>
+      </header>
+
+      <p class="bitcoin-ticker__panel-note">
+        Public reserve assets plus same-year public exports/imports and trade surplus/deficit for each ISO country/territory. Reserve assets are a proxy, not a complete sovereign balance sheet.
+      </p>
+
+      <div class="bitcoin-ticker__balance">
+        <header class="bitcoin-ticker__balance-head">
+          <select data-balance-country aria-label="National reserve-assets country">
+            <option value="US">United States</option>
+          </select>
+        </header>
+
+        <strong class="bitcoin-ticker__balance-total" data-balance-total>—</strong>
+
+        <div class="bitcoin-ticker__balance-grid">
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets excluding gold</span>
+            <strong data-balance-ex-gold>—</strong>
+            <small>World Bank current USD where available</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Implied gold reserve component</span>
+            <strong data-balance-gold>—</strong>
+            <small>Total reserves minus reserves excluding gold</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Exports</span>
+            <strong data-balance-exports>—</strong>
+            <small>Goods and services, current USD</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Imports</span>
+            <strong data-balance-imports>—</strong>
+            <small>Goods and services, current USD</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Trade surplus / deficit</span>
+            <strong data-balance-trade>—</strong>
+            <small data-balance-trade-status>trade data unavailable</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets ÷ issued BTC</span>
+            <strong data-balance-per-issued>—</strong>
+            <small>USD reserve assets per currently-issued BTC</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Reserve assets ÷ terminal BTC</span>
+            <strong data-balance-per-terminal>—</strong>
+            <small>USD reserve assets per terminal consensus BTC</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Issued BTC ÷ $1 reserve assets</span>
+            <strong data-issued-per-balance-dollar>—</strong>
+            <small>BTC per USD reserve asset</small>
+          </div>
+
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Terminal BTC ÷ $1 reserve assets</span>
+            <strong data-terminal-per-balance-dollar>—</strong>
+            <small>BTC per USD reserve asset</small>
+          </div>
+        </div>
+
+        <div class="bitcoin-ticker__balance-meta">
+          <span data-balance-source>sovereign reserve-assets data unavailable</span>
+          <span data-balance-proxy-note>Reserve-assets proxy only</span>
+          <span data-balance-chain-height>height —</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="imports" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">sovereign trade · inbound</span><h3>National Imports</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="imports">Collapse</button>
+      </header>
+      <p class="bitcoin-ticker__panel-note">
+        Public goods-and-services import values, normalized to current USD where available in the sovereign trade mirror.
+      </p>
+      <div class="bitcoin-ticker__balance">
+        <header class="bitcoin-ticker__balance-head">
+          <select data-import-country aria-label="National imports country"><option value="US">United States</option></select>
+        </header>
+        <strong class="bitcoin-ticker__balance-total" data-import-total>—</strong>
+        <div class="bitcoin-ticker__balance-grid">
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Exports</span><strong data-import-counterpart>—</strong><small>comparison value</small>
+          </div>
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Trade balance</span><strong data-import-balance>—</strong><small data-import-status>trade data unavailable</small>
+          </div>
+        </div>
+        <div class="bitcoin-ticker__balance-meta"><span data-import-source>public trade source unavailable</span></div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="exports" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">sovereign trade · outbound</span><h3>National Exports</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="exports">Collapse</button>
+      </header>
+      <p class="bitcoin-ticker__panel-note">
+        Public goods-and-services export values, normalized to current USD where available in the sovereign trade mirror.
+      </p>
+      <div class="bitcoin-ticker__balance">
+        <header class="bitcoin-ticker__balance-head">
+          <select data-export-country aria-label="National exports country"><option value="US">United States</option></select>
+        </header>
+        <strong class="bitcoin-ticker__balance-total" data-export-total>—</strong>
+        <div class="bitcoin-ticker__balance-grid">
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Imports</span><strong data-export-counterpart>—</strong><small>comparison value</small>
+          </div>
+          <div class="bitcoin-ticker__balance-cell">
+            <span>Trade balance</span><strong data-export-balance>—</strong><small data-export-status>trade data unavailable</small>
+          </div>
+        </div>
+        <div class="bitcoin-ticker__balance-meta"><span data-export-source>public trade source unavailable</span></div>
+      </div>
+    </section>
+
+    <section class="bitcoin-ticker__panel" data-panel="widgets" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">HUD integration</span><h3>Widget Modules</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="widgets">Collapse</button>
+      </header>
+      <p class="bitcoin-ticker__panel-note">
+        Toggle existing HUD widgets without changing the Bitcoin Ticker price-selection authority.
+      </p>
+      <div class="bitcoin-ticker__widget-groups" data-widget-groups></div>
+    </section>
+
+    <section class="bitcoin-ticker__panel bitcoin-ticker__panel--chart" data-panel="charts" hidden>
+      <header class="bitcoin-ticker__panel-head">
+        <div><span class="bitcoin-ticker__section-kicker">history / live analytics</span><h3>Chart Lab</h3></div>
+        <button type="button" class="zzx-widgets__btn" data-panel-close="charts">Collapse</button>
+      </header>
+
+      <div class="bitcoin-ticker__chart-controls">
+        <label><span>Source</span><select data-chart-source></select></label>
+        <label><span>Timeframe</span>
+          <select data-chart-timeframe>
+            <option>10s</option><option>30s</option><option>1m</option><option>5m</option><option>15m</option>
+            <option>1h</option><option>4h</option><option selected>24h</option><option>7d</option><option>30d</option>
+            <option>90d</option><option>1y</option><option>5y</option><option>all</option>
+          </select>
+        </label>
+        <label><span>Resolution</span>
+          <select data-chart-resolution>
+            <option selected>auto</option><option>raw</option><option>1s</option><option>5s</option><option>15s</option>
+            <option>30s</option><option>1m</option><option>5m</option><option>15m</option><option>1h</option>
+            <option>4h</option><option>1d</option><option>1w</option>
+          </select>
+        </label>
+        <label><span>Chart recipe</span><select data-chart-recipe></select></label>
+        <button type="button" class="zzx-widgets__btn" data-chart-refresh>Refresh</button>
+        <button type="button" class="zzx-widgets__btn" data-chart-reset>Reset zoom</button>
+      </div>
+
+      <div class="bitcoin-ticker__chart-meta">
+        <span data-chart-status>history idle</span>
+        <span data-chart-range>—</span>
+      </div>
+
+      <div class="bitcoin-ticker__chart-stage">
+        <canvas data-chart-canvas aria-label="Interactive Bitcoin chart"></canvas>
+        <div class="bitcoin-ticker__chart-tooltip" data-chart-tooltip hidden></div>
+      </div>
+
+      <div class="bitcoin-ticker__chart-help">
+        Wheel: zoom at cursor · horizontal/thumb wheel: pan time · drag: pan · hover: timestamp/OHLC/volume/change · double-click: reset.
+      </div>
+    </section>
+  </div>
+
+  <footer class="bitcoin-ticker__footer">
+    <span data-provider-detail>ZZX BPI</span>
+    <span class="bitcoin-ticker__credit">Made by: <i>[0xdeadbeef]</i></span>
+  </footer>
+</section>

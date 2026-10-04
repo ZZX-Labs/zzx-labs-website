@@ -1,0 +1,63 @@
+{
+  "schema": "zzx-bpi-index-policy-v2-native-global",
+  "updated_at": null,
+  "default_country": "US",
+  "weights_enabled_default": true,
+  "weight_basis": "eligible market 24h BTC volume / eligible global 24h BTC volume",
+  "weight_fields": {
+    "weight_ratio": "decimal numeric ratio of eligible global 24h BTC volume; 0..1",
+    "weight_decimal": "alias of weight_ratio",
+    "weight_percent_decimal": "percentage expressed as decimal; alias of weight_ratio",
+    "weight_percent": "weight_ratio * 100",
+    "weighted_price_contribution_usd": "price_usd * weight_ratio"
+  },
+  "global_bpi": {
+    "membership": "all eligible exchange regions worldwide",
+    "weighted": "sum(price_usd * global weight_ratio) across all eligible global BTC/fiat markets",
+    "unweighted": "arithmetic mean price_usd across all eligible global BTC/fiat markets"
+  },
+  "national_bpi": {
+    "membership": "exchange registry region equals selected region/country code",
+    "global_weight_preserved": true,
+    "weighted": "sum(price_usd * global_weight_ratio) / sum(global_weight_ratio) within selected region subset",
+    "unweighted": "arithmetic mean price_usd within selected region subset",
+    "reason": "exchange geography defines native scope; quote currency is presentation/FX metadata only"
+  },
+  "sanity_gate": {
+    "order": [
+      "exchange policy gate",
+      "backend index_eligible gate",
+      "price consensus gate",
+      "catastrophic price-ratio gate",
+      "24h BTC-volume outlier gate",
+      "weight assignment"
+    ],
+    "price_consensus": "median USD-normalized eligible BTC/fiat market price",
+    "price_band": {
+      "minimum_pct": 7.5,
+      "maximum_pct": 20.0,
+      "mad_multiplier": 8.0
+    },
+    "catastrophic_price_ratio": {
+      "minimum_of_consensus": 0.25,
+      "maximum_of_consensus": 4.0
+    },
+    "volume_limit": {
+      "basis": "median sane 24h BTC volume * 100",
+      "floor_btc": 100000,
+      "hard_ceiling_btc": 1000000
+    },
+    "quarantined_weight": 0,
+    "quarantined_in_unweighted_index": false,
+    "note": "No market receives any Global BPI or BitAvg weight until every sanity gate passes."
+  },
+  "native_bpi": {
+    "regions": [
+      "US"
+    ],
+    "membership": "exchange registry region is one of native_bpi.regions; quote currency never determines native membership",
+    "weighted": "renormalized eligible 24h BTC-volume weights within native-region exchanges",
+    "unweighted": "arithmetic mean price_usd across eligible native-region exchange markets",
+    "fallback_to_global": false
+  }
+}

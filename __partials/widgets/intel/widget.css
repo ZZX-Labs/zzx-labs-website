@@ -1,0 +1,209 @@
+/* __partials/widgets/intel/widget.css */
+
+.intel{
+  --intel-green:var(--zzx-accent,#c0d674);
+  --intel-gold:var(--zzx-accent-alt,#e6a42b);
+  --intel-red:var(--zzx-error,#d67474);
+  --intel-muted:var(--zzx-muted,#b7bf9a);
+  --intel-dim:var(--zzx-dim,#777);
+  --intel-line:rgba(255,255,255,.09);
+  --intel-panel:rgba(255,255,255,.018);
+  width:100%;
+  min-width:0;
+}
+
+.intel__header,
+.intel__footer,
+.intel__meta-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+}
+
+.intel__header{align-items:flex-start}
+
+.intel__eyebrow,
+.intel__hero > span,
+.intel__controls label > span{
+  color:var(--intel-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.intel__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--intel-line);
+  border-bottom:1px solid var(--intel-line);
+}
+
+.intel__hero strong{
+  color:var(--intel-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.25rem;
+  line-height:1.05;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.intel__hero small{
+  color:var(--intel-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.intel__controls{
+  display:flex;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.intel__controls label{
+  display:grid;
+  gap:.15rem;
+  flex:1 1 210px;
+  min-width:0;
+}
+
+.intel__controls select{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--intel-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.intel__controls select:focus{border-color:var(--intel-gold)}
+
+.intel__meta-line{
+  margin-top:.42rem;
+  padding-top:.4rem;
+  border-top:1px solid var(--intel-line);
+  color:var(--intel-muted);
+  font-size:.66rem;
+}
+
+.intel__meta-line span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.intel__list{
+  display:grid;
+  gap:.28rem;
+  margin-top:.42rem;
+}
+
+.intel__item{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:start;
+  gap:.4rem;
+  min-width:0;
+  padding:.34rem .38rem;
+  border:1px solid var(--intel-line);
+  border-radius:6px;
+  background:var(--intel-panel);
+}
+
+.intel__src{
+  min-width:42px;
+  padding:.07rem .25rem;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  color:var(--intel-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.57rem;
+  text-align:center;
+  text-transform:uppercase;
+}
+
+.intel__item-main{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+
+.intel__item-main a{
+  min-width:0;
+  color:var(--intel-green);
+  font-size:.69rem;
+  text-decoration:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.intel__item-main a:hover{
+  color:var(--intel-gold);
+  text-decoration:underline;
+}
+
+.intel__item-main small,
+.intel__item time{
+  color:var(--intel-dim);
+  font-size:.61rem;
+}
+
+.intel__item-main small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.intel__item time{white-space:nowrap}
+
+.intel__empty{
+  padding:.7rem;
+  border:1px dashed var(--intel-line);
+  border-radius:6px;
+  color:var(--intel-dim);
+  font-size:.68rem;
+  text-align:center;
+}
+
+.intel__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--intel-line);
+  color:var(--intel-muted);
+  font-size:.67rem;
+}
+
+.intel__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:460px){
+  .intel__controls{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .intel__item{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  .intel__item time{grid-column:2}
+}

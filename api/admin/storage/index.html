@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Storage API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Secure Storage Server API</h2>
+  <p>
+    This administrative API allows you to interface with ZZX-Labs’ encrypted local storage infrastructure. All files stored through this endpoint are locked using a combination of LUKS, AES-512, and optional GPG-layered encryption. Used for archiving research, mirroring critical data, and secure file segmentation.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Core Functionalities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Volume Control:</strong> Mount, unmount, or remount encrypted volumes tied to a research group, project, or system component.</li>
+    <li style="list-style-type: none;"><strong>Encryption Keys:</strong> Rotate LUKS headers, re-encrypt files, or attach GPG trust layers.</li>
+    <li style="list-style-type: none;"><strong>Storage Quotas:</strong> Assign quota limits per storage pool or project namespace.</li>
+    <li style="list-style-type: none;"><strong>Mirroring:</strong> Push or pull snapshots between storage pools and off-site vaults.</li>
+    <li style="list-style-type: none;"><strong>Access Logging:</strong> Monitor who accessed what, when, and from which interface.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Mount Encrypted Volume</h3>
+    <p>Attach an encrypted volume by UUID and unlock with a passphrase + GPG auth layer.</p>
+    <pre><code class="language-json">{
+  "cmd": "mount_volume",
+  "volume_uuid": "vol-173f1b5e",
+  "gpg_sig": "user-admin-keysig"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Push Mirror Snapshot</h3>
+    <p>Mirror a compressed snapshot of the storage vault to a designated offsite host (SFTP or offline disk).</p>
+    <pre><code class="language-json">{
+  "cmd": "mirror_push",
+  "target": "cold-storage-02.zzx",
+  "vault": "downloads_archive",
+  "token": "admin-auth-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>List Active Storage Pools</h3>
+    <p>Return all mounted encrypted volumes with size stats, usage, mount status, and group ID.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/storage/pools">List Pools</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Encrypted Vault Access?</h2>
+  <p>For research groups, archival needs, or internal mirrors, contact us to create or configure a secure storage vault.</p>
+  <p>We provide encrypted endpoints, LUKS images, and GPG-trusted key exchanges per namespace.</p>
+  <a href="../../../contact" class="btn">Request Secure Storage Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

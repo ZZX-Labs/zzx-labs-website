@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Lightweight Bitcoin and Lightning monitoring console with endpoint health, chain tip, mempool state, fee bands, optional node/LN provider hooks, and local threshold alerts.">
+  <title>Bit-Monitor · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-bit-monitor-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-bit-monitor-1">
+  <script src="./hook.js?v=20260822-bit-monitor-1" defer></script>
+  <script src="./script.js?v=20260822-bit-monitor-1" defer></script>
+  <script src="./monitor-core.js?v=20260822-bit-monitor-1" defer></script>
+  <script src="./bit-monitor.js?v=20260822-bit-monitor-1" defer></script>
+</head>
+
+<body class="project project-bit-monitor">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bit-Monitor logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bit-Monitor</h1>
+    <p class="blurb">Lightweight Bitcoin and Lightning monitoring console with endpoint health, chain tip, mempool state, fee bands, optional node/LN provider hooks, and local threshold alerts.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bit-monitor" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN / LIGHTNING HEALTH MONITOR</p><h2>Bit-Monitor Browser Workbench</h2></div><div class="runtime-status"><span id="mon-net" class="runtime-badge partial">NETWORK: IDLE</span><span id="mon-api" class="runtime-badge partial">ESPLORA: IDLE</span><span id="mon-provider" class="runtime-badge partial">NODE/LN: OPTIONAL</span><span class="runtime-badge ok">SECRETS: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="overview" type="button">Overview</button>
+<button class="tool-tab mode-tab" data-mode="mempool" type="button">Mempool &amp; Fees</button>
+<button class="tool-tab mode-tab" data-mode="node" type="button">Node Health</button>
+<button class="tool-tab mode-tab" data-mode="lightning" type="button">Lightning</button>
+<button class="tool-tab mode-tab" data-mode="alerts" type="button">Alerts</button>
+<button class="tool-tab mode-tab" data-mode="sources" type="button">Sources</button>
+</div><div class="z-sidebar-note"><strong>DEFAULT PUBLIC SOURCE</strong><p>The browser can query a configurable Esplora/mempool API. Bitcoin Core and LND data require an explicit provider adapter; RPC credentials are never embedded in the page.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-overview" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">LIVE SNAPSHOT</p><h2>Overview</h2><p>Refresh chain tip, public mempool status, fee recommendations, and endpoint latency.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="overview-refresh" class="btn" type="button">REFRESH NOW</button><button id="overview-auto" class="btn ghost" type="button">AUTO: OFF</button></div>
+<div class="z-metrics"><div><span>Block height</span><strong id="overview-height">—</strong></div><div><span>Mempool txs</span><strong id="overview-txs">—</strong></div><div><span>Fast fee</span><strong id="overview-fast">—</strong></div><div><span>API latency</span><strong id="overview-latency">—</strong></div></div>
+<canvas id="overview-canvas" class="z-canvas" width="1200" height="320"></canvas><pre id="overview-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-mempool" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PUBLIC NETWORK PRESSURE</p><h2>Mempool &amp; Fees</h2><p>Inspect mempool transaction count, virtual size, total fees, and recommended fee bands.</p></div><div class="tool-card">
+<div class="z-metrics"><div><span>Count</span><strong id="mp-count">—</strong></div><div><span>vsize</span><strong id="mp-vsize">—</strong></div><div><span>Total fees</span><strong id="mp-fees">—</strong></div><div><span>Minimum fee</span><strong id="mp-min">—</strong></div></div>
+<div class="z-table-wrap" style="margin-top:.8rem"><table class="z-table"><thead><tr><th>Band</th><th>sat/vB</th><th>Use</th></tr></thead><tbody id="fee-body"></tbody></table></div>
+</div></div>
+
+<div id="mode-node" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">OPTIONAL CORE PROVIDER</p><h2>Node Health</h2><p>Display sanitized node-health data from a user-registered provider or imported JSON snapshot.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="node-refresh" class="btn" type="button">RUN NODE PROVIDER</button><label class="file-button">IMPORT SNAPSHOT<input id="node-import" type="file" accept=".json,application/json"></label></div>
+<div class="z-metrics"><div><span>Chain</span><strong id="node-chain">—</strong></div><div><span>Blocks</span><strong id="node-blocks">—</strong></div><div><span>Peers</span><strong id="node-peers">—</strong></div><div><span>Verification</span><strong id="node-progress">—</strong></div></div><pre id="node-output" class="z-log"></pre>
+<div class="z-note">Provider contract: <code>BitMonitor.registerNodeProvider(async () =&gt; ({chain, blocks, headers, verificationProgress, peers, uptimeSeconds, warnings}))</code>.</div>
+</div></div>
+
+<div id="mode-lightning" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">OPTIONAL LND / LN PROVIDER</p><h2>Lightning</h2><p>Display sanitized Lightning node summary data from an explicit provider adapter.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="ln-refresh" class="btn" type="button">RUN LIGHTNING PROVIDER</button><label class="file-button">IMPORT SNAPSHOT<input id="ln-import" type="file" accept=".json,application/json"></label></div>
+<div class="z-metrics"><div><span>Alias</span><strong id="ln-alias">—</strong></div><div><span>Channels</span><strong id="ln-channels">—</strong></div><div><span>Peers</span><strong id="ln-peers">—</strong></div><div><span>Local balance</span><strong id="ln-balance">—</strong></div></div><pre id="ln-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-alerts" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOCAL THRESHOLDS</p><h2>Alerts</h2><p>Define browser-local thresholds for fee spikes, mempool size, and API latency.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Fast fee ≥ sat/vB<input id="alert-fee" type="number" min="1" value="50"></label><label>Mempool txs ≥<input id="alert-txs" type="number" min="1" value="100000"></label><label>API latency ≥ ms<input id="alert-latency" type="number" min="1" value="2500"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="alerts-check" class="btn" type="button">CHECK NOW</button><button id="alerts-notify" class="btn ghost" type="button">ENABLE BROWSER NOTIFICATIONS</button></div>
+<div id="alert-list" class="z-list" style="margin-top:.8rem"></div>
+</div></div>
+
+<div id="mode-sources" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DATA SOURCES</p><h2>Sources</h2><p>Configure the public Bitcoin API root and inspect provider registration state.</p></div><div class="tool-card">
+<label>Esplora / mempool API base<input id="source-api" type="url" value="https://mempool.space/api"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="source-save" class="btn" type="button">SAVE SOURCE</button><button id="source-reset" class="btn ghost" type="button">RESET DEFAULT</button></div>
+<pre id="source-output" class="z-log"></pre>
+<div class="z-note">If your site CSP blocks remote connections, add the selected API origin to <code>connect-src</code>, or point this field at your own same-origin mempool/Esplora mirror.</div>
+</div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bit-Monitor</h2><p>Bitcoin/LN node and network monitoring with mempool pressure, fee bands, endpoint health, and local alerting.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Requests · psutil · Matplotlib</dd></div><div><dt>Web</dt><dd>Fetch · Canvas · provider hooks</dd></div></dl></article><article class="panel"><p class="kicker">CREDENTIAL BOUNDARY</p><h2>No RPC secrets in-browser</h2><p>Direct Bitcoin Core/LND credentials do not belong in static frontend code. Node-specific data enters through an explicit adapter or sanitized JSON snapshot.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

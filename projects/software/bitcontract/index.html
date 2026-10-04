@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin smart-contract template workbench for timelocks, multisig, HTLC-style conditions, DLC metadata, descriptor/script-policy generation, and test-vector export.">
+  <title>BitContract · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitcontract-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitcontract-1">
+  <script src="./hook.js?v=20260824-bitcontract-1" defer></script>
+  <script src="./script.js?v=20260824-bitcontract-1" defer></script>
+  <script src="./bitcontract-core.js?v=20260824-bitcontract-1" defer></script>
+  <script src="./bitcontract.js?v=20260824-bitcontract-1" defer></script>
+</head>
+
+<body class="project project-bitcontract">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitContract logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitContract</h1>
+    <p class="blurb">Bitcoin smart-contract template workbench for timelocks, multisig, HTLC-style conditions, DLC metadata, descriptor/script-policy generation, and test-vector export.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitcontract" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN CONTRACT TEMPLATE GENERATOR</p><h2>BitContract Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">TEMPLATES: LOCAL</span><span class="runtime-badge ok">KEYS: PUBLIC ONLY</span><span class="runtime-badge ok">SIGNING: NONE</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="multisig" type="button">Multisig</button>
+<button class="tool-tab mode-tab" data-mode="timelock" type="button">Timelock</button>
+<button class="tool-tab mode-tab" data-mode="htlc" type="button">HTLC</button>
+<button class="tool-tab mode-tab" data-mode="dlc" type="button">DLC Metadata</button>
+<button class="tool-tab mode-tab" data-mode="tests" type="button">Tests</button>
+<button class="tool-tab mode-tab" data-mode="export" type="button">Export</button>
+</div><div class="z-sidebar-note"><strong>TEMPLATE LAYER</strong><p>Use public keys/descriptors only. The browser generates policies and test fixtures; it does not hold signing keys or broadcast transactions.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-multisig" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">M-OF-N POLICY</p><h2>Multisig</h2></div><div class="tool-card"><div class="z-grid-3"><label>Required m<input id="mc-m" type="number" min="1" max="15" value="2"></label><label>Total n<input id="mc-n" type="number" min="1" max="15" value="3"></label><label>Wrapper<select id="mc-wrap"><option value="wsh">P2WSH</option><option value="sh-wsh">P2SH-P2WSH</option></select></label></div><label style="margin-top:.6rem">Public keys / placeholders, one per line<textarea id="mc-keys" rows="8">&lt;pubkey1&gt;
+&lt;pubkey2&gt;
+&lt;pubkey3&gt;</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="mc-build" class="btn" type="button">GENERATE</button></div><pre id="mc-output" class="z-log"></pre></div></div>
+
+<div id="mode-timelock" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">CLTV / CSV</p><h2>Timelock</h2></div><div class="tool-card"><div class="z-grid-3"><label>Type<select id="tl-type"><option value="cltv-height">CLTV height</option><option value="cltv-time">CLTV Unix time</option><option value="csv-blocks">CSV blocks</option></select></label><label>Value<input id="tl-value" type="number" min="1" value="1008"></label><label>Spend key<input id="tl-key" type="text" value="&lt;pubkey&gt;"></label></div><div class="button-row" style="justify-content:flex-start"><button id="tl-build" class="btn" type="button">GENERATE</button></div><pre id="tl-output" class="z-log"></pre></div></div>
+
+<div id="mode-htlc" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">HASH + TIME CONDITION</p><h2>HTLC</h2></div><div class="tool-card"><div class="z-grid-3"><label>SHA-256 hash<input id="ht-hash" type="text" value="&lt;32-byte-hash&gt;"></label><label>Receiver pubkey<input id="ht-recv" type="text" value="&lt;receiver-pubkey&gt;"></label><label>Refund pubkey<input id="ht-refund" type="text" value="&lt;refund-pubkey&gt;"></label></div><label style="margin-top:.6rem">Refund CLTV height<input id="ht-height" type="number" min="1" value="900000"></label><div class="button-row" style="justify-content:flex-start"><button id="ht-build" class="btn" type="button">GENERATE</button></div><pre id="ht-output" class="z-log"></pre></div></div>
+
+<div id="mode-dlc" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DLC AGREEMENT METADATA</p><h2>DLC Metadata</h2><p>Model oracle-event and payout metadata without implementing oracle signing.</p></div><div class="tool-card"><div class="z-grid-3"><label>Event ID<input id="dlc-event" type="text" value="event-001"></label><label>Oracle pubkey<input id="dlc-oracle" type="text" value="&lt;oracle-pubkey&gt;"></label><label>Maturity Unix time<input id="dlc-time" type="number" value="1767225600"></label></div><label style="margin-top:.6rem">Outcomes / payouts JSON<textarea id="dlc-payouts" rows="8">[{"outcome":"YES","partyA_sats":100000,"partyB_sats":0},{"outcome":"NO","partyA_sats":0,"partyB_sats":100000}]</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="dlc-build" class="btn" type="button">BUILD METADATA</button></div><pre id="dlc-output" class="z-log"></pre></div></div>
+
+<div id="mode-tests" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">STATIC POLICY TESTS</p><h2>Tests</h2><p>Validate thresholds, placeholder counts, timelock ranges, and DLC payout totals.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ct-tests" class="btn" type="button">RUN TESTS</button></div><pre id="ct-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">GENERATED BUNDLE</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ct-export" class="btn" type="button">EXPORT JSON</button></div><pre id="ct-export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitContract</h2><p>Bitcoin smart-contract templates for multisig, timelocks, HTLCs, and DLC agreement metadata.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · pytest · bitcoinlib · Jinja2</dd></div><div><dt>Web</dt><dd>Policy templates · JSON tests</dd></div></dl></article><article class="panel"><p class="kicker">SIGNING BOUNDARY</p><h2>No key custody</h2><p>Generated material is for policy design/testing. Funded transaction construction and signing should be validated with dedicated Bitcoin tooling.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

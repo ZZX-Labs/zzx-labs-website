@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Expanded Diceware Volumes provide themed and locale-aware wordlists plus methodologies for building stronger, high-entropy Diceware passphrases and mnemonic systems."><title>Expanded Diceware Volumes · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-expanded-diceware-volumes-1"><link rel="stylesheet" href="./hook.css?v=20260824-expanded-diceware-volumes-1">
+<script src="./hook.js?v=20260824-expanded-diceware-volumes-1" defer></script><script src="./script.js?v=20260824-expanded-diceware-volumes-1" defer></script>
+<script src="./expanded-diceware.js?v=20260824-expanded-diceware-volumes-1" defer></script></head><body class="project project-expanded-diceware-volumes"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="Expanded Diceware Volumes logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE</p><h1>Expanded Diceware Volumes</h1><p class="blurb">Expanded Diceware Volumes provide themed and locale-aware wordlists plus methodologies for building stronger, high-entropy Diceware passphrases and mnemonic systems.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/expanded-diceware-volumes" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">DICEWARE // OFFLINE // ENTROPY</p><h2>Expanded Diceware Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">WEB CRYPTO RNG</span><span class="runtime-badge ok">MANUAL DICE</span><span class="runtime-badge ok">WORDLIST VALIDATION</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Tools</h3><div class="tool-list"><button class="tool-tab mode-tab active" data-mode="wordlist">Wordlist</button><button class="tool-tab mode-tab" data-mode="generate">Generate</button><button class="tool-tab mode-tab" data-mode="manual">Manual Dice</button><button class="tool-tab mode-tab" data-mode="entropy">Entropy</button><button class="tool-tab mode-tab" data-mode="export">Export</button></div><div class="z-sidebar-note"><strong>SECRET HYGIENE</strong><p>Generate locally. Do not paste real passphrases or wallet seeds into chats or websites.</p></div></aside><section class="tool-workspace">
+<div id="mode-wordlist" class="z-mode-panel mode-panel active"><div class="tool-card">
+<label class="file-button">IMPORT WORDLIST<input id="wordlist-file" type="file" accept=".txt,.csv,text/plain,text/csv"></label>
+<label>Wordlist format<select id="format"><option value="auto">Auto detect</option><option value="word">One word per line</option><option value="dice">Dice code + word</option></select></label>
+<div class="z-metrics"><div><span>Entries</span><strong id="entries">0</strong></div><div><span>Unique</span><strong id="unique">0</strong></div><div><span>Bits / word</span><strong id="bits-word">—</strong></div></div>
+<pre id="wordlist-output" class="z-log"></pre>
+</div></div>
+<div id="mode-generate" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Words<input id="words" type="number" min="2" max="24" value="6"></label><label>Separator<input id="separator" value="-"></label><label>Case<select id="case-mode"><option value="original">original</option><option value="lower">lower</option><option value="title">Title</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="generate" class="btn">GENERATE WITH WEB CRYPTO</button></div>
+<textarea id="phrase" rows="6" readonly></textarea><p class="z-note">Output is generated locally from the imported wordlist using rejection sampling over Web Crypto random bytes.</p>
+</div></div>
+<div id="mode-manual" class="z-mode-panel mode-panel"><div class="tool-card">
+<p>For a standard 7776-entry Diceware list, enter five d6 rolls per word (for example <code>12345</code>).</p>
+<label>Dice codes, separated by spaces<textarea id="dice-codes" rows="6" placeholder="12345 66611 24136 ..."></textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="decode-dice" class="btn">DECODE DICE CODES</button></div><textarea id="dice-output" rows="6" readonly></textarea>
+</div></div>
+<div id="mode-entropy" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-2"><label>Number of words<input id="entropy-words" type="number" min="1" max="100" value="6"></label><label>Attacker guesses/s<input id="guess-rate" type="number" min="1" value="1000000000"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="calc-entropy" class="btn">CALCULATE</button></div><pre id="entropy-output" class="z-log"></pre>
+</div></div>
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export-metadata" class="btn">EXPORT WORDLIST METADATA</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">WORDLISTS</p><h2>Themed · Locale-aware</h2><p>This page does not ship a fabricated “official” volume. Import the actual wordlist you want to validate and use.</p></article><article class="panel"><p class="kicker">PLATFORM</p><h2>Any</h2><p>No runtime dependencies are required for the browser implementation.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

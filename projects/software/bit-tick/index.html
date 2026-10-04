@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Bitcoin price ticker with configurable public price source, automatic refresh, local session history, fiat/BTC/sat conversion, and a compact embeddable ticker API.">
+  <title>Bit-Tick · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-bit-tick-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-bit-tick-1">
+  <script src="./hook.js?v=20260822-bit-tick-1" defer></script>
+  <script src="./script.js?v=20260822-bit-tick-1" defer></script>
+  <script src="./ticker-core.js?v=20260822-bit-tick-1" defer></script>
+  <script src="./bit-tick.js?v=20260822-bit-tick-1" defer></script>
+</head>
+
+<body class="project project-bit-tick">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Bit-Tick logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Bit-Tick</h1>
+    <p class="blurb">Bitcoin price ticker with configurable public price source, automatic refresh, local session history, fiat/BTC/sat conversion, and a compact embeddable ticker API.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bit-tick" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BITCOIN PRICE TICKER</p><h2>Bit-Tick Browser Workbench</h2></div><div class="runtime-status"><span id="tick-net" class="runtime-badge partial">PRICE: IDLE</span><span id="tick-source" class="runtime-badge ok">SOURCE: MEMPOOL.SPACE</span><span class="runtime-badge ok">HISTORY: LOCAL</span><span class="runtime-badge ok">TRADING: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="ticker" type="button">Ticker</button>
+<button class="tool-tab mode-tab" data-mode="history" type="button">History</button>
+<button class="tool-tab mode-tab" data-mode="convert" type="button">Converter</button>
+<button class="tool-tab mode-tab" data-mode="embed" type="button">Embed</button>
+<button class="tool-tab mode-tab" data-mode="source" type="button">Source</button>
+</div><div class="z-sidebar-note"><strong>DISPLAY ONLY</strong><p>Bit-Tick retrieves and displays market prices. It does not place orders, custody funds, or connect to an exchange account.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-ticker" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">SPOT PRICE</p><h2>Ticker</h2><p>Refresh Bitcoin spot prices and choose the displayed fiat currency.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Currency<select id="tick-currency"><option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>CHF</option><option>AUD</option><option>JPY</option></select></label><label>Refresh seconds<select id="tick-interval"><option value="5">5</option><option value="10">10</option><option value="30" selected>30</option><option value="60">60</option></select></label><label>Decimals<input id="tick-decimals" type="number" min="0" max="8" value="2"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="tick-refresh" class="btn" type="button">REFRESH</button><button id="tick-auto" class="btn ghost" type="button">AUTO: OFF</button></div>
+<div class="z-metrics"><div><span>1 BTC</span><strong id="price-btc">—</strong></div><div><span>100k sats</span><strong id="price-100k">—</strong></div><div><span>1 sat</span><strong id="price-sat">—</strong></div><div><span>Updated</span><strong id="price-time">—</strong></div></div>
+<pre id="ticker-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-history" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SESSION PRICE TRACE</p><h2>History</h2><p>Plot price observations collected by this browser session and persisted locally.</p></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="history-clear" class="btn ghost" type="button">CLEAR HISTORY</button><button id="history-export" class="btn" type="button">EXPORT CSV</button></div>
+<canvas id="history-canvas" class="z-canvas" width="1200" height="340"></canvas>
+<div class="z-metrics"><div><span>Observations</span><strong id="hist-count">0</strong></div><div><span>Low</span><strong id="hist-low">—</strong></div><div><span>High</span><strong id="hist-high">—</strong></div><div><span>Change</span><strong id="hist-change">—</strong></div></div>
+</div></div>
+
+<div id="mode-convert" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BTC / SAT / FIAT</p><h2>Converter</h2><p>Convert between BTC, satoshis, and the selected fiat currency using the latest fetched price.</p></div><div class="tool-card">
+<div class="z-grid-3"><label>Amount<input id="conv-amount" type="number" step="any" value="0.01"></label><label>From<select id="conv-from"><option>BTC</option><option>SATS</option><option>FIAT</option></select></label><label>To<select id="conv-to"><option>FIAT</option><option>BTC</option><option>SATS</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="conv-run" class="btn" type="button">CONVERT</button></div><pre id="conv-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-embed" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">EMBEDDABLE STATE</p><h2>Embed</h2><p>Use the page API to drive a compact ticker elsewhere on your site.</p></div><div class="tool-card"><pre class="z-log">window.BitTick
+
+BitTick.refresh()
+BitTick.getPrice(currency)
+BitTick.convert(amount, from, to, currency)
+BitTick.subscribe(callback)</pre><div class="z-note">The subscriber callback receives each successful price snapshot so an external site component can render it however desired.</div></div></div>
+
+<div id="mode-source" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PRICE PROVIDER</p><h2>Source</h2><p>Configure a mempool.space-compatible price endpoint or register a custom provider.</p></div><div class="tool-card">
+<label>Price endpoint<input id="source-url" type="url" value="https://mempool.space/api/v1/prices"></label>
+<div class="button-row" style="justify-content:flex-start"><button id="source-save" class="btn" type="button">SAVE ENDPOINT</button><button id="source-reset" class="btn ghost" type="button">RESET DEFAULT</button></div>
+<pre id="source-output" class="z-log"></pre>
+</div></div>
+
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Bit-Tick</h2><p>Minimal Bitcoin price ticker with local history, conversion utilities, and an embeddable browser API.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · Requests</dd></div><div><dt>Web</dt><dd>Fetch · Canvas · localStorage</dd></div></dl></article><article class="panel"><p class="kicker">MARKET DATA</p><h2>No trading connection</h2><p>The web edition consumes public price data only. No exchange credentials or wallet permissions are required.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

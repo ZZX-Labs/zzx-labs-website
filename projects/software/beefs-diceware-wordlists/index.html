@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Cryptographically-signed, locale-aware Diceware wordlists with 7,776 entries plus deterministic passphrase generation, printable exports, signature verification, and entropy auditing.">
+  <title>beef's Diceware Wordlists · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260822-beefs-diceware-wordlists-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-beefs-diceware-wordlists-1">
+  <script src="./hook.js?v=20260822-beefs-diceware-wordlists-1" defer></script>
+  <script src="./script.js?v=20260822-beefs-diceware-wordlists-1" defer></script>
+  <script src="./diceware.js?v=20260822-beefs-diceware-wordlists-1" defer></script>
+  <script src="./wordlist-verifier.js?v=20260822-beefs-diceware-wordlists-1" defer></script>
+</head>
+
+<body class="project project-beefs-diceware-wordlists">
+<header><div id="zzx-header"></div></header>
+<main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="beef's Diceware Wordlists logo">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>beef's Diceware Wordlists</h1>
+    <p class="blurb">Cryptographically-signed, locale-aware Diceware wordlists with 7,776 entries plus deterministic passphrase generation, printable exports, signature verification, and entropy auditing.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/beefs-diceware-wordlists" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">OFFLINE PASSPHRASE TOOLING</p><h2>Diceware Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">TARGET: 7,776</span><span class="runtime-badge ok">RNG: WEB CRYPTO</span><span class="runtime-badge ok">VERIFY: ED25519</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="wordlist" type="button">Wordlist</button>
+<button class="tool-tab mode-tab" data-mode="generate" type="button">Passphrase</button>
+<button class="tool-tab mode-tab" data-mode="manual" type="button">Manual Dice</button>
+<button class="tool-tab mode-tab" data-mode="verify" type="button">Verify Signature</button>
+<button class="tool-tab mode-tab" data-mode="audit" type="button">Entropy Audit</button>
+<button class="tool-tab mode-tab" data-mode="print" type="button">Print / Export</button>
+</div><div class="p-sidebar-note"><strong>SECURITY RULE</strong><p>Passphrase generation is enabled only after a valid 7,776-entry Diceware list is loaded. No unofficial wordlist is silently substituted.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-wordlist" class="p-mode-panel mode-panel active"><div class="p-mode-heading"><p class="kicker">LOAD + VALIDATE</p><h2>Wordlist</h2><p>Load a five-dice-code list in <code>11111 word</code> format and validate coverage, uniqueness, and SHA-256.</p></div><div class="tool-card">
+<div class="p-grid-main"><div id="wordlist-drop" class="p-dropzone"><h3>Drop Wordlist Here</h3><p>Expected keys: every five-digit combination 11111 through 66666.</p><label class="file-button">SELECT WORDLIST<input id="wordlist-file" type="file" accept=".txt,.tsv,.csv,text/plain"></label></div><div><label>Locale / label<input id="wordlist-locale" type="text" value="en"></label><div class="p-metrics" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><span>Entries</span><strong id="wl-count">0</strong></div><div><span>Valid keys</span><strong id="wl-valid">NO</strong></div><div><span>Unique words</span><strong id="wl-unique">0</strong></div><div><span>SHA-256</span><strong id="wl-sha">—</strong></div></div></div></div>
+<pre id="wl-output" class="p-log">Load an official or trusted Diceware wordlist.</pre>
+</div></div>
+
+<div id="mode-generate" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">CRYPTOGRAPHIC DICE EMULATION</p><h2>Passphrase</h2><p>Generate five-die codes with rejection-sampled Web Crypto randomness and map them through the loaded list.</p></div><div class="tool-card"><div class="p-grid-3"><label>Words<input id="gen-words" type="number" min="3" max="20" value="6"></label><label>Separator<input id="gen-separator" type="text" value=" "></label><label>Case<select id="gen-case"><option value="original">Original</option><option value="lower">lower</option><option value="upper">UPPER</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-run" class="btn" type="button">GENERATE</button><button id="gen-copy" class="btn ghost" type="button">COPY</button></div><pre id="gen-output" class="p-log"></pre><div class="p-metrics"><div><span>Words</span><strong id="gen-count">—</strong></div><div><span>Entropy</span><strong id="gen-entropy">—</strong></div><div><span>Dice rolls</span><strong id="gen-rolls">—</strong></div><div><span>RNG</span><strong>crypto.getRandomValues</strong></div></div></div></div>
+
+<div id="mode-manual" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">PHYSICAL DICE INPUT</p><h2>Manual Dice</h2><p>Paste five-die groups and deterministically resolve them through the loaded wordlist.</p></div><div class="tool-card"><label>Dice codes<textarea id="manual-codes" rows="8" placeholder="12345 66661 31426"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="manual-run" class="btn" type="button">RESOLVE WORDS</button></div><pre id="manual-output" class="p-log"></pre></div></div>
+
+<div id="mode-verify" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">DETACHED SIGNATURE</p><h2>Verify Signature</h2><p>Verify the exact loaded wordlist bytes against an Ed25519 SPKI public key and detached signature.</p></div><div class="tool-card"><div class="p-grid-2"><label>Public key PEM<textarea id="verify-key" rows="10" placeholder="-----BEGIN PUBLIC KEY-----"></textarea></label><label>Signature (base64 or hex)<textarea id="verify-sig" rows="10"></textarea></label></div><div class="button-row" style="justify-content:flex-start"><button id="verify-run" class="btn" type="button">VERIFY</button></div><pre id="verify-output" class="p-log"></pre></div></div>
+
+<div id="mode-audit" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">DICE BIAS CHECK</p><h2>Entropy Audit</h2><p>Analyze physical d6 roll counts, frequencies, Shannon entropy, and chi-square deviation from uniformity.</p></div><div class="tool-card"><label>Raw dice results<textarea id="audit-rolls" rows="10" placeholder="1 4 6 2 5 3 ..."></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="audit-run" class="btn" type="button">AUDIT</button></div><pre id="audit-output" class="p-log"></pre></div></div>
+
+<div id="mode-print" class="p-mode-panel mode-panel"><div class="p-mode-heading"><p class="kicker">OFFLINE OUTPUT</p><h2>Print / Export</h2><p>Download the normalized list or open a print-friendly table for offline use.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="download-list" class="btn" type="button">DOWNLOAD NORMALIZED LIST</button><button id="print-list" class="btn ghost" type="button">PRINT WORDLIST</button></div><div class="p-note">Printing a passphrase list is separate from printing generated secrets. Treat generated passphrases as sensitive.</div></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>beef's Diceware Wordlists</h2><p>Signed, locale-aware 7,776-word Diceware lists and offline passphrase/entropy-audit tooling.</p><dl class="meta-grid"><div><dt>Version</dt><dd>1.0.0</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyYAML · Click · cryptography</dd></div><div><dt>Web</dt><dd>JavaScript · Web Crypto · Print</dd></div></dl></article><article class="panel"><p class="kicker">ENTROPY</p><h2>12.925 bits / word</h2><p>A uniform 7,776-entry Diceware list represents <code>log2(7776) ≈ 12.925</code> bits per independently generated five-die code.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

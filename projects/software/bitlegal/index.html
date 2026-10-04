@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Legal agreement automation workspace connecting plain-language contract terms to verifiable hashes, signature-binding records, Bitcoin/Lightning action metadata, and BitEscrow arbitration references.">
+  <title>BitLegal · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-bitlegal-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-bitlegal-1">
+  <script src="./hook.js?v=20260824-bitlegal-1" defer></script>
+  <script src="./script.js?v=20260824-bitlegal-1" defer></script>
+  <script src="./bitlegal-core.js?v=20260824-bitlegal-1" defer></script>
+  <script src="./bitlegal.js?v=20260824-bitlegal-1" defer></script>
+</head>
+
+<body class="project project-bitlegal">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BitLegal logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BitLegal</h1>
+    <p class="blurb">Legal agreement automation workspace connecting plain-language contract terms to verifiable hashes, signature-binding records, Bitcoin/Lightning action metadata, and BitEscrow arbitration references.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/bitlegal" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">LEGAL AGREEMENT / BITCOIN ACTION BINDING</p><h2>BitLegal Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">DOCUMENT: LOCAL</span><span class="runtime-badge ok">HASH: SHA-256</span><span class="runtime-badge ok">ESCROW: METADATA</span><span class="runtime-badge ok">LEGAL ADVICE: NONE</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="agreement" type="button">Agreement</button><button class="tool-tab mode-tab" data-mode="actions" type="button">Bitcoin Actions</button><button class="tool-tab mode-tab" data-mode="signatures" type="button">Signature Binding</button><button class="tool-tab mode-tab" data-mode="notary" type="button">Notarization Hash</button><button class="tool-tab mode-tab" data-mode="arbitration" type="button">BitEscrow</button><button class="tool-tab mode-tab" data-mode="export" type="button">Export</button></div><div class="z-sidebar-note"><strong>NOT LEGAL ADVICE</strong><p>This is contract automation and evidence-binding software. Enforceability depends on jurisdiction, drafting, execution, and applicable law.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-agreement" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">PLAIN-LANGUAGE AGREEMENT</p><h2>Agreement</h2></div><div class="tool-card"><div class="z-grid-3"><label>Agreement ID<input id="lg-id" type="text" value="AGR-001"></label><label>Title<input id="lg-title" type="text" value="Bitcoin Services Agreement"></label><label>Jurisdiction note<input id="lg-jur" type="text" value="Specify governing law"></label></div><label style="margin-top:.6rem">Terms<textarea id="lg-terms" rows="16">Party A and Party B agree to the terms stated here. Payment and dispute actions are represented by the linked Bitcoin/Lightning action metadata and BitEscrow reference.</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="lg-build" class="btn" type="button">BUILD AGREEMENT</button></div><pre id="lg-output" class="z-log"></pre></div></div>
+
+<div id="mode-actions" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MACHINE-READABLE ACTIONS</p><h2>Bitcoin Actions</h2></div><div class="tool-card"><div class="z-grid-3"><label>Action type<select id="ac-type"><option value="bitcoin-payment">Bitcoin payment</option><option value="lightning-payment">Lightning payment</option><option value="escrow-release">Escrow release</option><option value="timelock">Timelock condition</option></select></label><label>Amount sats<input id="ac-sats" type="number" min="0" value="100000"></label><label>Reference<input id="ac-ref" type="text" placeholder="invoice/address/escrow id"></label></div><label style="margin-top:.6rem">Condition<input id="ac-condition" type="text" value="Upon acceptance of milestone"></label><div class="button-row" style="justify-content:flex-start"><button id="ac-add" class="btn" type="button">ADD ACTION</button></div><div id="ac-list" class="z-list"></div></div></div>
+
+<div id="mode-signatures" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">SIGNATURE-BINDING RECORD</p><h2>Signature Binding</h2><p>Record external signature identifiers/fingerprints against the exact agreement hash.</p></div><div class="tool-card"><div class="z-grid-3"><label>Signer name/role<input id="sg-name" type="text" value="Party A"></label><label>Signature scheme<input id="sg-scheme" type="text" value="External signature"></label><label>Signature / fingerprint reference<input id="sg-ref" type="text"></label></div><div class="button-row" style="justify-content:flex-start"><button id="sg-add" class="btn" type="button">BIND SIGNATURE RECORD</button></div><div id="sg-list" class="z-list"></div></div></div>
+
+<div id="mode-notary" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DOCUMENT HASH</p><h2>Notarization Hash</h2><p>Compute a canonical SHA-256 hash suitable for external timestamping/notarization workflows.</p></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="nt-hash" class="btn" type="button">COMPUTE HASH</button></div><pre id="nt-output" class="z-log"></pre></div></div>
+
+<div id="mode-arbitration" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BITESCROW INTEGRATION METADATA</p><h2>BitEscrow</h2></div><div class="tool-card"><div class="z-grid-2"><label>BitEscrow ID<input id="be-id" type="text" value="ESC-001"></label><label>Arbitration clause<input id="be-clause" type="text" value="Disputes may be referred to the linked BitEscrow workflow."></label></div><div class="button-row" style="justify-content:flex-start"><button id="be-link" class="btn" type="button">LINK ESCROW</button></div><pre id="be-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">PORTABLE AGREEMENT</p><h2>Export</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="lg-export-json" class="btn" type="button">EXPORT JSON</button><button id="lg-export-text" class="btn ghost" type="button">EXPORT TEXT</button></div><pre id="lg-export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BitLegal</h2><p>Plain-language agreement automation with Bitcoin/Lightning action metadata, signature binding, contract hashes, and BitEscrow arbitration references.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>PyQt5 · SQLAlchemy · Jinja2 · pdfkit · Requests</dd></div><div><dt>Web</dt><dd>SHA-256 · JSON/text export</dd></div></dl></article><article class="panel"><p class="kicker">LEGAL BOUNDARY</p><h2>Automation, not counsel</h2><p>The page can bind records to exact document hashes, but it does not determine whether a clause is valid, enforceable, sufficient, or appropriate in a particular jurisdiction.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

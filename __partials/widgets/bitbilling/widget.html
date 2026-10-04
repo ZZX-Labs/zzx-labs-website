@@ -1,0 +1,51 @@
+<!-- __partials/widgets/bitbilling/widget.html -->
+<div class="btc-card bitbilling">
+  <div class="bitbilling__header">
+    <div>
+      <div class="btc-card__title">BitBilling</div>
+      <div class="bitbilling__eyebrow">fiat → BTC invoice snapshot</div>
+    </div>
+    <span class="btc-card__status" data-bill-status data-status="offline" aria-live="polite">loading</span>
+  </div>
+
+  <div class="bitbilling__inputs">
+    <label>
+      <span>invoice amount</span>
+      <input data-bill-amount type="number" inputmode="decimal" min="0" step="any" value="100" aria-label="Invoice amount">
+    </label>
+
+    <label>
+      <span>currency</span>
+      <select data-bill-currency aria-label="Invoice currency"></select>
+    </label>
+
+    <label class="bitbilling__memo">
+      <span>memo / reference</span>
+      <input data-bill-memo type="text" maxlength="120" placeholder="optional" aria-label="Invoice memo or reference">
+    </label>
+  </div>
+
+  <div class="bitbilling__hero">
+    <span>BTC due at current snapshot</span>
+    <strong data-bill-btc>—</strong>
+    <small data-bill-sats>—</small>
+  </div>
+
+  <div class="bitbilling__metrics">
+    <div><span>mBTC</span><strong data-bill-mbtc>—</strong></div>
+    <div><span>USD equivalent</span><strong data-bill-usd>—</strong></div>
+    <div><span>BTC / USD</span><strong data-bill-price>—</strong></div>
+    <div><span>snapshot</span><strong data-bill-time>—</strong></div>
+  </div>
+
+  <div class="bitbilling__actions">
+    <button type="button" class="zzx-widgets__btn" data-bill-copy>Copy invoice summary</button>
+    <button type="button" class="zzx-widgets__btn" data-bill-refresh>Refresh quote</button>
+  </div>
+
+  <div class="bitbilling__note" data-bill-meta>
+    Calculator only · no custody · no address generation · no rate lock.
+  </div>
+
+  <div class="zzx-project-link"><a href="/projects/software/bitbilling/">BitBilling project →</a></div>
+</div>

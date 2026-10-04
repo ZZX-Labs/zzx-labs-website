@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Price API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+    <section class="container">
+      <h2>Bitcoin Price API</h2>
+      <p>
+        This API provides the globally weighted Bitcoin spot price (BTC/USD), updated every 250ms based on a volume-weighted average from 100+ live exchanges.
+      </p>
+      <p>
+        Data is calculated locally using ZZX-Labs' own fetcher and is not reliant on any third-party aggregators. Response format is <code>application/json</code>.
+      </p>
+    </section>
+
+    <section class="features">
+      <div class="feature">
+        <h3>Endpoint</h3>
+        <pre><code class="language-bash">GET /api/bitcoin/price</code></pre>
+        <p>Returns the current BTC/USD weighted price.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Example Output</h3>
+        <pre><code class="language-json">{
+  "price": 69234.85,
+  "currency": "USD",
+  "timestamp": "2025-05-01T18:27:10.250Z",
+  "source_count": 102,
+  "volume_weighted": true
+}</code></pre>
+      </div>
+
+      <div class="feature">
+        <h3>Usage</h3>
+        <p>You can fetch data using <code>curl</code> or from a Python/JavaScript client.</p>
+        <pre><code class="language-bash">curl https://zzx-labs.io/api/bitcoin/price</code></pre>
+      </div>
+
+      <div class="feature">
+        <h3>Access Policy</h3>
+        <p>This endpoint is public and unthrottled for non-commercial use. Please cache responsibly. Commercial integrations require a token.</p>
+      </div>
+    </section>
+
+    <section class="container cta">
+      <h2>Need Commercial Access?</h2>
+      <p>
+        For sustained commercial queries, API tokens, rate limits, and integration support, contact our backend team or request access through the secure portal.
+      </p>
+      <a href="../../../contact" class="btn">Request Access</a>
+    </section>
+
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p>Real-time Bitcoin intelligence from the global exchange layer.</p>
+        <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Learn More</a>
+      </div>
+    </section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

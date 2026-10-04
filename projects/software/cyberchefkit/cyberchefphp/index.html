@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="PHP-based CyberChef implementation for web and LAMP stack environments, with reference recipe execution, PHP library and CLI generation, Composer packaging, constrained HTTP endpoint scaffolding, deterministic vectors, and deployment configuration.">
+<title>CyberChefPHP · CyberChefKit · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-cyberchefphp-1"><link rel="stylesheet" href="./hook.css?v=20260824-cyberchefphp-1">
+<script src="./hook.js?v=20260824-cyberchefphp-1" defer></script><script src="./script.js?v=20260824-cyberchefphp-1" defer></script>
+<script src="./chef-core.js?v=20260824-cyberchefphp-1" defer></script><script src="./cyberchefphp.js?v=20260824-cyberchefphp-1" defer></script>
+</head><body class="project project-cyberchefphp"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="CyberChefPHP logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // CYBERCHEFKIT</p><h1>CyberChefPHP</h1><p class="blurb">PHP-based CyberChef implementation for web and LAMP stack environments, with reference recipe execution, PHP library and CLI generation, Composer packaging, constrained HTTP endpoint scaffolding, deterministic vectors, and deployment configuration.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/cyberchefphp" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/cyberchefkit/">CYBERCHEFKIT</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">PHP // WEB + LAMP</p><h2>CyberChefPHP Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">REFERENCE ENGINE</span><span class="runtime-badge ok">PHP CODEGEN</span><span class="runtime-badge ok">COMPOSER</span><span class="runtime-badge ok">HTTP SCAFFOLD</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="transform">Transform Lab</button><button class="tool-tab mode-tab" data-mode="php">PHP Library</button><button class="tool-tab mode-tab" data-mode="cli">CLI / Composer</button><button class="tool-tab mode-tab" data-mode="server">Web Endpoint</button><button class="tool-tab mode-tab" data-mode="vectors">Tests</button><button class="tool-tab mode-tab" data-mode="export">Export</button>
+</div></aside><section class="tool-workspace">
+<div id="mode-transform" class="z-mode-panel mode-panel active"><div class="tool-card">
+<p>Reference transform engine for cross-port validation.</p>
+<div class="z-grid-2"><label>Input<textarea id="input" rows="11">CyberChefKit language-port verification payload.</textarea></label><label>Output<textarea id="output" rows="11" readonly></textarea></label></div>
+<div class="button-row" style="justify-content:flex-start">
+<button class="btn ghost quick" data-op="toBase64">BASE64</button><button class="btn ghost quick" data-op="toHex">HEX</button>
+<button class="btn ghost quick" data-op="rot13">ROT13</button><button class="btn ghost quick" data-op="sha256">SHA-256</button>
+<button class="btn ghost quick" data-op="urlEncode">URL ENCODE</button><button class="btn ghost quick" data-op="jsonPretty">JSON PRETTY</button>
+</div>
+<label>Recipe JSON<textarea id="recipe" rows="9">[
+  {"op":"toBase64"},
+  {"op":"sha256"}
+]</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="run" class="btn">RUN RECIPE</button><button id="swap" class="btn ghost">SWAP</button><button id="clear" class="btn ghost">CLEAR</button></div>
+<pre id="trace" class="z-log"></pre></div></div>
+<div id="mode-php" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Namespace<input id="namespace" value="ZZXLabs\\CyberChef"></label><label>Class<input id="class-name" value="CyberChef"></label><label>PHP version<select id="php-version"><option value="8.2">8.2+</option><option value="8.1">8.1+</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-php" class="btn">GENERATE PHP LIBRARY</button></div><pre id="php-output" class="z-log"></pre>
+</div></div>
+<div id="mode-cli" class="z-mode-panel mode-panel"><div class="tool-card"><div class="z-grid-2"><label>Composer package<input id="composer-name" value="zzx-labs/cyberchefphp"></label><label>CLI command<input id="cli-name" value="cyberchefphp"></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-cli" class="btn">GENERATE COMPOSER + CLI</button></div><pre id="cli-output" class="z-log"></pre></div></div>
+<div id="mode-server" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Max request bytes<input id="max-bytes" type="number" min="1024" value="1048576"></label><label>Allowed method<select id="method"><option value="POST">POST only</option></select></label><label>CORS<select id="cors"><option value="none">disabled</option><option value="same-origin">same-origin</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="gen-server" class="btn">GENERATE HTTP ENDPOINT</button></div><pre id="server-output" class="z-log"></pre>
+</div></div>
+<div id="mode-vectors" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="vectors" class="btn">RUN VECTORS + PHPUNIT</button></div><pre id="vectors-output" class="z-log"></pre></div></div>
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="export" class="btn">EXPORT PHP BUNDLE JSON</button></div><pre id="export-output" class="z-log"></pre></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>CyberChefPHP</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>CLA Apache</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Web</dd></div><div><dt>Native</dt><dd>PHP · Composer</dd></div></dl></article><article class="panel"><p class="kicker">SERVER DEPLOYMENT</p><h2>Library, CLI, or constrained HTTP endpoint</h2><p>The generated endpoint uses an operation allowlist and request-size limit rather than arbitrary code execution.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

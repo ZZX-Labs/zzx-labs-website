@@ -1,0 +1,49 @@
+{
+  "schema": "zzx-bitnodes-sources-v3",
+  "refresh_ms": 5000,
+  "stale_ms": 86400000,
+  "local_candidates": [
+    "/bitcoin/bitnodes/api/snapshots/latest.json",
+    "/bitcoin/bitnodes/api/zzxbitnodes/latest.json",
+    "/bitcoin/bitnodes/api/btcnodes/normalized/latest.json",
+    "/bitcoin/bitnodes/api/aggregate/canonical/latest.json"
+  ],
+  "primary": {
+    "id": "btcnodes.io",
+    "base": "https://btcnodes.io/api/v1",
+    "latest_snapshot": "https://btcnodes.io/api/v1/snapshots/latest/"
+  },
+  "mirrors": [
+    {
+      "id": "bitnodes.io",
+      "base": "https://bitnodes.io/api/v1",
+      "priority": 10,
+      "enabled": true,
+      "note": "Secondary legacy Bitnodes snapshot API fallback; failures fall through without replacing last-known-good data."
+    }
+  ],
+  "mirror_contract": {
+    "base": "https://example.org",
+    "required_latest_path": "/api/v1/snapshots/latest/",
+    "note": "Any third-party mirror implementing the btcnodes.io/legacy Bitnodes snapshot naming contract can be added here without changing widget code."
+  },
+  "local_fresh_ms": 15000,
+  "browser_direct_upstream": true,
+  "browser_contract": {
+    "mode": "local-first-with-direct-stale-fallback",
+    "note": "Poll the local resident mirror every 5 seconds; if it is older than 15 seconds, attempt btcnodes.io/Bitnodes directly before retaining last-known-good data."
+  },
+  "collector_contract": {
+    "primary": "https://btcnodes.io/api/v1/snapshots/latest/",
+    "raw_output": "/bitcoin/bitnodes/api/btcnodes/latest.json",
+    "normalized_output": "/bitcoin/bitnodes/api/btcnodes/normalized/latest.json",
+    "canonical_fast_fallback": "/bitcoin/bitnodes/api/snapshots/latest.json",
+    "compatible_mirror_path": "/api/v1/snapshots/latest/"
+  },
+  "source_ownership": {
+    "btcnodes": "external btcnodes.io raw/normalized mirror",
+    "zzxbitnodes": "ZZX active Bitcoin P2P crawler",
+    "originalbitnodes": "optional Ayeowch/Bitnodes compatibility crawler only",
+    "snapshots/latest.json": "canonical merged/enriched widget snapshot after full crawl; btcnodes normalized fallback between full crawls"
+  }
+}

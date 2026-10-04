@@ -1,0 +1,252 @@
+/* ──────────────────────────────────────────────────────────────
+   ZZX-Labs Knowledgebase Page Styles (drop-in)
+   Use this file for any docs/.../*/*-resources/style.css
+   No external CSS needed beyond your global /static/styles.css.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  --accent: #c0d674;
+  --accent-rgb: 192, 214, 116; /* #c0d674 */
+  --muted: #8a8f98;
+  --bg-alt: #0f1216;
+  --header-offset: 96px; /* sticky header offset for anchor jumps */
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-offset);
+}
+
+/* Apply dark background to any leaf knowledgebase page */
+body[class$='-resources'] {
+  background: var(--bg-alt);
+}
+
+/* Optional: keep this if you want a page-scoped hook too */
+body.banking-resources {
+  background: var(--bg-alt);
+}
+
+/* Page constrainer */
+.page-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1rem 0;
+}
+.breadcrumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Title */
+.page-title {
+  margin: 0.5rem 0 1rem 0;
+}
+
+/* Notices */
+.notice {
+  background: rgba(192,214,116,0.06);
+  border: 1px solid rgba(192,214,116,0.25);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+.notice.attribution { margin-top: 2rem; }
+
+/* Thanks / Acknowledgements */
+.thanks h3 { margin-top: 0; color: var(--accent); }
+.thanks .fineprint { color: var(--muted); font-size: 0.85rem; margin-top: 0.75rem; }
+.thanks-grid {
+  list-style: none;
+  margin: 0.5rem 0 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 0.35rem 1rem;
+}
+@media (min-width: 900px) {
+  .thanks-grid { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+}
+.thanks-grid li a { color: #ddd; text-decoration: none; }
+.thanks-grid li a:hover { text-decoration: underline; }
+
+/* Page layout: sticky TOC + content */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* TOC (left) */
+.toc {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.2);
+}
+.toc h3 { margin-top: 0; color: var(--accent); }
+.toc .source {
+  margin: 0.25rem 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.toc a { color: #ddd; text-decoration: none; }
+.toc ul {
+  list-style: none;
+  margin: 0.25rem 0 0.75rem 0;
+  padding-left: 0.5rem;
+  border-left: 2px solid rgba(255,255,255,0.08);
+}
+.toc li { margin: 0.25rem 0; }
+
+/* TOC filter with brand-accurate focus ring */
+.toc-controls {
+  display: flex;
+  margin-bottom: 0.5rem;
+}
+#toc-filter {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: #eaeaea;
+  caret-color: var(--accent);
+}
+#toc-filter::placeholder { color: var(--muted); opacity: 0.9; }
+#toc-filter:hover { border-color: rgba(var(--accent-rgb), 0.35); }
+#toc-filter:focus,
+#toc-filter:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.35),
+    0 0 0 4px rgba(var(--accent-rgb), 0.35);
+}
+
+/* Source content blocks */
+.sources-container section {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+  scroll-margin-top: var(--header-offset); /* anchor jumps clear sticky header */
+}
+.source-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+  flex-wrap: wrap;
+}
+.source-header h2 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.source-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+.subsection {
+  margin: 1rem 0;
+  scroll-margin-top: var(--header-offset);
+}
+.subsection h3 {
+  margin: 1rem 0 0.5rem 0;
+  font-size: 1.15rem;
+  color: #e8e8e8;
+}
+.loading, .error {
+  color: var(--muted);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+/* Badges */
+.api-badge {
+  font-size: 0.75rem;
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+}
+.updated-time {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  color: #bbb;
+  margin-left: 0.35rem;
+}
+
+/* Clean up injected Wiki HTML in dark UI */
+.source-content img { max-width: 100%; height: auto; }
+.source-content table { width: 100%; border-collapse: collapse; }
+.source-content th, .source-content td {
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 0.4rem;
+}
+.source-content .infobox,
+.source-content .navbox,
+.source-content .metadata,
+.source-content .mw-editsection { display: none !important; }
+
+/* Collapsible "References/External links/..." style sections */
+.subsection.collapsible {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255,255,255,0.03);
+  margin: 1rem 0;
+}
+.subsection.collapsible > summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #e8e8e8;
+  padding: 0.4rem 0.25rem;
+  outline: none;
+}
+.subsection.collapsible > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.subsection.collapsible > summary::-webkit-details-marker { display: none; }
+.subsection.collapsible > summary::after {
+  content: " ▸";
+  color: var(--muted);
+}
+.subsection.collapsible[open] > summary::after { content: " ▾"; }
+.subsection.collapsible .collapsible-body {
+  padding: 0.5rem 0.25rem 0.75rem 0.25rem;
+}
+/* Keep collapsed body hidden even if MW injects details markup */
+.subsection.collapsible:not([open]) .collapsible-body { display: none !important; }
+
+/* Respect reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

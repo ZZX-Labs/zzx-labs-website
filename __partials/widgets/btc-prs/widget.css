@@ -1,0 +1,262 @@
+
+/* __partials/widgets/btc-prs/widget.css */
+/* Same ZZX-Labs house style as intel / btc-intel / btc-repo. */
+
+.btc-prs{
+  --prs-green:var(--zzx-accent,#c0d674);
+  --prs-gold:var(--zzx-accent-alt,#e6a42b);
+  --prs-red:var(--zzx-error,#d67474);
+  --prs-muted:var(--zzx-muted,#b7bf9a);
+  --prs-dim:var(--zzx-dim,#777);
+  --prs-line:rgba(255,255,255,.09);
+  --prs-panel:rgba(255,255,255,.018);
+  display:block!important;
+  flex:none!important;
+  width:100%!important;
+  min-width:0!important;
+  overflow:hidden;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+}
+
+.btc-prs *{box-sizing:border-box}
+
+.btc-prs__header,
+.btc-prs__footer,
+.btc-prs__meta-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.6rem;
+  min-width:0;
+}
+
+.btc-prs__header{align-items:flex-start}
+
+.btc-prs__eyebrow,
+.btc-prs__hero > span,
+.btc-prs__controls label > span,
+.btc-prs__metrics span{
+  color:var(--prs-dim);
+  font-size:.67rem;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.btc-prs__hero{
+  display:grid;
+  gap:.08rem;
+  margin-top:.5rem;
+  padding:.55rem 0 .58rem;
+  border-top:1px solid var(--prs-line);
+  border-bottom:1px solid var(--prs-line);
+}
+
+.btc-prs__hero a{
+  min-width:0;
+  color:inherit;
+  text-decoration:none;
+}
+
+.btc-prs__hero strong{
+  display:block;
+  min-width:0;
+  color:var(--prs-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:1.2rem;
+  line-height:1.05;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__hero small{
+  color:var(--prs-gold);
+  font-size:.68rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__controls{
+  display:flex;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin-top:.5rem;
+}
+
+.btc-prs__controls label{
+  display:grid;
+  gap:.15rem;
+  flex:1 1 190px;
+  min-width:0;
+}
+
+.btc-prs__controls input,
+.btc-prs__controls select{
+  width:100%;
+  min-width:0;
+  padding:.32rem .4rem;
+  border:1px solid #343434;
+  border-radius:6px;
+  outline:none;
+  background:#080808;
+  color:var(--prs-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+}
+
+.btc-prs__controls input:focus,
+.btc-prs__controls select:focus{border-color:var(--prs-gold)}
+
+.btc-prs__metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.38rem;
+  margin-top:.5rem;
+}
+
+.btc-prs__metrics > div{
+  min-width:0;
+  padding:.38rem .42rem;
+  border:1px solid var(--prs-line);
+  border-radius:6px;
+  background:var(--prs-panel);
+}
+
+.btc-prs__metrics span,
+.btc-prs__metrics strong{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__metrics strong{
+  margin-top:.1rem;
+  color:var(--prs-green);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.72rem;
+  font-weight:500;
+}
+
+.btc-prs__meta-line{
+  margin-top:.42rem;
+  padding-top:.4rem;
+  border-top:1px solid var(--prs-line);
+  color:var(--prs-muted);
+  font-size:.66rem;
+}
+
+.btc-prs__meta-line span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__list{
+  max-height:330px;
+  margin-top:.42rem;
+  overflow:auto;
+  scrollbar-width:thin;
+}
+
+.btc-prs__list > div{
+  display:grid;
+  gap:.28rem;
+}
+
+.btc-prs__item{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:start;
+  gap:.4rem;
+  min-width:0;
+  padding:.34rem .38rem;
+  border:1px solid var(--prs-line);
+  border-radius:6px;
+  background:var(--prs-panel);
+}
+
+.btc-prs__item::before{content:none!important}
+
+.btc-prs__number{
+  min-width:52px;
+  padding:.07rem .25rem;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  color:var(--prs-gold);
+  font-family:var(--zzx-font-mono,"IBM Plex Mono",ui-monospace,monospace);
+  font-size:.57rem;
+  text-align:center;
+}
+
+.btc-prs__body{
+  display:grid;
+  gap:.08rem;
+  min-width:0;
+}
+
+.btc-prs__title{
+  min-width:0;
+  color:var(--prs-green);
+  font-size:.69rem;
+  text-decoration:none;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__title:hover{
+  color:var(--prs-gold);
+  text-decoration:underline;
+}
+
+.btc-prs__meta{
+  color:var(--prs-dim);
+  font-size:.61rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.btc-prs__state{
+  color:var(--prs-dim);
+  font-size:.6rem;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.btc-prs__state[data-state="open"]{color:var(--prs-muted)}
+.btc-prs__state[data-state="merged"]{color:var(--prs-muted)}
+.btc-prs__state[data-state="closed"]{color:var(--prs-dim)}
+
+.btc-prs__footer{
+  margin-top:.45rem;
+  padding-top:.42rem;
+  border-top:1px solid var(--prs-line);
+  color:var(--prs-muted);
+  font-size:.67rem;
+}
+
+.btc-prs__footer > span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .btc-prs__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:460px){
+  .btc-prs__controls{display:grid;grid-template-columns:1fr}
+  .btc-prs__metrics{grid-template-columns:1fr}
+  .btc-prs__item{grid-template-columns:auto minmax(0,1fr)}
+  .btc-prs__state{grid-column:2}
+}

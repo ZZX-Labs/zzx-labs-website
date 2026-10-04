@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Security API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Security Dashboard API</h2>
+  <p>
+    The Security API provides real-time access to behavioral threat data, tiered actor classifications, incident logs, and system alert telemetry.
+    This endpoint is designed for defensive monitoring and proactive analysis of suspicious or adversarial activity across the ZZX-Labs ecosystem.
+  </p>
+  <p>
+    All security telemetry is streamed securely, logged with cryptographic integrity, and gated by role-based access control with GPG identity verification.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Tier Classification:</strong> Track IPs, accounts, devices, and bots across threat levels (Tier 0–5).</li>
+    <li style="list-style-type: none;"><strong>Live Alert Triggers:</strong> Webhooks or streaming feeds for specific behavioral or risk-based alerts.</li>
+    <li style="list-style-type: none;"><strong>Threat Attribution:</strong> Profile adversarial entities by request pattern, probe signature, or behavioral fingerprint.</li>
+    <li style="list-style-type: none;"><strong>Secure Incident Log Access:</strong> All security logs are cryptographically hashed and timestamped per incident.</li>
+    <li style="list-style-type: none;"><strong>ZIRA Alert Relay:</strong> Stream suspicious activity logs directly to ZIRA for NLP classification or dashboard output.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Check Threat Tier</h3>
+    <p>Query an IP, session, or device fingerprint and retrieve associated threat tier and recent actions.</p>
+    <pre><code class="language-json">{
+  "action": "check_tier",
+  "target": "192.168.0.11",
+  "auth": "gpg-signed-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Fetch Alerts</h3>
+    <p>Retrieve triggered security events over the last hour or specified interval. Stream-ready or batched.</p>
+    <pre><code class="language-json">{
+  "action": "fetch_alerts",
+  "interval": "1h",
+  "priority": "high",
+  "verify": true
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Live Stream Threat Logs</h3>
+    <p>Receive live log telemetry from threat events as they’re detected by the behavioral engine.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/security/stream">Live Security Stream</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Access to Security Tools?</h2>
+  <p>
+    Authorized personnel may request audit log exports, webhook subscriptions, or threat signature uploads.
+    Contact our security operations team for integration credentials and access policies.
+  </p>
+  <a href="../../../contact" class="btn">Request Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

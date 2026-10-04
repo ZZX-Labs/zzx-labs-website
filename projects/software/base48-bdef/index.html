@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Deterministic binary-to-text codec derived from Bitcoin Base58 with the NoCSPAM character removals, supporting UTF-8, hexadecimal bytes, files, canonical validation, and reproducible test vectors.">
+  <title>Base48 · Projects · Software | ZZX-Labs R&amp;D</title>
+
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+
+  <link rel="stylesheet" href="./style.css?v=20260822-base48-bdef-1">
+  <link rel="stylesheet" href="./hook.css?v=20260822-base48-bdef-1">
+  <script src="./hook.js?v=20260822-base48-bdef-1" defer></script>
+  <script src="./script.js?v=20260822-base48-bdef-1" defer></script>
+  <script src="./codec.js?v=20260822-base48-bdef-1" defer></script>
+  <script src="./base48-bdef.js?v=20260822-base48-bdef-1" defer></script>
+</head>
+
+<body class="project project-base48-bdef">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="Base48 logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>Base48</h1>
+    <p class="blurb">Deterministic binary-to-text codec derived from Bitcoin Base58 with the NoCSPAM character removals, supporting UTF-8, hexadecimal bytes, files, canonical validation, and reproducible test vectors.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/base48-bdef" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">DETERMINISTIC BINARY-TO-TEXT ENCODING</p><h2>Base48 Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">ALPHABET: 48</span><span class="runtime-badge ok">UTF-8: YES</span><span class="runtime-badge ok">FILES: LOCAL</span><span class="runtime-badge ok">NETWORK: NONE</span></div></div>
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="text" type="button">Text Codec</button>
+<button class="tool-tab mode-tab" data-mode="hex" type="button">Hex / Bytes</button>
+<button class="tool-tab mode-tab" data-mode="file" type="button">File Codec</button>
+<button class="tool-tab mode-tab" data-mode="inspect" type="button">Inspector</button>
+<button class="tool-tab mode-tab" data-mode="vectors" type="button">Test Vectors</button>
+<button class="tool-tab mode-tab" data-mode="reference" type="button">Reference</button>
+</div><div class="bb-sidebar-note"><strong>MAIN TITLE: BASE48</strong><p>The deployment slug remains <code>base48-bdef</code>, but the user-facing product title is simplified to Base48.</p></div></aside>
+<section class="tool-workspace">
+<div id="mode-text" class="bb-mode-panel mode-panel active"><div class="bb-mode-heading"><p class="kicker">UTF-8 ↔ BASE48</p><h2>Text Codec</h2><p>Encode arbitrary UTF-8 text into the canonical 48-character alphabet or decode Base48 back into UTF-8.</p></div><div class="tool-card"><div class="bb-codec-grid"><label>Plaintext<textarea id="text-plain" class="bb-codebox" rows="12" spellcheck="false">Hello, Base48.</textarea></label><label>Base48<textarea id="text-base48" class="bb-codebox" rows="12" spellcheck="false"></textarea></label></div><div class="button-row" style="justify-content:flex-start"><button id="text-encode" class="btn" type="button">ENCODE →</button><button id="text-decode" class="btn alt" type="button">← DECODE</button><button id="text-swap" class="btn ghost" type="button">SWAP</button></div><div class="bb-metrics"><div><span>UTF-8 bytes</span><strong id="text-bytes">0</strong></div><div><span>Base48 chars</span><strong id="text-chars">0</strong></div><div><span>Canonical</span><strong id="text-canonical">—</strong></div><div><span>Expansion</span><strong id="text-expansion">—</strong></div></div></div></div>
+
+<div id="mode-hex" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">RAW BYTES ↔ BASE48</p><h2>Hex / Bytes</h2><p>Encode hexadecimal byte strings and recover the exact bytes after decoding.</p></div><div class="tool-card"><div class="bb-codec-grid"><label>Hex bytes<textarea id="hex-input" class="bb-codebox" rows="12" spellcheck="false">00010203deadbeef</textarea></label><label>Base48<textarea id="hex-base48" class="bb-codebox" rows="12" spellcheck="false"></textarea></label></div><div class="button-row" style="justify-content:flex-start"><button id="hex-encode" class="btn" type="button">ENCODE HEX</button><button id="hex-decode" class="btn alt" type="button">DECODE TO HEX</button></div><pre id="hex-output" class="bb-policy"></pre></div></div>
+
+<div id="mode-file" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">LOCAL FILE ↔ BASE48</p><h2>File Codec</h2><p>Encode a local file to Base48 text or decode pasted Base48 into a downloadable binary file.</p></div><div class="tool-card"><label class="file-button">SELECT FILE<input id="file-input" type="file"></label><div class="bb-metrics"><div><span>File</span><strong id="file-name">—</strong></div><div><span>Bytes</span><strong id="file-bytes">—</strong></div><div><span>Base48 chars</span><strong id="file-chars">—</strong></div><div><span>SHA-256</span><strong id="file-sha">—</strong></div></div><label style="margin-top:.8rem">Base48 data<textarea id="file-base48" class="bb-codebox" rows="14" spellcheck="false"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="file-download-text" class="btn ghost" type="button">DOWNLOAD .B48 TEXT</button><button id="file-decode-download" class="btn" type="button">DECODE &amp; DOWNLOAD BINARY</button></div></div></div>
+
+<div id="mode-inspect" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">CANONICAL VALIDATION</p><h2>Inspector</h2><p>Validate alphabet membership, identify invalid characters, count leading zero symbols, and inspect decoded length.</p></div><div class="tool-card"><label>Base48 string<textarea id="inspect-input" class="bb-codebox" rows="12" spellcheck="false"></textarea></label><div class="button-row" style="justify-content:flex-start"><button id="inspect-run" class="btn" type="button">INSPECT</button></div><pre id="inspect-output" class="bb-policy"></pre></div></div>
+
+<div id="mode-vectors" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">REPRODUCIBLE VECTORS</p><h2>Test Vectors</h2><p>Generate deterministic UTF-8/hex/Base48 vectors using the exact browser codec implementation.</p></div><div class="tool-card"><div class="bb-table-wrap"><table class="bb-table"><thead><tr><th>Input</th><th>Hex</th><th>Base48</th><th>Round-trip</th></tr></thead><tbody id="vector-body"></tbody></table></div></div></div>
+
+<div id="mode-reference" class="bb-mode-panel mode-panel"><div class="bb-mode-heading"><p class="kicker">CANONICAL ALPHABET</p><h2>Reference</h2><p>Base48 starts from Bitcoin's Base58 alphabet and removes C/c, S/s, P/p, A/a, and M/m.</p></div><div class="tool-card"><pre id="alphabet-output" class="bb-policy"></pre><div id="alphabet-grid" class="bb-alphabet"></div><div class="bb-note">This implementation preserves leading zero bytes using the first alphabet character <code>1</code>, matching the familiar Base58-style leading-zero convention.</div></div></div>
+</section></div></div></section>
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Base48</h2><p>Canonical Base48 binary-to-text encoding with UTF-8, raw bytes, local file workflows, validation, and reproducible test vectors.</p><dl class="meta-grid"><div><dt>Version</dt><dd>1.0.0</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Native</dt><dd>Python · PyQt5 · C · C++ · C# · Go · Java · JS · Bash</dd></div><div><dt>Web</dt><dd>JavaScript · BigInt · Web Crypto</dd></div></dl></article><article class="panel"><p class="kicker">ALPHABET</p><h2>48 Characters</h2><p><code>123456789BDEFGHJKLNQRTUVWXYZbdefghijknoqrtuvwxyz</code></p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

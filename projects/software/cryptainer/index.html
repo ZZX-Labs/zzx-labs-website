@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#121212">
+<meta name="description" content="Secure local Bitcoin-oriented encrypted container workbench tying public GPG identity references to AES-256-GCM vaults, timelock policy manifests, threshold approval metadata, encrypted file payloads, and hash-chained audit I/O."><title>Cryptainer · Projects · Software | ZZX-Labs R&amp;D</title>
+<link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script>
+<link rel="stylesheet" href="./style.css?v=20260824-cryptainer-1"><link rel="stylesheet" href="./hook.css?v=20260824-cryptainer-1">
+<script src="./hook.js?v=20260824-cryptainer-1" defer></script><script src="./script.js?v=20260824-cryptainer-1" defer></script>
+  <script src="./cryptainer-core.js?v=20260824-cryptainer-1" defer></script>
+  <script src="./cryptainer.js?v=20260824-cryptainer-1" defer></script></head>
+<body class="project project-cryptainer"><header><div id="zzx-header"></div></header><main><section class="zzx-project-hero"><div class="container hero-inner">
+<img class="project-logo" src="./logo.png" alt="Cryptainer logo" onerror="this.hidden=true">
+<p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p><h1>Cryptainer</h1><p class="blurb">Secure local Bitcoin-oriented encrypted container workbench tying public GPG identity references to AES-256-GCM vaults, timelock policy manifests, threshold approval metadata, encrypted file payloads, and hash-chained audit I/O.</p>
+<div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/cryptainer" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div>
+</div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">ENCRYPTED BITCOIN COLD-STORAGE CONTAINER</p><h2>Cryptainer Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">AES-256-GCM</span><span class="runtime-badge ok">LOCAL ONLY</span><span class="runtime-badge ok">POLICY MANIFEST</span><span class="runtime-badge ok">AUDIT HASH CHAIN</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list">
+<button class="tool-tab mode-tab active" data-mode="vault">Vault</button><button class="tool-tab mode-tab" data-mode="identities">GPG Identities</button><button class="tool-tab mode-tab" data-mode="policy">Policy / Timelock</button><button class="tool-tab mode-tab" data-mode="files">Encrypted Files</button><button class="tool-tab mode-tab" data-mode="audit">Audit</button><button class="tool-tab mode-tab" data-mode="export">Export / Import</button>
+</div><div class="z-sidebar-note"><strong>BROWSER SECURITY BOUNDARY</strong><p>This is a static local vault implementation, not a hardware wallet. No data is uploaded. GPG entries are public fingerprints/identity references; signing and private-key custody remain native-side.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-vault" class="z-mode-panel mode-panel active"><div class="tool-card">
+<div class="z-grid-3"><label>Container label<input id="vault-label" value="cold-storage-01"></label><label>Password<input id="password" type="password" autocomplete="new-password"></label><label>Network<select id="network"><option>mainnet</option><option>testnet</option><option>signet</option><option>regtest</option></select></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="create" class="btn">CREATE / RESET</button><button id="lock" class="btn ghost">LOCK</button></div><pre id="vault-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-identities" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Name / role<input id="id-name" value="custodian"></label><label>GPG fingerprint<input id="id-fpr" placeholder="40-hex fingerprint"></label><label>Public key ID / note<input id="id-note"></label></div><div class="button-row" style="justify-content:flex-start"><button id="add-id" class="btn">ADD IDENTITY REFERENCE</button></div><div id="id-list" class="z-list"></div></div></div>
+
+<div id="mode-policy" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="z-grid-3"><label>Approval threshold M<input id="threshold" type="number" min="1" value="2"></label><label>Approvers N<input id="approvers" type="number" min="1" value="3"></label><label>Policy mode<select id="policy-mode"><option value="cold-storage">cold-storage</option><option value="operational">operational</option><option value="recovery">recovery</option></select></label>
+<label>CLTV block height<input id="cltv-height" type="number" min="0" value="0"></label><label>CLTV UTC time<input id="cltv-time" type="datetime-local"></label><label>CSV relative blocks<input id="csv-blocks" type="number" min="0" value="0"></label></div>
+<label>Allowed operations, comma-separated<input id="ops" value="inspect,export,restore"></label><div class="button-row" style="justify-content:flex-start"><button id="save-policy" class="btn">SAVE POLICY</button></div><pre id="policy-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-files" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><label class="file-button">ADD FILE TO ENCRYPTED CONTAINER<input id="add-file" type="file" multiple></label></div><div id="file-list" class="z-list"></div><pre id="files-output" class="z-log"></pre></div></div>
+
+<div id="mode-audit" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="verify-audit" class="btn">VERIFY HASH CHAIN</button></div><pre id="audit-output" class="z-log"></pre></div></div>
+
+<div id="mode-export" class="z-mode-panel mode-panel"><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><button id="export-vault" class="btn">EXPORT ENCRYPTED .CRYPTAINER.JSON</button><label class="file-button">IMPORT ENCRYPTED CONTAINER<input id="import-vault" type="file" accept=".json,application/json"></label></div>
+<div class="z-grid-2"><label>Unlock imported container password<input id="import-password" type="password"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="unlock-import" class="btn ghost">UNLOCK IMPORT</button></div></div><pre id="export-output" class="z-log"></pre>
+</div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>Cryptainer</h2><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>PyQt5 · python-gnupg · SQLAlchemy · SQLite · cryptography</dd></div></dl></article><article class="panel"><p class="kicker">CUSTODY BOUNDARY</p><h2>Encrypted container, not signer</h2><p>The web edition encrypts local files and policy metadata but does not generate Bitcoin keys, sign transactions, or hold GPG private keys.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

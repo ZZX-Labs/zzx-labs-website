@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Recon API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Recon Dashboard API</h2>
+  <p>
+    The Recon API provides tooling to detect, track, and profile users, bots, and crawlers interacting with ZZX-Labs systems.
+    It distinguishes passive observers from active threat actors and escalates users through Tiers 0–5 based on behavioral triggers.
+  </p>
+  <p>
+    Designed for forensic visibility and threat simulation environments, this API supports honeypot injection, behavior sandboxing,
+    and ZIRA-enhanced pattern recognition to trace lateral movement and persistence attempts.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Core Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Actor Fingerprinting:</strong> Fingerprint sessions by IP, User-Agent, navigation pattern, header entropy, or JS fingerprinting.</li>
+    <li style="list-style-type: none;"><strong>Recon Tiering:</strong> Promote flagged users through Tiers (1–5) based on behavior or access attempt severity.</li>
+    <li style="list-style-type: none;"><strong>Honeypot Triggers:</strong> Insert honeypot paths, buttons, inputs, or API endpoints to trigger traceable events.</li>
+    <li style="list-style-type: none;"><strong>ZIRA Sandboxing:</strong> Hand off unknown actors or command payloads to ZIRA for live sandboxed behavior simulation.</li>
+    <li style="list-style-type: none;"><strong>Behavioral Graph:</strong> Construct graphs of movement paths, dwell time, repeated probes, and payload injection vectors.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Tier Escalation Example</h3>
+    <p>Manually or programmatically escalate a tracked user to a higher threat tier.</p>
+    <pre><code class="language-json">{
+  "action": "escalate",
+  "actor": "192.168.1.7",
+  "tier": 4,
+  "reason": "Multiple invalid token attempts + rapid endpoint cycling"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Inject Honeypot</h3>
+    <p>Deploy a new honeypot path to trigger surveillance upon access.</p>
+    <pre><code class="language-json">{
+  "inject": "honeypot",
+  "path": "/admin-dashboard/settings/logs-export",
+  "auth": "admin-gpg-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Live Recon Stream</h3>
+    <p>Stream real-time activity from flagged IPs and honeypot-triggered events directly to your Recon dashboard or CLI.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/recon/stream">Live Recon Feed</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Recon API Access?</h2>
+  <p>Recon tools are restricted to system administrators and approved cybersecurity research roles.</p>
+  <p>To request access to honeypots, behavior graphs, or live recon telemetry, contact our threat intelligence team.</p>
+  <a href="../../../contact" class="btn">Request Recon Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

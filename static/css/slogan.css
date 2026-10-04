@@ -1,0 +1,61 @@
+/* static/css/slogan.css
+   Slogan / Tagline Component
+   Loaded in components layer
+   Positioned below CTA row and notice in hero section
+*/
+
+.slogan {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+
+    color: #c0d674;
+
+    text-align: center;
+    line-height: 1.6;
+
+    max-width: 720px;
+    margin: 1.5rem auto 0 auto;
+
+    padding: 0.5rem 1rem;
+
+    opacity: 0.9;
+}
+
+/* subtle typographic polish */
+.slogan::before {
+    content: "— ";
+    color: #e6a42b;
+}
+
+.slogan::after {
+    content: " —";
+    color: #e6a42b;
+}
+
+/* spacing harmony with CTA */
+.home .cta-row + .slogan,
+.home .notice + .cta-row + .slogan {
+    margin-top: 2rem;
+}
+
+/* wider screens */
+@media (min-width: 1200px) {
+
+    .slogan {
+        font-size: 1rem;
+        max-width: 760px;
+    }
+
+}
+
+/* mobile tuning */
+@media (max-width: 768px) {
+
+    .slogan {
+        font-size: 0.9rem;
+        padding: 0.25rem 1rem;
+        line-height: 1.5;
+    }
+
+}

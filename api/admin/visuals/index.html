@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - Visuals API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../../static/styles.css">
+    <script src="../../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Data Visualization Dashboard API</h2>
+  <p>
+    This endpoint powers all graphical and data-driven visual interfaces across ZZX-Labs dashboards and admin terminals. Whether you're plotting site analytics, transaction flows, or behavioral metrics, the Visuals API delivers live, customizable, and streamable datasets.
+  </p>
+  <p>
+    Output can be returned as JSON for frontend rendering, or passed through ZIRA for NLP summarization and visual inference.
+  </p>
+</section>
+
+<section class="container">
+  <h2>Capabilities</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Custom Graphs:</strong> Submit JSON data and config for rendering charts, heatmaps, or time-series graphs.</li>
+    <li style="list-style-type: none;"><strong>Real-Time Streams:</strong> Visualize API usage, system health, or Bitcoin market data in real time.</li>
+    <li style="list-style-type: none;"><strong>Dashboard Widgets:</strong> Dynamically insert or control HTML/JS visual widgets via secure API calls.</li>
+    <li style="list-style-type: none;"><strong>Snapshot Export:</strong> Export rendered graphs as SVG, PNG, or JSON configs.</li>
+    <li style="list-style-type: none;"><strong>Secure Access:</strong> GPG authentication required for modifying live dashboards or injecting visual content.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Render Line Chart</h3>
+    <p>Submit a dataset and config to render a chart in the admin dashboard visual area.</p>
+    <pre><code class="language-json">{
+  "type": "line",
+  "dataset": "btc_price_stream",
+  "time_range": "24h",
+  "auth": "gpg-signed-token"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Dashboard Inject Widget</h3>
+    <p>Inject a visual widget into a live dashboard. All widget JS is sandboxed and verified by hash.</p>
+    <pre><code class="language-json">{
+  "cmd": "inject_widget",
+  "widget_id": "btc_live_ticker",
+  "dashboard": "main",
+  "signature": "verified-user-gpg"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Visualization Feed</h3>
+    <p>Access the live visualization output feed—useful for embedding live dashboards, alerts, or external displays.</p>
+    <li style="list-style-type: none;"><a href="/api/admin/visuals/feed">Live Feed</a></li>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want to Extend the Dashboard?</h2>
+  <p>Submit your custom visual components or request integration access with your data pipelines.</p>
+  <p>All visualizations follow our zero-trust design—signed data and permissioned UI injection only.</p>
+  <a href="../../../contact" class="btn">Request Visualization Access</a>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Music · ZZX-Labs R&D</title>
+
+  <!-- Global -->
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/script.js" defer></script>
+
+  <!-- Page-local CSS -->
+  <link rel="stylesheet" href="/music/style.css" />
+  <link rel="stylesheet" href="/music/music-player.zzx-skin.css" />
+
+  <!-- Player module (auto-mount) -->
+  <script type="module" src="/music/script.js"></script>
+</head>
+<body class="page-music">
+<header><div id="zzx-header"></div></header>
+
+<main class="music-layout">
+  <section class="container page-intro">
+    <h2>ZZX-Labs Streaming Audio</h2>
+    <p class="muted">Curated playlists & live stations. Toggle between “Radio Stations” and “Playlists”.</p>
+  </section>
+
+  <section class="container player-wrap">
+    <div class="mp-shell">
+      <div class="mp-root" data-mp
+           data-manifest-url="/static/audio/music/playlists/manifest.json"
+           data-audio-base="/static/audio/music/"
+           data-autoplay="1"
+           data-autoplay-muted="1"
+           data-shuffle="0"
+           data-volume="0.25"
+           data-start-source="stations"
+           data-cors-proxy="allorigins-raw"
+      </div>
+    </div>
+  </section>
+
+  <section class="container backlinks">
+    <a class="btn alt" href="/">← Back Home</a>
+  </section>
+</main>
+
+<footer><div id="zzx-footer"></div></footer>
+</body>
+</html>

@@ -1,0 +1,33 @@
+[Unit]
+Description=ZZX-Labs Continuous Mempool, Mining and Lightning Telemetry
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=zzx
+Group=zzx
+WorkingDirectory=/srv/zzx-labs
+Environment=PYTHONUNBUFFERED=1
+Environment=ZZX_MEMPOOL_API_BASE=https://mempool.space/api
+Environment=ZZX_MEMPOOL_POLL_MS=5000
+Environment=ZZX_MINING_POLL_MS=15000
+Environment=ZZX_LIGHTNING_POLL_MS=15000
+EnvironmentFile=-/etc/zzx-labs/live-data.env
+ExecStart=/usr/bin/python3 /srv/zzx-labs/tools/live/live_data_daemon.py --root /srv/zzx-labs
+Restart=always
+RestartSec=2
+TimeoutStopSec=15
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/zzx-labs/bitcoin/live/api
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=zzx-live-data
+
+[Install]
+WantedBy=multi-user.target

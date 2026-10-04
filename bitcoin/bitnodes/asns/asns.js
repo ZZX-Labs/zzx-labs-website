@@ -1,0 +1,551 @@
+(() => {
+    "use strict";
+
+    const SOURCES = {
+
+        zzxbitnodes:
+            "../api/zzxbitnodes/asns.json",
+
+        originalbitnodes:
+            "../api/originalbitnodes/latest.json",
+
+        aggregate:
+            "../api/aggregate/zzxbitnodes/latest.json",
+
+        enriched:
+            "../api/enriched/zzxbitnodes/latest.json"
+
+    };
+
+    let ROWS = [];
+
+    const $ = q => document.querySelector(q);
+
+    function fmt(value) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return "—";
+        }
+
+        if (typeof value === "number") {
+            return value.toLocaleString();
+        }
+
+        return String(value);
+    }
+
+    function setStatus(message, mode = "") {
+
+        const el = $("#bn-status");
+
+        if (!el) {
+            return;
+        }
+
+        el.className =
+            `bn-status container ${mode}`.trim();
+
+        el.textContent = message;
+    }
+
+    async function getJson(url) {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
+    }
+
+    function topValue(map) {
+
+        return (
+            [...map.entries()]
+                .sort(
+                    (a, b) => b[1] - a[1]
+                )[0]?.[0]
+            || "—"
+        );
+    }
+
+    function extractNodes(payload) {
+
+        if (
+            payload &&
+            typeof payload === "object"
+        ) {
+
+            if (
+                payload.nodes &&
+                typeof payload.nodes === "object"
+            ) {
+                return payload.nodes;
+            }
+
+            if (
+                payload.reachable_nodes &&
+                typeof payload.reachable_nodes === "object"
+            ) {
+                return payload.reachable_nodes;
+            }
+
+            if (
+                payload.data &&
+                payload.data.nodes
+            ) {
+                return payload.data.nodes;
+            }
+        }
+
+        return {};
+    }
+
+    function aggregate(nodes) {
+
+        const total =
+            Object.keys(nodes || {}).length;
+
+        const map =
+            new Map();
+
+        for (
+            const row
+            of Object.values(nodes || {})
+        ) {
+
+            const asn =
+                row?.[11]
+                || row?.asn
+                || "Unknown";
+
+            const org =
+                row?.[12]
+                || row?.organization
+                || "Unknown";
+
+            const country =
+                row?.[7]
+                || row?.country
+                || "Unknown";
+
+            const agent =
+                row?.[1]
+                || row?.agent
+                || "Unknown";
+
+            if (!map.has(asn)) {
+
+                map.set(
+                    asn,
+                    {
+                        asn,
+                        nodes: 0,
+                        orgs: new Map(),
+                        countries: new Set(),
+                        agents: new Map()
+                    }
+                );
+            }
+
+            const item =
+                map.get(asn);
+
+            item.nodes += 1;
+
+            item.orgs.set(
+                org,
+                (
+                    item.orgs.get(org)
+                    || 0
+                ) + 1
+            );
+
+            item.countries.add(
+                country
+            );
+
+            item.agents.set(
+                agent,
+                (
+                    item.agents.get(agent)
+                    || 0
+                ) + 1
+            );
+        }
+
+        return [...map.values()]
+            .map(item => ({
+
+                asn:
+                    item.asn,
+
+                organization:
+                    topValue(
+                        item.orgs
+                    ),
+
+                nodes:
+                    item.nodes,
+
+                percent:
+                    total
+                        ? (
+                            (
+                                item.nodes
+                                / total
+                            ) * 100
+                        ).toFixed(2)
+                        : "0.00",
+
+                countries:
+                    item.countries.size,
+
+                countryList:
+                    [...item.countries]
+                        .sort()
+                        .slice(0, 10)
+                        .join(", "),
+
+                topAgent:
+                    topValue(
+                        item.agents
+                    )
+            }));
+    }
+
+    function renderSummary(rows) {
+
+        const target =
+            $("#bn-summary");
+
+        if (!target) {
+            return;
+        }
+
+        const totalNodes =
+            rows.reduce(
+                (sum, row) =>
+                    sum + row.nodes,
+                0
+            );
+
+        const multiCountry =
+            rows.filter(
+                row =>
+                    row.countries > 1
+            ).length;
+
+        target.innerHTML = `
+            <article class="bn-card">
+                <span>ASNs</span>
+                <strong>${fmt(rows.length)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Reachable Nodes</span>
+                <strong>${fmt(totalNodes)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Multi-Nation ASNs</span>
+                <strong>${fmt(multiCountry)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Largest ASN</span>
+                <strong>${fmt(rows[0]?.asn)}</strong>
+            </article>
+        `;
+    }
+
+    function filteredRows() {
+
+        const search =
+            (
+                $("#bn-search")
+                    ?.value
+                || ""
+            )
+            .trim()
+            .toLowerCase();
+
+        const sort =
+            $("#bn-sort")
+                ?.value
+            || "nodes";
+
+        let rows =
+            ROWS.filter(row => {
+
+                if (!search) {
+                    return true;
+                }
+
+                return [
+                    row.asn,
+                    row.organization,
+                    row.countryList,
+                    row.topAgent
+                ]
+                .join(" ")
+                .toLowerCase()
+                .includes(search);
+            });
+
+        if (sort === "asn") {
+
+            rows.sort(
+                (a, b) =>
+                    String(a.asn)
+                        .localeCompare(
+                            String(b.asn)
+                        )
+            );
+
+        } else if (
+            sort === "countries"
+        ) {
+
+            rows.sort(
+                (a, b) =>
+                    b.countries
+                    - a.countries
+            );
+
+        } else if (
+            sort === "org"
+        ) {
+
+            rows.sort(
+                (a, b) =>
+                    String(a.organization)
+                        .localeCompare(
+                            String(
+                                b.organization
+                            )
+                        )
+            );
+
+        } else {
+
+            rows.sort(
+                (a, b) =>
+                    b.nodes
+                    - a.nodes
+            );
+        }
+
+        return rows;
+    }
+
+    function renderRows(rows) {
+
+        const view =
+            $("#bn-view");
+
+        if (!view) {
+            return;
+        }
+
+        if (!rows.length) {
+
+            view.innerHTML = `
+                <div class="bn-empty">
+                    No ASN telemetry matched current filters.
+                </div>
+            `;
+
+            return;
+        }
+
+        view.innerHTML = `
+            <div class="bn-asn-grid">
+
+                ${rows.map(row => `
+
+                    <article class="bn-asn-card">
+
+                        <div class="bn-asn-top">
+
+                            <div>
+
+                                <div class="bn-asn-id">
+                                    ${fmt(row.asn)}
+                                </div>
+
+                                <div class="bn-asn-org">
+                                    ${fmt(row.organization)}
+                                </div>
+
+                            </div>
+
+                            <div>
+
+                                <div class="bn-asn-count">
+                                    ${fmt(row.nodes)}
+                                </div>
+
+                                <div class="bn-asn-share">
+                                    ${fmt(row.percent)}%
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="bn-asn-stats">
+
+                            <div class="bn-asn-stat">
+                                <span>Countries</span>
+                                <strong>${fmt(row.countries)}</strong>
+                            </div>
+
+                            <div class="bn-asn-stat">
+                                <span>Observed Nations</span>
+                                <strong>${fmt(row.countryList)}</strong>
+                            </div>
+
+                            <div class="bn-asn-stat">
+                                <span>Dominant Agent</span>
+                                <strong>${fmt(row.topAgent)}</strong>
+                            </div>
+
+                            <div class="bn-asn-stat">
+                                <span>Network Share</span>
+                                <strong>${fmt(row.percent)}%</strong>
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                `).join("")}
+
+            </div>
+        `;
+    }
+
+    function rerender() {
+
+        renderRows(
+            filteredRows()
+        );
+    }
+
+    async function loadAsns() {
+
+        const source =
+            $("#bn-source")
+                ?.value
+            || "zzxbitnodes";
+
+        const url =
+            SOURCES[source]
+            || SOURCES.zzxbitnodes;
+
+        setStatus(
+            `Loading ASN distribution from ${source}...`
+        );
+
+        try {
+
+            const data =
+                await getJson(url);
+
+            ROWS =
+                aggregate(
+                    extractNodes(data)
+                );
+
+            ROWS.sort(
+                (a, b) =>
+                    b.nodes
+                    - a.nodes
+            );
+
+            renderSummary(
+                ROWS
+            );
+
+            renderRows(
+                ROWS
+            );
+
+            setStatus(
+                `Loaded ${fmt(ROWS.length)} ASN distributions.`,
+                "ok"
+            );
+
+        } catch (err) {
+
+            ROWS = [];
+
+            renderSummary([]);
+
+            renderRows([]);
+
+            setStatus(
+                `ASN telemetry unavailable: ${err.message}`,
+                "warn"
+            );
+        }
+    }
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+
+            $("#bn-refresh")
+                ?.addEventListener(
+                    "click",
+                    loadAsns
+                );
+
+            $("#bn-source")
+                ?.addEventListener(
+                    "change",
+                    loadAsns
+                );
+
+            $("#bn-search")
+                ?.addEventListener(
+                    "input",
+                    rerender
+                );
+
+            $("#bn-sort")
+                ?.addEventListener(
+                    "change",
+                    rerender
+                );
+
+            loadAsns();
+        }
+    );
+
+})();

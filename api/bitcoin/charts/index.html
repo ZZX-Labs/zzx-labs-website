@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Charts API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Price Charts</h2>
+  <p>
+    This module renders dynamic, real-time Bitcoin price charts powered by ZZX-Labs’ internal API and stored historical price data from major global exchanges. The system supports multiple timeframes (1m, 5m, 1h, 1d, 1w, 1m), zoom, pan, and fiat overlays.
+  </p>
+  <p>
+    Charts can be embedded in dashboards or served as SVG/PNG images for static output. The charting engine is private, lightweight, and zero-dependency—ideal for air-gapped systems or hardened admin dashboards.
+  </p>
+</section>
+
+<section class="container">
+  <div id="btc-chart-container">
+    <!-- Live chart will be injected here -->
+    <canvas id="btcChart" width="1000" height="400"></canvas>
+  </div>
+</section>
+
+<script src="/__partials/widgets/_shared/zzx-history-client.js"></script>
+<script>
+(() => {
+  "use strict";
+  const canvas=document.getElementById("btcChart");
+  const ctx=canvas.getContext("2d");
+  function draw(points){
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    const rect=canvas.getBoundingClientRect();
+    const w=Math.max(320,Math.floor(rect.width||1000));
+    const h=Math.max(220,Math.floor(rect.height||400));
+    canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#090909"; ctx.fillRect(0,0,w,h);
+    const valid=points.filter(p=>Number.isFinite(+p.t)&&Number.isFinite(+p.close));
+    if(valid.length<2){ctx.fillStyle="#c0d674";ctx.fillText("Awaiting BPI history…",20,30);return;}
+    const minT=valid[0].t,maxT=valid[valid.length-1].t;
+    const lows=valid.map(p=>Number(p.low??p.close)), highs=valid.map(p=>Number(p.high??p.close));
+    const minP=Math.min(...lows),maxP=Math.max(...highs),span=Math.max(1,maxP-minP);
+    const x=t=>40+((t-minT)/Math.max(1,maxT-minT))*(w-60);
+    const y=v=>20+(1-(v-minP)/span)*(h-55);
+    ctx.strokeStyle="#c0d674";ctx.lineWidth=1.5;ctx.beginPath();
+    let started=false;
+    for(const p of valid){
+      if(p.gap_before)started=false;
+      const px=x(p.t),py=y(Number(p.close));
+      if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    ctx.fillStyle="#b7bf9a";ctx.font="12px monospace";
+    ctx.fillText(`BPI ${new Date(minT).toLocaleString()} → ${new Date(maxT).toLocaleString()}`,40,h-16);
+  }
+  async function refresh(){
+    try{
+      const result=await window.ZZXHistoryClient.series({source:"bpi",timeframe:"24h",resolution:"auto",maxPoints:1200});
+      draw(result.points||[]);
+    }catch(error){console.error(error);}
+  }
+  refresh();
+  const timer=setInterval(refresh,5000);
+  addEventListener("pagehide",()=>clearInterval(timer),{once:true});
+  addEventListener("resize",refresh,{passive:true});
+})();
+</script>
+
+<section class="features">
+  <div class="feature">
+    <h3>Charting API</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/charts?interval=1m</code></pre>
+    <p>Returns timestamped price points for Bitcoin. Supports ?interval=1m/5m/1h/1d.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Visual Output Modes</h3>
+    <ul>
+      <li style="list-style-type: none;">SVG / PNG static exports</li>
+      <li style="list-style-type: none;">Canvas live streaming (vanilla JavaScript renderer)</li>
+      <li style="list-style-type: none;">Terminal ASCII chart rendering (CLI)</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need a Custom Bitcoin Chart?</h2>
+  <p>
+    We support deployment of private charting tools, full historical Bitcoin datasets, and embeddable price charts for apps, websites, terminals, and trading platforms.
+  </p>
+  <a href="../../../contact" class="btn">Deploy Custom Charting</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Visualize the signal. Bitcoin price—clearly and securely.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">View Our Charts</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

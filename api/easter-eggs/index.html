@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Easter Eggs API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Easter Eggs API</h2>
+  <p>
+    The <strong>Easter Eggs API</strong> is ZZX-Labs' hidden interface layer, designed to reward exploration, inject mystery, and simulate secure badge-access puzzles or behavior-based triggers.
+  </p>
+  <p>
+    It responds to known secret phrases, paths, hashes, or specific user/session combinations with encrypted payloads, ASCII art, visual memes, sound FX, or system access hints. Often used in security testing, gamification, or internal training scenarios.
+  </p>
+</section>
+
+<section class="container">
+  <h2>API Behavior</h2>
+  <ul>
+    <li style="list-style-type: none;"><strong>Hidden Routes:</strong> Triggers activated by obscure URLs, cookies, or headers.</li>
+    <li style="list-style-type: none;"><strong>Hash Unlocks:</strong> Users must POST or GET known hashes or phrases to unlock.</li>
+    <li style="list-style-type: none;"><strong>Visual/Audio Payloads:</strong> Encrypted art, audio, and response templates.</li>
+    <li style="list-style-type: none;"><strong>GPG Challenge:</strong> Solves puzzles using signature-based logic flows.</li>
+    <li style="list-style-type: none;"><strong>Timed Access:</strong> Payloads change depending on UTC or lunar phase.</li>
+  </ul>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Get a Random Encrypted Payload</h3>
+    <p>Returns a base64 or hex-encoded message that must be decrypted using our public key.</p>
+    <pre><code class="language-bash">curl https://zzx-labs.io/api/easter-eggs/random</code></pre>
+    <pre><code class="language-json">{
+  "payload": "-----BEGIN MESSAGE----- ...",
+  "encoding": "GPG",
+  "hint": "Try decrypting with ZZX public key"
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Trigger an Egg by Phrase</h3>
+    <p>POST or GET a known phrase that unlocks a specific egg entry. Requires signed headers for rare entries.</p>
+    <pre><code class="language-bash">curl -X POST https://zzx-labs.io/api/easter-eggs \
+  -H "X-Signature: user-gpg-sig" \
+  -d 'trigger=zero-trust-is-the-new-black'</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>ASCII Art Response</h3>
+    <p>Returns styled ASCII payloads used for terminals, login shells, or fun alerts. Output can rotate.</p>
+    <li style="list-style-type: none;"><a href="./easter-eggs/ascii">/ascii</a></li>
+  </div>
+
+  <div class="feature">
+    <h3>SoundFX & Music Eggs</h3>
+    <p>Returns playable audio from <code>/static/audio/alerts/</code> or hidden `.ogg/.mp3` tracks based on trigger input or time-of-day.</p>
+    <li style="list-style-type: none;"><a href="./easter-eggs/sound">/sound</a></li>
+  </div>
+
+  <div class="feature">
+    <h3>Badge Unlocks</h3>
+    <p>Some payloads only return if a session or user has been “flagged” as solving a badge or puzzle within the system. Contact Admin for leaderboard access.</p>
+    <pre><code class="language-bash">curl https://zzx-labs.io/api/easter-eggs/flag?user=0xdeadbeef</code></pre>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Want to Build or Hide Your Own Egg?</h2>
+  <p>Our system is open to contributors who wish to embed encrypted eggs, time-based unlocks, memes, or logic puzzles into ZZX infrastructure. Join the game.</p>
+  <a href="../../contact" class="btn">Submit a Payload</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>The truth is hidden. So are the keys. Unlock what’s been left behind.</p>
+    <a href="../../projects/crypto-games" class="btn btn-primary">Explore ZZX Puzzles</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

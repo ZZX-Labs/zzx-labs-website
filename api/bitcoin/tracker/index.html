@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Tracker API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+    <section class="container">
+      <h2>Bitcoin Holdings Tracker</h2>
+      <p>
+        Track the real-time value of your Bitcoin holdings in your preferred fiat currency using ZZX-Labs’ globally weighted spot price. This tool queries the same API as our ticker and recalculates value every 250ms.
+      </p>
+      <p>
+        Simply enter your Bitcoin amount below. The fiat equivalent will update live based on the current spot price. Fully self-contained, lightweight, and private (no data stored).
+      </p>
+    </section>
+
+    <section class="container">
+      <form id="btc-tracker-form">
+        <label for="btc-amount">Enter BTC Amount:</label>
+        <input type="number" step="0.00000001" id="btc-amount" placeholder="e.g., 0.01337" />
+        <p id="usd-value">Value: $0.00</p>
+      </form>
+    </section>
+
+    <script>
+      async function fetchPrice() {
+        try {
+          const res = await fetch('/api/bitcoin/price');
+          const data = await res.json();
+          return parseFloat(data.price);
+        } catch (err) {
+          console.error('Error fetching BTC price:', err);
+          return 0;
+        }
+      }
+
+      async function updateValue() {
+        const btc = parseFloat(document.getElementById('btc-amount').value || 0);
+        const price = await fetchPrice();
+        const usdValue = btc * price;
+        document.getElementById('usd-value').textContent = `Value: $${usdValue.toFixed(2)}`;
+      }
+
+      document.getElementById('btc-amount').addEventListener('input', updateValue);
+      setInterval(updateValue, 250); // auto-refresh every 1/4 second
+    </script>
+
+    <section class="features">
+      <div class="feature">
+        <h3>Public API</h3>
+        <pre><code class="language-bash">GET /api/bitcoin/price</code></pre>
+        <p>Returns the live volume-weighted BTC/USD price.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Use Cases</h3>
+        <ul>
+          <li style="list-style-type: none;">Portfolio value monitoring</li>
+          <li style="list-style-type: none;">Integration with personal dashboards</li>
+          <li style="list-style-type: none;">Privacy-first tracking (no cookies, no logging)</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="container cta">
+      <h2>Want To Build Your Own Tracker?</h2>
+      <p>
+        We offer API access and consulting for building custom Bitcoin tracking tools—whether for portfolio dashboards, trading overlays, or institutional monitoring.
+      </p>
+      <a href="../../../contact" class="btn">Contact Us</a>
+    </section>
+
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p>Track your BTC value—accurately and instantly.</p>
+        <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Explore Bitcoin Tech</a>
+      </div>
+    </section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

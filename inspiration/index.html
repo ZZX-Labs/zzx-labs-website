@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Our Inspiration | ZZX-Labs R&D</title>
+
+    <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
+	
+    <link rel="stylesheet" href="../static/styles.css">
+	<link rel="stylesheet" href="../inspiration/style.css">
+    <script src="../static/script.js" defer></script>
+	<!-- <script src="../inspiration/script.js" defer></script> -->
+	<!-- <script src="../inspiration/figures/app.js" defer></script> -->
+</head>
+<body>
+<header>
+	<div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+    
+<!-- Our Inspiration (revamped) -->
+<section class="container" id="inspiration">
+  <h2>Our Inspiration</h2>
+  <p>
+    ZZX-Labs thrives at the crossroads of science, engineering, and the arts. We draw energy from
+    people who treat truth like a compass, craft like a discipline, and imagination like a duty.
+    Their work reminds us that systems can be both <em>precise</em> and <em>humane</em>—resilient
+    enough for harsh realities and elegant enough to inspire.
+  </p>
+  <p>
+    From quantum mechanics to cryptography, field biology to free software, our inspirations built
+    tools that expand human agency. We honor that lineage by designing technology that protects
+    privacy, decentralizes power, and tells clearer stories about the world we share.
+  </p>
+
+  <div class="feature-card-container" style="gap:1rem">
+    <div class="feature-card" data-color="color1">
+      <h3>Think Rigorously</h3>
+      <p>Science before slogans. Hypotheses, measurement, replication, and the humility to update.</p>
+    </div>
+    <div class="feature-card" data-color="color2">
+      <h3>Build Beautifully</h3>
+      <p>Frank Lloyd Wright energy: structure serving life. Useful first, delightful always.</p>
+    </div>
+    <div class="feature-card" data-color="color3">
+      <h3>Act Ethically</h3>
+      <p>Anti-Machiavellian by design. Jedi/Tibetan Buddhist principles of restraint, service, and clarity.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Our Influences (revamped) -->
+<section class="container" id="influences">
+  <h2>Our Influences</h2>
+  <p>
+    These are the pillars that shape how we reason, ship, and steward our work. They anchor our
+    decisions—from protocol design and UI to how we treat data, partners, and the commons.
+  </p>
+
+  <div class="feature-card-container" style="gap:1rem">
+    <div class="feature-card" data-color="color4">
+      <h3>Decentralization & Bitcoin</h3>
+      <p>Self-custody, auditability, and incentive-aligned systems over gatekeepers and rent-seekers.</p>
+    </div>
+    <div class="feature-card" data-color="color5">
+      <h3>Cypherpunk Privacy</h3>
+      <p>Strong cryptography, minimal data retention, and architectures that assume hostile networks.</p>
+    </div>
+    <div class="feature-card" data-color="color6">
+      <h3>Open Knowledge</h3>
+      <p>Creative Commons, Wikipedia, and free software as living libraries for collective progress.</p>
+    </div>
+    <div class="feature-card" data-color="color7">
+      <h3>Scientific Method</h3>
+      <p>Evidence, math, and model critique; bias checks and failure-tolerant experimentation.</p>
+    </div>
+    <div class="feature-card" data-color="color8">
+      <h3>Humane Design</h3>
+      <p>Accessibility, consent, and calm technology; beauty that clarifies rather than distracts.</p>
+    </div>
+    <div class="feature-card" data-color="color9">
+      <h3>Economic Literacy</h3>
+      <p>Adam Smith fundamentals without plutocracy—price signals with ethics and externalities in view.</p>
+    </div>
+    <div class="feature-card" data-color="color10">
+      <h3>Imagineering Mindset</h3>
+      <p>Prototype, play, and story. If it teaches and delights, it scales better.</p>
+    </div>
+    <div class="feature-card" data-color="color11">
+      <h3>Stewardship of the Commons</h3>
+      <p>Infrastructure that outlives us: testability, documentation, archival integrity, and reuse.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Feature Cards: Influential Figures (dynamic) -->
+<section class="features" id="inspiration-figures">
+  <h2>Figures Who Inspire Us</h2>
+
+  <div class="container" style="display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem;">
+    <input id="figure-filter" type="search" placeholder="Filter figures…" style="flex:1; padding:.5rem; border-radius:6px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.04); color:#eaeaea;">
+    <span id="figure-count" class="pill">0 shown</span>
+  </div>
+
+  <div id="figure-grid" class="feature-card-container" aria-live="polite"></div>
+
+  <!-- Template for a figure card -->
+  <template id="tpl-figure-card">
+    <article class="feature-card" data-color="">
+      <h3 class="fig-name"></h3>
+      <img class="figure fig-img" alt="" loading="lazy" decoding="async">
+      <div class="fig-meta"></div>
+
+      <details class="subsection collapsible" open>
+        <summary>About</summary>
+        <div class="collapsible-body fig-about"></div>
+      </details>
+
+      <details class="subsection collapsible">
+        <summary>Wikipedia</summary>
+        <div class="collapsible-body fig-wiki">
+          <p class="loading">Loading Wikipedia…</p>
+        </div>
+      </details>
+    </article>
+  </template>
+</section>
+
+<!-- Inspiration boot -->
+<script type="module" src="./figures/app.js"></script>
+
+<!-- Feature Cards: Philosophical Values -->
+<section class="features" id="philosophical-values">
+  <h2>Philosophical Values That Shape Us</h2>
+  <p class="container" style="max-width: 70ch; color: var(--muted); margin-top:.25rem;">
+    Our operating system is a blend of science, cryptography, design ethics, and decentralized governance.
+    These principles guide how we think, build, and ship — from protocol choices to interface nuance.
+  </p>
+
+  <div class="feature-card-container">
+    <div class="feature-card" data-color="color1">
+      <h3>Bitcoin & Decentralization</h3>
+      <p>Credible neutrality, permissionless access, and economic finality. Self-custody over custodians, networks over empires.</p>
+    </div>
+
+    <div class="feature-card" data-color="color2">
+      <h3>Cypherpunk Privacy</h3>
+      <p>Strong crypto, minimal data trails, and architectures that assume hostile networks. Privacy by default, transparency by consent.</p>
+    </div>
+
+    <div class="feature-card" data-color="color3">
+      <h3>Anti-Machiavellian Ethics</h3>
+      <p>Means and ends both matter. No dark patterns, no manipulation. Long-term trust beats short-term extraction.</p>
+    </div>
+
+    <div class="feature-card" data-color="color4">
+      <h3>Jedi / Tibetan Mindfulness</h3>
+      <p>Restraint, clarity, and service. We build tools that reduce suffering and increase agency — with discipline and compassion.</p>
+    </div>
+
+    <div class="feature-card" data-color="color5">
+      <h3>Scientific Realism</h3>
+      <p>Evidence over vibes. Hypotheses, measurement, falsifiability, replication. When the data shifts, so do we.</p>
+    </div>
+
+    <div class="feature-card" data-color="color6">
+      <h3>Mathematical Rigor</h3>
+      <p>Prove it or bound it. Determinism where possible, probabilistic honesty where not. Precision as a form of respect.</p>
+    </div>
+
+    <div class="feature-card" data-color="color7">
+      <h3>Open Source & Commons</h3>
+      <p>Licenses that widen the circle: Creative Commons, permissive code, shared knowledge and proper attribution.</p>
+    </div>
+
+    <div class="feature-card" data-color="color8">
+      <h3>Interoperability & Standards</h3>
+      <p>Open formats beat walled gardens. APIs, protocols, and contracts that compose well across stacks and teams.</p>
+    </div>
+
+    <div class="feature-card" data-color="color9">
+      <h3>Composability & Modularity</h3>
+      <p>Small parts, loosely joined. Swapable modules, clean boundaries, predictable interfaces, zero hidden coupling.</p>
+    </div>
+
+    <div class="feature-card" data-color="color10">
+      <h3>Reliability & Antifragility</h3>
+      <p>Design for failure: graceful degradation, chaos testing, circuit breakers, and state that heals, not hides.</p>
+    </div>
+
+    <div class="feature-card" data-color="color11">
+      <h3>Transparency & Auditability</h3>
+      <p>Explainable decisions, clear logs, reproducible builds. If we can’t inspect it, we don’t trust it.</p>
+    </div>
+
+    <div class="feature-card" data-color="color12">
+      <h3>Human-Centered Security</h3>
+      <p>Security that people can actually use: clear affordances, safe defaults, revocation paths, and recovery plans.</p>
+    </div>
+
+    <div class="feature-card" data-color="color13">
+      <h3>Accessibility & Inclusion</h3>
+      <p>WCAG-minded interfaces, low cognitive load, internationalization, and offline/low-bandwidth modes by design.</p>
+    </div>
+
+    <div class="feature-card" data-color="color14">
+      <h3>Environmental Stewardship</h3>
+      <p>Efficiency as a feature: fewer cycles, fewer calls, fewer watts. Compute and supply chains with planetary awareness.</p>
+    </div>
+
+    <div class="feature-card" data-color="color15">
+      <h3>Story-Driven Systems</h3>
+      <p>Adam-Curtis-level context with Lucas-grade clarity. Interfaces that teach, narratives that reveal structure behind structure.</p>
+    </div>
+
+    <div class="feature-card" data-color="color16">
+      <h3>Free Expression & Responsibility</h3>
+      <p>Defend open discourse while designing guardrails against harassment, doxxing, and coordinated abuse.</p>
+    </div>
+
+    <div class="feature-card" data-color="color17">
+      <h3>Sovereign Computing</h3>
+      <p>Local-first, keys-first. User control over identity, data, and runtime. If it’s yours, only you should hold it.</p>
+    </div>
+
+    <div class="feature-card" data-color="color18">
+      <h3>Consent by Design</h3>
+      <p>Explicit, revocable, and granular. No pre-checked boxes, no surprise processing, no buried ledes.</p>
+    </div>
+
+    <div class="feature-card" data-color="color19">
+      <h3>Repairability & Right-to-Modify</h3>
+      <p>Documented internals, stable extension points, and parts you can replace — digitally and physically.</p>
+    </div>
+
+    <div class="feature-card" data-color="color20">
+      <h3>Measured Speed</h3>
+      <p>Ship fast, not loose: trunk-based flow, tests as contracts, observability as non-negotiable, rollbacks always ready.</p>
+    </div>
+  </div>
+</section>
+        
+        <section class="container cta">
+            <h2>Join Us</h2>
+            <p>
+                Whether you're an aspiring innovator, inventor, artist, engineer, a business seeking advanced solutions, or a partner looking
+                to collaborate, ZZX-Labs welcomes you. Together, we can shape the future of technology.
+            </p>
+            <a href="../contact" class="btn">Contact Us</a>
+        </section><br><br>
+        
+        <section class="hero">
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+                <p>NOTICE: Site is currently undergoing maintenance & under construction.</p>
+                <a href=".." class="btn btn-primary">Explore Our World</a>
+            </div>
+        </section><br><br>
+    </main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

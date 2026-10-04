@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Offline Bitcoin Core blk*.dat decoder for deterministic block and transaction text archives, including headers, txids, wtxids, scripts, witness stacks, output values, OP_RETURN extraction, and markers.json annotations.">
+  <title>blk2txt · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blk2txt-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blk2txt-1">
+  <script src="./hook.js?v=20260824-blk2txt-1" defer></script>
+  <script src="./script.js?v=20260824-blk2txt-1" defer></script>
+  <script src="./bitcoin-parser.js?v=20260824-blk2txt-1" defer></script>
+  <script src="./blk2txt.js?v=20260824-blk2txt-1" defer></script>
+</head>
+
+<body class="project project-blk2txt">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="blk2txt logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>blk2txt</h1>
+    <p class="blurb">Offline Bitcoin Core blk*.dat decoder for deterministic block and transaction text archives, including headers, txids, wtxids, scripts, witness stacks, output values, OP_RETURN extraction, and markers.json annotations.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blk2txt" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">OFFLINE BLOCK FORENSICS</p><h2>blk2txt Browser Workbench</h2></div>
+<div class="runtime-status"><span class="runtime-badge ok">NETWORK: NONE</span><span class="runtime-badge ok">RAW BLOCKS: LOCAL</span><span class="runtime-badge ok">SEGWIT: PARSED</span><span class="runtime-badge ok">MARKERS: JSON</span></div></div>
+
+<div class="workbench">
+<aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="decode" type="button">Decode</button>
+<button class="tool-tab mode-tab" data-mode="blocks" type="button">Blocks</button>
+<button class="tool-tab mode-tab" data-mode="transactions" type="button">Transactions</button>
+<button class="tool-tab mode-tab" data-mode="opreturn" type="button">OP_RETURN</button>
+<button class="tool-tab mode-tab" data-mode="markers" type="button">Markers</button>
+<button class="tool-tab mode-tab" data-mode="archive" type="button">Text Archive</button>
+</div><div class="z-sidebar-note"><strong>OFFLINE FORENSICS</strong><p>Select a raw block or Bitcoin Core <code>blk*.dat</code> file. Parsing occurs locally in the browser; no explorer or remote API is used.</p></div></aside>
+
+<section class="tool-workspace">
+<div id="mode-decode" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">RAW BITCOIN BLOCK INPUT</p><h2>Decode</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">SELECT BLOCK / BLK*.DAT<input id="bd-file" type="file"></label><button id="bd-clear" class="btn ghost">CLEAR</button></div>
+<div class="z-grid-3"><label>Input format<select id="bd-format"><option value="auto">Auto-detect</option><option value="blkdat">Bitcoin Core blk*.dat</option><option value="raw">Single raw block</option></select></label><label>Network magic<select id="bd-magic"><option value="f9beb4d9">mainnet F9BEB4D9</option><option value="0b110907">testnet 0B110907</option><option value="0a03cf40">signet 0A03CF40</option><option value="fabfb5da">regtest FABFB5DA</option></select></label><label>Maximum blocks<input id="bd-max" type="number" min="1" max="10000" value="64"></label></div>
+<div class="button-row" style="justify-content:flex-start"><button id="bd-run" class="btn">PARSE OFFLINE</button></div>
+<div class="z-metrics"><div><span>Bytes</span><strong id="bd-bytes">0</strong></div><div><span>Blocks</span><strong id="bd-blocks">0</strong></div><div><span>Transactions</span><strong id="bd-txs">0</strong></div><div><span>OP_RETURN</span><strong id="bd-opret">0</strong></div></div>
+<pre id="bd-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-blocks" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">BLOCK HEADERS</p><h2>Blocks</h2></div><div class="tool-card"><div class="z-table-wrap"><table class="z-table"><thead><tr><th>#</th><th>Hash</th><th>Version</th><th>Time</th><th>Bits</th><th>Nonce</th><th>TXs</th></tr></thead><tbody id="bb-body"></tbody></table></div></div></div>
+
+<div id="mode-transactions" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TRANSACTION-BY-TRANSACTION</p><h2>Transactions</h2></div><div class="tool-card"><label>Block<select id="bt-block"></select></label><div id="bt-list" class="z-list" style="margin-top:.7rem"></div><pre id="bt-detail" class="z-log"></pre></div></div>
+
+<div id="mode-opreturn" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">MEMO / DATA EXTRACTION</p><h2>OP_RETURN</h2></div><div class="tool-card"><div class="z-table-wrap"><table class="z-table"><thead><tr><th>Block</th><th>TXID</th><th>Vout</th><th>Hex</th><th>UTF-8 / ASCII</th></tr></thead><tbody id="bo-body"></tbody></table></div></div></div>
+
+<div id="mode-markers" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">HISTORIC ANNOTATIONS</p><h2>markers.json</h2></div><div class="tool-card">
+<div class="button-row" style="justify-content:flex-start"><label class="file-button">LOAD MARKERS.JSON<input id="mk-file" type="file" accept=".json,application/json"></label><button id="mk-clear" class="btn ghost">CLEAR MARKERS</button></div>
+<label>Markers JSON<textarea id="mk-json" rows="14">{"blocks":{},"transactions":{},"outpoints":{},"addresses":{}}</textarea></label>
+<div class="button-row" style="justify-content:flex-start"><button id="mk-apply" class="btn">APPLY MARKERS</button></div><pre id="mk-output" class="z-log"></pre>
+</div></div>
+
+<div id="mode-archive" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">DETERMINISTIC TEXT ARCHIVE</p><h2>Text Archive</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="ba-generate" class="btn">GENERATE TXT</button><button id="ba-download" class="btn ghost">DOWNLOAD TXT</button><button id="ba-json" class="btn ghost">DOWNLOAD JSON</button></div><textarea id="ba-text" rows="26" spellcheck="false"></textarea></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>blk2txt</h2><p>Deterministic offline Bitcoin Core block-file inspection and archival.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>License</dt><dd>MIT</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS</dd></div><div><dt>Native</dt><dd>Python · PyQt5</dd></div></dl></article><article class="panel"><p class="kicker">PARSER</p><h2>Raw wire-format decode</h2><p>The browser parser reads Bitcoin serialization directly, including SegWit marker/flag, witness stacks, stripped serialization for txid, full serialization for wtxid, and scriptPubKey bytes.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>

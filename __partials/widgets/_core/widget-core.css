@@ -1,0 +1,322 @@
+/* __partials/widgets/_core/widget-core.css
+   Shared visual primitives for all ZZX-Labs Bitcoin HUD widgets.
+   Outer rail/slot geometry belongs to ../../bitcoin-ticker-widget.css.
+*/
+
+:root {
+  --zzx-accent: #c0d674;
+  --zzx-accent-alt: #e6a42b;
+  --zzx-bg: #0b0b0b;
+  --zzx-bg-deep: #070707;
+  --zzx-bg-soft: #111;
+  --zzx-muted: #b7bf9a;
+  --zzx-dim: #777;
+  --zzx-error: #d67474;
+  --zzx-border: rgba(255, 255, 255, 0.14);
+  --zzx-border-soft: rgba(255, 255, 255, 0.07);
+  --zzx-border-strong: #2a2a2a;
+  --zzx-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  --zzx-font-mono: "IBMPlexMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.zzx-widget,
+[data-widget-root] {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* HUD toolbar inserted by hud-state.js. */
+.zzx-widgets__bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0 0.25rem;
+  box-sizing: border-box;
+}
+
+.zzx-widgets__spacer {
+  flex: 1 1 auto;
+  min-width: 0.5rem;
+}
+
+.zzx-widgets__btn,
+.btc-card button,
+.zzx-card button {
+  min-height: 30px;
+  box-sizing: border-box;
+  background: var(--zzx-bg-soft);
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border);
+  border-radius: 6px;
+  padding: 0.32rem 0.55rem;
+  font: inherit;
+  font-family: var(--zzx-font-mono);
+  cursor: pointer;
+}
+
+.zzx-widgets__btn:hover,
+.zzx-widgets__btn:focus-visible,
+.btc-card button:hover,
+.btc-card button:focus-visible,
+.zzx-card button:hover,
+.zzx-card button:focus-visible {
+  color: var(--zzx-accent-alt);
+  border-color: var(--zzx-accent-alt);
+}
+
+.zzx-widgets__btn:focus-visible,
+.btc-card button:focus-visible,
+.zzx-card button:focus-visible {
+  outline: 2px solid var(--zzx-accent-alt);
+  outline-offset: 1px;
+}
+
+.zzx-widgets__btn[aria-pressed="true"],
+.zzx-widgets__btn[data-hud-active="1"] {
+  color: var(--zzx-accent);
+  border-color: var(--zzx-accent);
+  background: rgba(192, 214, 116, 0.08);
+}
+
+.btc-card,
+.zzx-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0.6rem 0.7rem;
+  background: var(--zzx-bg);
+  color: var(--zzx-accent);
+  border: 1px solid var(--zzx-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--zzx-shadow);
+  font-family: var(--zzx-font-mono);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.btc-card__title,
+.zzx-card__title {
+  min-width: 0;
+  margin-bottom: 0.35rem;
+  color: var(--zzx-accent-alt);
+  font-size: 1rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btc-card__value,
+.zzx-card__value {
+  min-width: 0;
+  margin-bottom: 0.15rem;
+  color: var(--zzx-accent);
+  font-size: 1.3rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btc-card__sub,
+.zzx-card__sub {
+  min-width: 0;
+  color: var(--zzx-muted);
+  font-size: 0.9rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btc-card__label,
+.zzx-card__label,
+.btc-card__metric-label,
+.btc-card__field label {
+  color: var(--zzx-dim);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.btc-card__muted { color: var(--zzx-muted); }
+.btc-card__accent { color: var(--zzx-accent-alt); }
+.btc-card__error { color: var(--zzx-error); white-space: normal; }
+.btc-card__mono { font-family: var(--zzx-font-mono); font-variant-numeric: tabular-nums; }
+
+.btc-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+
+.btc-card__row > * { min-width: 0; }
+.btc-card__row > :last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+.btc-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.btc-card__metric {
+  min-width: 0;
+  padding: 0.4rem;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid var(--zzx-border-soft);
+  border-radius: 6px;
+}
+
+.btc-card__metric-label { display: block; margin-bottom: 0.12rem; }
+.btc-card__metric-value {
+  display: block;
+  color: var(--zzx-accent);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.btc-card__form { display: grid; gap: 0.45rem; width: 100%; min-width: 0; }
+.btc-card__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: 0.4rem;
+  min-width: 0;
+}
+.btc-card__field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.btc-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+
+.btc-card input,
+.btc-card select,
+.btc-card textarea,
+.zzx-card input,
+.zzx-card select,
+.zzx-card textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.38rem 0.45rem;
+  background: var(--zzx-bg-deep);
+  color: var(--zzx-accent);
+  border: 1px solid #303030;
+  border-radius: 5px;
+  font: inherit;
+  outline: none;
+}
+
+.btc-card input:focus,
+.btc-card select:focus,
+.btc-card textarea:focus,
+.zzx-card input:focus,
+.zzx-card select:focus,
+.zzx-card textarea:focus {
+  border-color: var(--zzx-accent-alt);
+}
+
+.btc-card input::placeholder,
+.btc-card textarea::placeholder,
+.zzx-card input::placeholder,
+.zzx-card textarea::placeholder {
+  color: #65695b;
+}
+
+.btc-card option,
+.zzx-card option {
+  background: var(--zzx-bg);
+  color: var(--zzx-accent);
+}
+
+.btc-card button:disabled,
+.zzx-card button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btc-card__table-wrap { width: 100%; min-width: 0; overflow-x: auto; }
+.btc-rail table { width: 100%; max-width: 100%; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.btc-rail th,
+.btc-rail td { padding: 0.25rem 0.35rem; text-align: left; border-bottom: 1px solid #222; white-space: nowrap; }
+.btc-rail th { color: var(--zzx-accent-alt); font-weight: normal; }
+.btc-rail td { color: var(--zzx-muted); }
+
+.btc-card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--zzx-muted);
+  border: 1px solid #353535;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.btc-card__badge--accent { color: var(--zzx-accent-alt); border-color: rgba(230, 164, 43, 0.35); }
+
+.btc-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--zzx-muted);
+  font-size: 0.76rem;
+}
+.btc-card__status::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; }
+.btc-card__status[data-status="ok"] { color: var(--zzx-accent); }
+.btc-card__status[data-status="warn"] { color: var(--zzx-accent-alt); }
+.btc-card__status[data-status="error"] { color: var(--zzx-error); }
+.btc-card__status[data-status="offline"] { color: var(--zzx-dim); }
+
+.btc-card__progress {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  background: #171717;
+  border: 1px solid #292929;
+  border-radius: 999px;
+}
+.btc-card__progress-bar {
+  display: block;
+  width: var(--progress, 0%);
+  max-width: 100%;
+  height: 100%;
+  background: var(--zzx-accent);
+  transition: width 0.25s ease;
+}
+.btc-rail progress { width: 100%; accent-color: var(--zzx-accent); }
+
+.btc-card__divider { width: 100%; height: 1px; margin: 0.4rem 0; background: #222; }
+.btc-card__loading { color: var(--zzx-muted); animation: zzx-widget-pulse 1.35s ease-in-out infinite; }
+
+@keyframes zzx-widget-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 420px) {
+  .btc-card,
+  .zzx-card { padding: 0.5rem; }
+  .btc-card__value,
+  .zzx-card__value { font-size: 1.15rem; }
+  .btc-card__sub,
+  .zzx-card__sub { font-size: 0.82rem; }
+  .btc-card__grid,
+  .btc-card__fields { grid-template-columns: minmax(0, 1fr); }
+  .btc-card__row { align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btc-card__loading { animation: none; }
+  .btc-card__progress-bar,
+  .zzx-widgets__btn { transition: none; }
+}

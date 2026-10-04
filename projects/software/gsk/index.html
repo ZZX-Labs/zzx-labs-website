@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><meta name="description" content="GSK defines a custom cryptographic key format derived from SHA3-256 and RIPEMD160 with a lowercase Base32 encoding, excluding ambiguous glyphs. Each key includes an extended checksum and prefix structure for unique, human-readable, and error-resistant identifiers used across ZZX-Labs encryption systems."><title>GSKs (Glyph Sprite Keys) · Projects · Software | ZZX-Labs R&amp;D</title><link rel="stylesheet" href="/static/styles.css"><script src="/static/script.js" defer></script><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./hook.css"><script src="./hook.js" defer></script><script src="./script.js" defer></script><script src="./gsk-core.js" defer></script><script src="./gsk.js" defer></script></head><body class="project project-gsk"><header><div id="zzx-header"></div></header><main>
+<section class="zzx-project-hero"><div class="container hero-inner"><img class="project-logo" src="./logo.png" alt="GSKs (Glyph Sprite Keys) logo" onerror="this.hidden=true"><p class="kicker">ZZX-LABS R&amp;D // SOFTWARE</p><h1>GSKs (Glyph Sprite Keys)</h1><p class="blurb">GSK defines a custom cryptographic key format derived from SHA3-256 and RIPEMD160 with a lowercase Base32 encoding, excluding ambiguous glyphs. Each key includes an extended checksum and prefix structure for unique, human-readable, and error-resistant identifiers used across ZZX-Labs encryption systems.</p><div class="cta-row"><a class="btn" href="#demo">RUN WEB DEMO</a><a class="btn alt" href="https://github.com/ZZX-Labs/gsk" target="_blank" rel="noopener noreferrer">GITHUB</a><a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a></div></div></section>
+<section id="demo" class="demo-section"><div class="container section demo-container"><div class="section-head"><div><p class="kicker">SPEC // SHA3-256 + RIPEMD160 + BASE32</p><h2>GSK Format Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">SHA3-256</span><span class="runtime-badge ok">RIPEMD160</span><span class="runtime-badge ok">CHECKSUM</span><span class="runtime-badge partial">NOT A BITCOIN PRIVATE KEY</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>GSK</h3><div class="tool-list"><button class="tool-tab mode-tab active" data-mode="derive">Derive</button><button class="tool-tab mode-tab" data-mode="verify">Verify</button><button class="tool-tab mode-tab" data-mode="vectors">Vectors</button><button class="tool-tab mode-tab" data-mode="spec">Spec</button></div><div class="z-sidebar-note"><strong>ALPHA SPEC</strong><p>Identifier/key-format draft only; not a wallet private-key encoding.</p></div></aside><section class="tool-workspace">
+<div id="mode-derive" class="z-mode-panel mode-panel active"><div class="tool-card"><label>Input text / public identifier<textarea id="input" rows="6">ZZX-Labs GSK test vector</textarea></label><div class="button-row" style="justify-content:flex-start"><button id="derive" class="btn">DERIVE GSK</button><button id="random" class="btn ghost">RANDOM NON-WALLET IDENTIFIER</button></div><label>GSK identifier<textarea id="key" rows="4" readonly></textarea></label><pre id="derive-output" class="z-log"></pre></div></div>
+<div id="mode-verify" class="z-mode-panel mode-panel"><div class="tool-card"><label>GSK identifier<input id="verify-key"></label><div class="button-row" style="justify-content:flex-start"><button id="verify" class="btn">VERIFY FORMAT + CHECKSUM</button></div><pre id="verify-output" class="z-log"></pre></div></div>
+<div id="mode-vectors" class="z-mode-panel mode-panel"><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="run-vectors" class="btn">RUN HASH VECTORS</button></div><pre id="vectors-output" class="z-log"></pre></div></div>
+<div id="mode-spec" class="z-mode-panel mode-panel"><div class="tool-card"><pre class="z-log">GSK WEB DRAFT v1
+
+SHA3-256(input)
+  ↓
+RIPEMD160(sha3_digest)
+  ↓
+custom lowercase Base32 payload
+
+Checksum:
+SHA3-256( UTF8("gsk1") || payload )[0:6]
+  ↓ same Base32
+
+Text:
+gsk1-&lt;payload&gt;-&lt;checksum&gt;
+
+Alphabet:
+123456789abcdefghjkmnpqrstuvwxyz
+
+Excluded glyphs:
+0, i, l, o</pre></div></div>
+</section></div></div></section></main><footer><div id="zzx-footer"></div></footer></body></html>

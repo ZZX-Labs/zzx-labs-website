@@ -1,0 +1,560 @@
+(() => {
+    "use strict";
+
+    const SOURCES = {
+
+        zzxbitnodes:
+            "../api/zzxbitnodes/cities.json",
+
+        originalbitnodes:
+            "../api/originalbitnodes/latest.json",
+
+        aggregate:
+            "../api/aggregate/zzxbitnodes/latest.json",
+
+        enriched:
+            "../api/enriched/zzxbitnodes/latest.json"
+
+    };
+
+    let ROWS = [];
+
+    const $ = q => document.querySelector(q);
+
+    function fmt(value) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return "—";
+        }
+
+        if (typeof value === "number") {
+            return value.toLocaleString();
+        }
+
+        return String(value);
+    }
+
+    function setStatus(message, mode = "") {
+
+        const el = $("#bn-status");
+
+        if (!el) {
+            return;
+        }
+
+        el.className =
+            `bn-status container ${mode}`.trim();
+
+        el.textContent = message;
+    }
+
+    async function getJson(url) {
+        const runtime = window.BNPageRuntime;
+
+        if (runtime) {
+            const candidates = [url];
+
+            if (url.includes("/api/zzxbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/zzxbitnodes/latest.json");
+                const leaf = url.split("/api/zzxbitnodes/")[1];
+                if (leaf) candidates.push(`../api/${leaf}`);
+            }
+
+            if (url.includes("/api/originalbitnodes/") && !url.endsWith("/latest.json")) {
+                candidates.push("../api/originalbitnodes/latest.json");
+            }
+
+            return (await runtime.fetchFirst(candidates)).data;
+        }
+
+        const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
+    }
+
+    function topValue(map) {
+
+        return (
+            [...map.entries()]
+                .sort(
+                    (a, b) => b[1] - a[1]
+                )[0]?.[0]
+            || "—"
+        );
+    }
+
+    function extractNodes(payload) {
+
+        if (
+            payload &&
+            typeof payload === "object"
+        ) {
+
+            if (
+                payload.nodes &&
+                typeof payload.nodes === "object"
+            ) {
+                return payload.nodes;
+            }
+
+            if (
+                payload.reachable_nodes &&
+                typeof payload.reachable_nodes === "object"
+            ) {
+                return payload.reachable_nodes;
+            }
+
+            if (
+                payload.data &&
+                payload.data.nodes
+            ) {
+                return payload.data.nodes;
+            }
+        }
+
+        return {};
+    }
+
+    function aggregate(nodes) {
+
+        const map =
+            new Map();
+
+        const total =
+            Object.keys(nodes || {}).length;
+
+        for (
+            const row
+            of Object.values(nodes || {})
+        ) {
+
+            const city =
+                row?.[6]
+                || row?.city
+                || "Unknown";
+
+            const country =
+                row?.[7]
+                || row?.country
+                || "Unknown";
+
+            const asn =
+                row?.[11]
+                || row?.asn;
+
+            const org =
+                row?.[12]
+                || row?.organization;
+
+            const agent =
+                row?.[1]
+                || row?.agent;
+
+            const key =
+                `${city}|${country}`;
+
+            if (!map.has(key)) {
+
+                map.set(
+                    key,
+                    {
+                        city,
+                        country,
+                        nodes: 0,
+                        asns: new Set(),
+                        orgs: new Map(),
+                        agents: new Map()
+                    }
+                );
+            }
+
+            const item =
+                map.get(key);
+
+            item.nodes += 1;
+
+            if (asn) {
+                item.asns.add(asn);
+            }
+
+            if (org) {
+
+                item.orgs.set(
+                    org,
+                    (
+                        item.orgs.get(org)
+                        || 0
+                    ) + 1
+                );
+            }
+
+            if (agent) {
+
+                item.agents.set(
+                    agent,
+                    (
+                        item.agents.get(agent)
+                        || 0
+                    ) + 1
+                );
+            }
+        }
+
+        return [...map.values()]
+            .map(item => ({
+
+                city:
+                    item.city,
+
+                country:
+                    item.country,
+
+                nodes:
+                    item.nodes,
+
+                percent:
+                    total
+                        ? (
+                            (
+                                item.nodes
+                                / total
+                            ) * 100
+                        ).toFixed(2)
+                        : "0.00",
+
+                asns:
+                    item.asns.size,
+
+                topOrg:
+                    topValue(
+                        item.orgs
+                    ),
+
+                topAgent:
+                    topValue(
+                        item.agents
+                    )
+            }));
+    }
+
+    function renderSummary(rows) {
+
+        const target =
+            $("#bn-summary");
+
+        if (!target) {
+            return;
+        }
+
+        const totalNodes =
+            rows.reduce(
+                (sum, row) =>
+                    sum + row.nodes,
+                0
+            );
+
+        const countries =
+            new Set(
+                rows
+                    .map(
+                        row =>
+                            row.country
+                    )
+                    .filter(Boolean)
+            );
+
+        target.innerHTML = `
+            <article class="bn-card">
+                <span>Cities</span>
+                <strong>${fmt(rows.length)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Countries</span>
+                <strong>${fmt(countries.size)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Reachable Nodes</span>
+                <strong>${fmt(totalNodes)}</strong>
+            </article>
+
+            <article class="bn-card">
+                <span>Largest City</span>
+                <strong>${fmt(rows[0]?.city)}</strong>
+            </article>
+        `;
+    }
+
+    function filteredRows() {
+
+        const search =
+            (
+                $("#bn-search")
+                    ?.value
+                || ""
+            )
+            .trim()
+            .toLowerCase();
+
+        const sort =
+            $("#bn-sort")
+                ?.value
+            || "nodes";
+
+        let rows =
+            ROWS.filter(row => {
+
+                if (!search) {
+                    return true;
+                }
+
+                return [
+                    row.city,
+                    row.country,
+                    row.topOrg,
+                    row.topAgent
+                ]
+                .join(" ")
+                .toLowerCase()
+                .includes(search);
+            });
+
+        if (sort === "city") {
+
+            rows.sort(
+                (a, b) =>
+                    String(a.city)
+                        .localeCompare(
+                            String(b.city)
+                        )
+            );
+
+        } else if (
+            sort === "country"
+        ) {
+
+            rows.sort(
+                (a, b) =>
+                    String(a.country)
+                        .localeCompare(
+                            String(b.country)
+                        )
+            );
+
+        } else if (
+            sort === "asns"
+        ) {
+
+            rows.sort(
+                (a, b) =>
+                    b.asns
+                    - a.asns
+            );
+
+        } else {
+
+            rows.sort(
+                (a, b) =>
+                    b.nodes
+                    - a.nodes
+            );
+        }
+
+        return rows;
+    }
+
+    function renderRows(rows) {
+
+        const view =
+            $("#bn-view");
+
+        if (!view) {
+            return;
+        }
+
+        if (!rows.length) {
+
+            view.innerHTML = `
+                <div class="bn-empty">
+                    No city telemetry matched current filters.
+                </div>
+            `;
+
+            return;
+        }
+
+        view.innerHTML = `
+            <div class="bn-city-table-wrap">
+
+                <table class="bn-city-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>City</th>
+                            <th>Country</th>
+                            <th>Nodes</th>
+                            <th>Share</th>
+                            <th>ASNs</th>
+                            <th>Dominant Agent</th>
+                            <th>Largest Organization</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        ${rows.map(row => `
+
+                            <tr>
+
+                                <td class="bn-city-name">
+                                    ${fmt(row.city)}
+                                </td>
+
+                                <td class="bn-city-country">
+                                    ${fmt(row.country)}
+                                </td>
+
+                                <td>
+                                    ${fmt(row.nodes)}
+                                </td>
+
+                                <td>
+                                    ${fmt(row.percent)}%
+                                </td>
+
+                                <td>
+                                    ${fmt(row.asns)}
+                                </td>
+
+                                <td>
+                                    ${fmt(row.topAgent)}
+                                </td>
+
+                                <td>
+                                    ${fmt(row.topOrg)}
+                                </td>
+
+                            </tr>
+
+                        `).join("")}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+    }
+
+    function rerender() {
+
+        renderRows(
+            filteredRows()
+        );
+    }
+
+    async function loadCities() {
+
+        const source =
+            $("#bn-source")
+                ?.value
+            || "zzxbitnodes";
+
+        const url =
+            SOURCES[source]
+            || SOURCES.zzxbitnodes;
+
+        setStatus(
+            `Loading city distribution telemetry from ${source}...`
+        );
+
+        try {
+
+            const data =
+                await getJson(url);
+
+            ROWS =
+                aggregate(
+                    extractNodes(data)
+                );
+
+            ROWS.sort(
+                (a, b) =>
+                    b.nodes
+                    - a.nodes
+            );
+
+            renderSummary(
+                ROWS
+            );
+
+            renderRows(
+                ROWS
+            );
+
+            setStatus(
+                `Loaded ${fmt(ROWS.length)} city distributions.`,
+                "ok"
+            );
+
+        } catch (err) {
+
+            ROWS = [];
+
+            renderSummary([]);
+
+            renderRows([]);
+
+            setStatus(
+                `City telemetry unavailable: ${err.message}`,
+                "warn"
+            );
+        }
+    }
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+
+            $("#bn-refresh")
+                ?.addEventListener(
+                    "click",
+                    loadCities
+                );
+
+            $("#bn-source")
+                ?.addEventListener(
+                    "change",
+                    loadCities
+                );
+
+            $("#bn-search")
+                ?.addEventListener(
+                    "input",
+                    rerender
+                );
+
+            $("#bn-sort")
+                ?.addEventListener(
+                    "change",
+                    rerender
+                );
+
+            loadCities();
+        }
+    );
+
+})();

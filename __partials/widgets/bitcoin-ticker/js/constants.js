@@ -1,0 +1,48 @@
+(function(){
+  "use strict";
+  const W=window;
+  if(W.ZZXBitcoinTickerConstants?.__version>=13)return;
+
+  W.ZZXBitcoinTickerConstants=Object.freeze({
+    __version:13,
+    refreshMs:2500,
+    auxiliaryRefreshMs:30*1000,
+    liveFreshMs:15*1000,
+    latestFallbackTtlMs:5*1000,
+    chainRefreshMs:30*1000,
+    configTtlMs:60*1000,
+    staleAfterMs:5*60*1000,
+    referenceTtlMs:5*60*1000,
+    debtTtlMs:6*60*60*1000,
+    sovereignTtlMs:6*60*60*1000,
+    referencePageSize:12,
+    terminalSupplyBtc:20999999.9769,
+    storage:Object.freeze({
+      source:"zzx.widget.bitcoin-ticker.source.v5",
+      quote:"zzx.widget.bitcoin-ticker.quote.v5",
+      debtCountry:"zzx.widget.bitcoin-ticker.debt-country.v2",
+      balanceCountry:"zzx.widget.bitcoin-ticker.balance-country.v1",
+      referencePage:"zzx.widget.bitcoin-ticker.reference-page.v1"
+    }),
+    endpoints:Object.freeze({
+      latest:"/bitcoin/bpi/api/latest.json",
+      indexPolicy:"/bitcoin/bpi/api/bpi_index_policy.json",
+      exchanges:"/bitcoin/bpi/api/exchanges.json",
+      currencies:"/bitcoin/bpi/api/currencies.json",
+      rates:"/bitcoin/bpi/api/exchange_rates.json",
+      symbols:"/bitcoin/bpi/api/symbols.json",
+      references:"/bitcoin/bpi/api/reference_prices.json",
+      legacyCommodities:"/bitcoin/bpi/api/commodities.json",
+      sovereignCountries:"/bitcoin/bpi/api/sovereign-countries.json",
+      debts:"/bitcoin/bpi/api/national_debts.json",
+      balances:"/bitcoin/bpi/api/national_balances.json",
+      trade:"/bitcoin/bpi/api/national_trade.json",
+      usDebt:"/bitcoin/bpi/api/us_debt.json",
+      referenceCatalog:"/__partials/widgets/bitcoin-ticker/reference-catalog.json"
+    }),
+    sharedPricePath:"/__partials/widgets/_shared/zzx-price.js",
+    sharedFxPath:"/__partials/widgets/_shared/zzx-fx.js",
+    sharedChainPath:"/__partials/widgets/_shared/zzx-chain.js",
+    sharedLiveBpiPath:"/__partials/widgets/_shared/zzx-live-bpi.js"
+  });
+})();

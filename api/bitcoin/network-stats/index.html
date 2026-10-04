@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Bitcoin Network Stats API | ZZX-Labs R&D</title>
+    <link rel="stylesheet" href="../../static/styles.css">
+    <script src="../../static/script.js" defer></script>
+</head>
+<body>
+<header>
+    <div id="zzx-header"></div>
+</header>
+<main>
+    <br>
+    <!-- Bitcoin Ticker Widget -->
+    <div id="ticker-container"></div>
+    <br>
+
+<section class="container">
+  <h2>Bitcoin Network Stats API</h2>
+  <p>
+    This API provides direct access to real-time Bitcoin blockchain statistics sourced from ZZX-Labs’ fully self-hosted Bitcoin Core full nodes. It offers live data on the mempool, block propagation, fee rates, and unconfirmed transaction queues.
+  </p>
+  <p>
+    The data updates every 250ms and is ideal for mempool monitoring, dynamic fee estimation, and network health visualizations. No third-party services are used—fully sovereign, fully private.
+  </p>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>Public Endpoint</h3>
+    <pre><code class="language-bash">GET /api/bitcoin/network-stats</code></pre>
+    <p>Returns real-time mempool size, recommended fees, unconfirmed transactions, and current block stats.</p>
+  </div>
+
+  <div class="feature">
+    <h3>Sample Response</h3>
+    <pre><code class="language-json">{
+  "timestamp": "2025-05-01T12:00:00Z",
+  "mempool_tx_count": 33857,
+  "mempool_vsize": 11200000,
+  "next_block_fee_rate": 38.25,
+  "median_fee": 24.15,
+  "last_block": {
+    "height": 840204,
+    "tx_count": 2891,
+    "block_size": 1340000,
+    "timestamp": "2025-05-01T11:58:00Z"
+  }
+}</code></pre>
+  </div>
+
+  <div class="feature">
+    <h3>Features</h3>
+    <ul>
+      <li style="list-style-type: none;">Live mempool congestion levels</li>
+      <li style="list-style-type: none;">Dynamic fee estimation for next-block inclusion</li>
+      <li style="list-style-type: none;">Block height and metadata</li>
+      <li style="list-style-type: none;">Ideal for Lightning node fee tuning and wallet UTXO selection</li>
+    </ul>
+  </div>
+</section>
+
+<section class="container cta">
+  <h2>Need Full Node Access?</h2>
+  <p>
+    Our team can deploy mirrored Bitcoin full nodes, mempool visualizers, and dynamic fee estimators for your use. Contact us to configure a dedicated node.
+  </p>
+  <a href="../../../contact" class="btn">Request Node Access</a>
+</section>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p>Stay ahead of mempool spikes and fee volatility.</p>
+    <a href="../../../areas-of-expertise/bitcoin" class="btn btn-primary">Explore Bitcoin Infrastructure</a>
+  </div>
+</section><br><br>
+</main>
+<footer>
+	<div id="zzx-footer"></div>
+</footer>
+</body>
+</html>

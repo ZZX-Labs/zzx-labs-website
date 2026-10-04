@@ -1,0 +1,24 @@
+(() => {
+  "use strict";
+  const $=id=>document.getElementById(id),KEY="zzx-bitbilling-v1";
+  const state={invoices:JSON.parse(localStorage.getItem(KEY)||"[]"),addressProvider:null};
+  function persist(){localStorage.setItem(KEY,JSON.stringify(state.invoices));}
+  function draft(){return{client:$("bi-client").value.trim(),description:$("bi-desc").value.trim(),amountSats:Math.max(1,+$("bi-sats").value||1),dueDate:$("bi-due").value,type:$("bi-type").value,fiatReference:$("bi-fiat").value.trim(),address:$("bi-address").value.trim()};}
+  function download(text,name,type){const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+  function create(){const d=draft(),i={schema:"zzx.bitbilling.invoice.v1",id:`INV-${String(state.invoices.length+1).padStart(5,"0")}-${Date.now().toString(36).toUpperCase()}`,createdAt:new Date().toISOString(),...d,payments:[]};state.invoices.push(i);persist();render();$("bi-output").textContent=BitBillingCore.invoiceText(i);}
+  function render(){
+    const t=BitBillingCore.totals(state.invoices);$("bl-count").textContent=state.invoices.length;$("bl-billed").textContent=`${t.billed.toLocaleString()} sats`;$("bl-paid").textContent=`${t.paid.toLocaleString()} sats`;$("bl-due").textContent=`${t.outstanding.toLocaleString()} sats`;
+    const root=$("bl-list"),sel=$("pay-invoice");root.replaceChildren();sel.replaceChildren();
+    for(const i of state.invoices){const paid=i.payments.reduce((s,p)=>s+p.amountSats,0),e=document.createElement("article");e.className="z-list-item";e.innerHTML="<strong></strong><p></p>";e.querySelector("strong").textContent=`${i.id} · ${i.client} · ${BitBillingCore.status(i)}`;e.querySelector("p").textContent=`${i.amountSats.toLocaleString()} sats · paid ${paid.toLocaleString()} · ${i.address||"address not assigned"}`;const r=document.createElement("div");r.className="button-row";r.style.justifyContent="flex-start";const txt=document.createElement("button");txt.className="btn ghost";txt.textContent="DOWNLOAD TXT";txt.addEventListener("click",()=>download(BitBillingCore.invoiceText(i),`${i.id}.txt`,"text/plain"));r.appendChild(txt);e.appendChild(r);root.appendChild(e);const o=document.createElement("option");o.value=i.id;o.textContent=`${i.id} · ${i.client}`;sel.appendChild(o);}
+    if(!state.invoices.length)root.innerHTML='<div class="z-list-item"><p>No invoices.</p></div>';
+  }
+  async function getAddress(){if(!state.addressProvider)throw new Error("No address provider registered.");$("bi-address").value=await state.addressProvider(state.invoices.length,draft());}
+  function payment(){const i=state.invoices.find(x=>x.id===$("pay-invoice").value);if(!i)throw new Error("Select an invoice.");const p={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),amountSats:Math.max(1,+$("pay-sats").value||1),reference:$("pay-ref").value.trim(),recordedAt:new Date().toISOString()};i.payments.push(p);persist();render();$("pay-output").textContent=JSON.stringify({invoice:i.id,payment:p,status:BitBillingCore.status(i)},null,2);}
+  $("bi-create").addEventListener("click",create);$("bi-generate-address").addEventListener("click",()=>getAddress().catch(e=>$("bi-output").textContent=`ERROR: ${e.message}`));$("pay-record").addEventListener("click",()=>{try{payment();}catch(e){$("pay-output").textContent=`ERROR: ${e.message}`;}});
+  $("be-json").addEventListener("click",()=>download(JSON.stringify({schema:"zzx.bitbilling.ledger.v1",exportedAt:new Date().toISOString(),invoices:state.invoices},null,2),`bitbilling-${Date.now()}.json`,"application/json"));
+  $("be-csv").addEventListener("click",()=>{const q=v=>`"${String(v??"").replace(/"/g,'""')}"`,rows=["id,client,description,type,amount_sats,paid_sats,status,due_date,address",...state.invoices.map(i=>[i.id,i.client,i.description,i.type,i.amountSats,i.payments.reduce((s,p)=>s+p.amountSats,0),BitBillingCore.status(i),i.dueDate,i.address].map(q).join(","))];download(rows.join("\n")+"\n",`bitbilling-${Date.now()}.csv`,"text/csv");});
+  $("be-import").addEventListener("change",async()=>{const f=$("be-import").files?.[0];if(!f)return;try{const v=JSON.parse(await f.text()),arr=Array.isArray(v)?v:v.invoices;if(!Array.isArray(arr))throw new Error("No invoices array.");state.invoices=arr;persist();render();$("be-output").textContent=`Imported ${arr.length} invoices.`;}catch(e){$("be-output").textContent=`ERROR: ${e.message}`;}$("be-import").value="";});
+  render();
+  window.BitBilling=Object.freeze({version:"0.9.0-beta-web",registerAddressProvider(fn){state.addressProvider=fn;},getLedger:()=>JSON.parse(JSON.stringify(state.invoices)),totals:()=>BitBillingCore.totals(state.invoices)});
+  window.ZZXHooks?.emit("bitbilling:ready",{version:"0.9.0-beta-web"});
+})();

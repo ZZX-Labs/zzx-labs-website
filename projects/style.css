@@ -1,0 +1,292 @@
+/* /projects/style.css — root projects index (rows)
+   Participates in cascade layers: base → layout → components → media → pages → utilities
+*/
+@layer pages {
+
+  :root {
+    --accent: #c0d674;
+    --accent-alt: #e6a42b;
+    --muted: #8a8f98;
+    --line: rgba(255,255,255,.12);
+    --surface: rgba(255,255,255,.02);
+
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+    /* Rail width used by BOTH search + lists (match category pages) */
+    --rail-max: 1100px;
+  }
+
+  /* CRITICAL: ensure forms.css uses the correct accent on this page */
+  body.projects-landing{
+    --accent: #c0d674;
+    --accent-alt: #e6a42b;
+  }
+
+  /* Keep headings/sections wide, but rail-constrain the search + lists */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+  .muted { color: var(--muted); }
+  .loading { color: var(--muted); font-style: italic; }
+
+  /* Category (####) count appended to each <h2> by JS */
+  body.projects-landing .cat-count{
+    font-family: var(--mono);
+    color: rgba(255,255,255,.62);
+    font-size: .95rem;
+    margin-left: .55rem;
+    letter-spacing: .06em;
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------
+     SEARCHBAR — align to SAME rail as project lists (1100px)
+     IMPORTANT: #proj-search-wrap is a <section class="container"> inserted by JS.
+     So we override the container’s 1200px rail for THIS section only.
+     ------------------------------------------------------------ */
+
+  /* Make the search section itself the rail */
+  body.projects-landing section#proj-search-wrap.container{
+    max-width: var(--rail-max);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Grid wrapper */
+  body.projects-landing #proj-search-wrap .searchbar{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .6rem;
+    align-items: center;
+
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
+
+  /* Input baseline (UNFOCUSED): neutral grey (not too dark, not green) */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]{
+    width: 100%;
+
+    /* Unfocused: readable neutral */
+    background: rgba(255,255,255,.07);
+    color: #e8e8e8;
+
+    /* Unfocused: slightly brighter border for clarity */
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 10px;
+
+    padding: .52rem .72rem;
+
+    outline: none;
+    box-shadow: none;
+
+    caret-color: var(--accent);
+    accent-color: var(--accent);
+
+    -webkit-text-fill-color: #e8e8e8;
+    appearance: none;
+
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  }
+
+  /* Optional: hover stays neutral (no green) */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:hover{
+    background: rgba(255,255,255,.085);
+    border-color: rgba(255,255,255,.36);
+  }
+
+  /* Focus ring: always #c0d674 */
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus,
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]:focus-visible{
+    border-color: var(--accent);
+    outline: none;
+
+    /* your brand ring */
+    box-shadow: 0 0 0 3px rgba(192,214,116,.18);
+
+    /* Focus keeps the neutral base (not darker) */
+    background: rgba(255,255,255,.07);
+    filter: none;
+  }
+
+  body.projects-landing #proj-search-wrap .searchbar input[type="search"]::selection{
+    background: rgba(192,214,116,.28);
+    color: #0f120c;
+  }
+
+  body.projects-landing #proj-search-wrap #search-count{
+    justify-self: end;
+    text-align: right;
+    white-space: nowrap;
+    font-size: .92rem;
+  }
+
+  @media (max-width: 640px){
+    body.projects-landing #proj-search-wrap .searchbar{
+      grid-template-columns: 1fr;
+    }
+    body.projects-landing #proj-search-wrap #search-count{
+      justify-self: start;
+      text-align: left;
+      margin-top: .25rem;
+      font-size: .88rem;
+    }
+  }
+
+  /* ------------------------------------------------------------
+     PROJECT LISTS — same rail (1100px) inside each section.container
+     ------------------------------------------------------------ */
+  body.projects-landing .project-list{
+    width: 100%;
+    max-width: var(--rail-max);
+    margin: .75rem auto 1.75rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+
+    box-sizing: border-box;
+  }
+
+  body.projects-landing .project-row{
+    position: relative;
+
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 1rem;
+    align-items: start;
+
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+
+    padding: .75rem 1rem;
+    padding-bottom: 2.2rem; /* reserve for badge */
+
+    transition: border-color .15s ease, background .15s ease;
+  }
+
+  body.projects-landing .project-row:hover{
+    border-color: rgba(255,255,255,.18);
+    background: rgba(255,255,255,.04);
+  }
+
+  body.projects-landing .project-logo img{
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+
+    border-radius: 10px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.10);
+  }
+
+  body.projects-landing .project-meta h3{
+    margin: 0 0 .25rem;
+    font-size: 1.1rem;
+  }
+
+  body.projects-landing .project-meta h3 a{
+    color: #e8e8e8;
+    text-decoration: none;
+  }
+  body.projects-landing .project-meta h3 a:hover{ text-decoration: underline; }
+
+  body.projects-landing .project-meta p{
+    margin: 0 0 .5rem;
+    line-height: 1.45;
+  }
+
+  body.projects-landing .project-meta .links{
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  body.projects-landing .btn{
+    display: inline-block;
+    background: var(--accent);
+    color: #101218;
+    border: 1px solid rgba(255,255,255,.12);
+    padding: .38rem .7rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1;
+  }
+  body.projects-landing .btn:hover{ filter: brightness(1.05); }
+
+  body.projects-landing .btn.ghost{
+    background: rgba(255,255,255,.02);
+    color: #eaeaea;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+
+  /* Per-project #### badge — bottom-right + smaller */
+  body.projects-landing .proj-count{
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .03em;
+
+    color: #0f120c;
+    background: rgba(192,214,116,.90);
+    border: 1px solid rgba(0,0,0,.22);
+
+    box-shadow:
+      0 1px 4px rgba(0,0,0,.28),
+      inset 0 1px 0 rgba(255,255,255,.26);
+
+    user-select: none;
+    pointer-events: none;
+  }
+
+  body.projects-landing .project-row:hover .proj-count{ filter: brightness(.97); }
+
+  .backlinks{ padding-bottom: 2rem; }
+}
+
+/* ------------------------------------------------------------------
+   SAFETY OVERRIDES — if something in utilities layer still injects
+   a different focus style, these win without changing layout.
+   (Minimal !important use; only focus visuals.)
+   ------------------------------------------------------------------ */
+@layer utilities {
+  body.projects-landing #proj-search-wrap input[type="search"]:focus,
+  body.projects-landing #proj-search-wrap input[type="search"]:focus-visible{
+    border-color: #c0d674 !important;
+    box-shadow: 0 0 0 3px rgba(192,214,116,.18) !important;
+    outline: none !important;
+    background: rgba(255,255,255,.07) !important;
+  }
+  body.projects-landing #proj-search-wrap input[type="search"]{
+    caret-color: #c0d674 !important;
+    accent-color: #c0d674 !important;
+
+    /* ensure unfocused stays neutral and readable even if overridden elsewhere */
+    background: rgba(255,255,255,.07) !important;
+    border-color: rgba(255,255,255,.28) !important;
+  }
+  body.projects-landing #proj-search-wrap input[type="search"]:hover{
+    background: rgba(255,255,255,.085) !important;
+    border-color: rgba(255,255,255,.36) !important;
+  }
+}

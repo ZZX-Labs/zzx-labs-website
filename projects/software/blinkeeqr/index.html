@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="BlinkeeQR Encoding Standard (BQRES) reference workbench for converting text or files into deterministic animated optical frames with frame numbering, CRC-32 integrity, XOR parity recovery, symbol mapping, and temporal playback.">
+  <title>BlinkeeQR Encoding Standard (BQRES) · Projects · Software | ZZX-Labs R&amp;D</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/script.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20260824-blinkeeqr-1">
+  <link rel="stylesheet" href="./hook.css?v=20260824-blinkeeqr-1">
+  <script src="./hook.js?v=20260824-blinkeeqr-1" defer></script>
+  <script src="./script.js?v=20260824-blinkeeqr-1" defer></script>
+  <script src="./optical-core.js?v=20260824-blinkeeqr-1" defer></script>
+  <script src="./blinkeeqr.js?v=20260824-blinkeeqr-1" defer></script>
+</head>
+
+<body class="project project-blinkeeqr">
+<header><div id="zzx-header"></div></header><main>
+
+<section class="zzx-project-hero">
+  <div class="container hero-inner">
+    <img class="project-logo" src="./logo.png" alt="BlinkeeQR Encoding Standard (BQRES) logo" onerror="this.hidden=true">
+    <p class="kicker">ZZX-LABS R&amp;D // SOFTWARE // WEB MIRROR</p>
+    <h1>BlinkeeQR Encoding Standard (BQRES)</h1>
+    <p class="blurb">BlinkeeQR Encoding Standard (BQRES) reference workbench for converting text or files into deterministic animated optical frames with frame numbering, CRC-32 integrity, XOR parity recovery, symbol mapping, and temporal playback.</p>
+    <div class="cta-row">
+      <a class="btn" href="#demo">RUN WEB DEMO</a>
+      <a class="btn alt" href="https://github.com/ZZX-Labs/blinkeeqr" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a class="btn ghost" href="/projects/software/">SOFTWARE INDEX</a>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="demo-section"><div class="container section demo-container">
+<div class="section-head"><div><p class="kicker">BQRES // OPTICAL FRAME ENCODING</p><h2>BlinkeeQR Browser Workbench</h2></div><div class="runtime-status"><span class="runtime-badge ok">FRAMES: LOCAL</span><span class="runtime-badge ok">CRC32: ENABLED</span><span class="runtime-badge ok">PARITY: XOR</span><span class="runtime-badge ok">PLAYBACK: CANVAS</span></div></div>
+<div class="workbench"><aside class="tool-list-wrap"><h3>Capabilities</h3><div class="tool-list" role="tablist">
+<button class="tool-tab mode-tab active" data-mode="encode" type="button">Encode</button><button class="tool-tab mode-tab" data-mode="player" type="button">Frame Player</button><button class="tool-tab mode-tab" data-mode="frames" type="button">Frame Index</button><button class="tool-tab mode-tab" data-mode="recover" type="button">Recovery</button><button class="tool-tab mode-tab" data-mode="spec" type="button">Protocol</button>
+</div><div class="z-sidebar-note"><strong>REFERENCE ALPHA</strong><p>This web implementation defines a deterministic BQRES alpha packet/frame format for testing. It is QR-like but is not ISO/IEC QR Code and should be decoded by a matching BQRES implementation.</p></div></aside>
+<section class="tool-workspace">
+
+<div id="mode-encode" class="z-mode-panel mode-panel active"><div class="z-mode-heading"><p class="kicker">SOURCE DATA</p><h2>Encode</h2></div><div class="tool-card"><label>Text payload<textarea id="qe-text" rows="8">BlinkeeQR optical encoding test.</textarea></label><div class="button-row" style="justify-content:flex-start"><label class="file-button">LOAD FILE<input id="qe-file" type="file"></label></div><div class="z-grid-3"><label>Chunk bytes<input id="qe-size" type="number" min="32" max="4096" value="256"></label><label>Parity group<input id="qe-group" type="number" min="2" max="16" value="4"></label><label>Payload type<select id="qe-type"><option value="text">Text</option><option value="binary">Binary/file</option></select></label></div><div class="button-row" style="justify-content:flex-start"><button id="qe-build" class="btn">BUILD BQRES SEQUENCE</button></div><pre id="qe-output" class="z-log"></pre></div></div>
+
+<div id="mode-player" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">TEMPORAL SEQUENCING</p><h2>Frame Player</h2></div><div class="tool-card"><canvas id="qp-canvas" class="z-canvas" width="800" height="800"></canvas><div class="z-grid-3"><label>FPS<input id="qp-fps" type="number" min="1" max="60" value="6"></label><label>Frame<input id="qp-frame" type="number" min="0" value="0"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="qp-toggle" class="btn">PLAY</button></div></div><pre id="qp-output" class="z-log"></pre></div></div>
+
+<div id="mode-frames" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">FRAME CONSTRUCTION</p><h2>Frame Index</h2></div><div class="tool-card"><div class="button-row" style="justify-content:flex-start"><button id="qf-export" class="btn">EXPORT SEQUENCE JSON</button></div><div class="z-table-wrap"><table class="z-table"><thead><tr><th>#</th><th>Kind</th><th>Group</th><th>Slot</th><th>Bytes</th><th>CRC32</th></tr></thead><tbody id="qf-body"></tbody></table></div></div></div>
+
+<div id="mode-recover" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">LOSS RECOVERY</p><h2>Recovery</h2><p>Delete one data frame from a parity group and demonstrate reconstruction from the group’s XOR parity frame.</p></div><div class="tool-card"><div class="z-grid-2"><label>Drop frame index<input id="qr-drop" type="number" min="-1" value="-1"></label><div class="button-row" style="align-items:end;justify-content:flex-start"><button id="qr-run" class="btn">RECOVER / DECODE</button></div></div><pre id="qr-output" class="z-log"></pre></div></div>
+
+<div id="mode-spec" class="z-mode-panel mode-panel"><div class="z-mode-heading"><p class="kicker">ALPHA PACKET MODEL</p><h2>Protocol</h2></div><div class="tool-card"><pre class="z-log">BQRES alpha sequence
+- source: arbitrary byte stream
+- data frame: sequence index, group, slot, original length, CRC-32, base64 payload
+- parity frame: XOR of fixed-size group payload buffers
+- recovery: one missing data frame per parity group
+- temporal order: monotonically increasing frame index
+- optical symbol plane: binary cells + 3 finder markers
+- sequence digest: SHA-256 of original source bytes
+
+This reference format is intentionally versioned and self-describing.</pre></div></div>
+</section></div></div></section>
+
+<section class="container section"><div class="grid grid-2"><article class="panel"><p class="kicker">PROJECT</p><h2>BlinkeeQR / BQRES</h2><p>High-density animated optical encoding protocol reference implementation.</p><dl class="meta-grid"><div><dt>Version</dt><dd>0.1.0-alpha</dd></div><div><dt>Category</dt><dd>protocol</dd></div><div><dt>Platforms</dt><dd>Linux · Windows · macOS · Web</dd></div><div><dt>Native</dt><dd>OpenCV · NumPy</dd></div></dl></article><article class="panel"><p class="kicker">RECOVERY</p><h2>Single-frame parity repair</h2><p>Every data group receives an XOR parity frame, allowing reconstruction of one missing data frame in that group when the remaining frames are available.</p></article></div></section>
+</main><footer><div id="zzx-footer"></div></footer></body></html>
