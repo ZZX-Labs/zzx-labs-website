@@ -12,9 +12,10 @@
 
             let height;
             if (document.body.classList.contains("cz-fullscreen-tool")) {
+                const viewbar = document.getElementById("cz-viewbar")?.getBoundingClientRect().height || 0;
                 const toolbar = document.querySelector(".cz-frame-toolbar")?.getBoundingClientRect().height || 0;
                 const deck = document.querySelector(".cz-control-deck")?.getBoundingClientRect().height || 0;
-                height = Math.max(540, window.innerHeight - toolbar - deck - 8);
+                height = Math.max(540, window.innerHeight - viewbar - toolbar - deck - 8);
             } else if (window.innerWidth < 760) {
                 height = 760;
             } else if (window.innerWidth < 1200) {
