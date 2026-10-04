@@ -74,20 +74,68 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile tools/cyberchef/cyberchef.py
-          test -s cyberchef/index.html
-          test -s cyberchef/shim/shim.css
-          test -s cyberchef/shim/core.css
-          test -s cyberchef/shim/themes.css
-          test -s cyberchef/shim/typography.css
-          test -s cyberchef/shim/layouts.css
-          test -s cyberchef/shim/components.css
-          test -s cyberchef/shim/operations.css
-          test -s cyberchef/rotary.js
-          test -s cyberchef/script.js
+
+          ROOT_FILES=(
+            cyberchef/index.html
+            cyberchef/styles.css
+            cyberchef/upgrades.css
+            cyberchef/modifications.css
+          )
+
+          PAGE_CSS=(
+            cyberchef/css/page/base.css
+            cyberchef/css/page/runtime.css
+            cyberchef/css/page/controls.css
+            cyberchef/css/page/modes.css
+            cyberchef/css/page/modifications.css
+            cyberchef/css/page/responsive.css
+          )
+
+          FRAME_CSS=(
+            cyberchef/css/frame/shim.css
+            cyberchef/css/frame/tokens.css
+            cyberchef/css/frame/fonts.css
+            cyberchef/css/frame/core.css
+            cyberchef/css/frame/themes.css
+            cyberchef/css/frame/typography.css
+            cyberchef/css/frame/layouts.css
+            cyberchef/css/frame/components.css
+            cyberchef/css/frame/operations.css
+            cyberchef/css/frame/scrollbars.css
+          )
+
+          JS_MODULES=(
+            cyberchef/js/config.js
+            cyberchef/js/storage.js
+            cyberchef/js/status.js
+            cyberchef/js/themes.js
+            cyberchef/js/layouts.js
+            cyberchef/js/runtime.js
+            cyberchef/js/manifest.js
+            cyberchef/js/resize.js
+            cyberchef/js/operations.js
+            cyberchef/js/rotary.js
+            cyberchef/js/page-modes.js
+            cyberchef/js/modifications.js
+            cyberchef/js/bootstrap.js
+          )
+
+          for file in "${ROOT_FILES[@]}" "${PAGE_CSS[@]}" "${FRAME_CSS[@]}" "${JS_MODULES[@]}"; do
+            test -s "${file}"
+          done
+
           grep -q 'id="cz-frame"' cyberchef/index.html
           grep -q './app/index.html' cyberchef/index.html
           grep -q 'id="cz-control-deck"' cyberchef/index.html
-          grep -q 'shim/shim.css' cyberchef/hook.js
+          grep -q './css/frame/shim.css' cyberchef/js/config.js
+          grep -q '@import url("./tokens.css")' cyberchef/css/frame/shim.css
+          grep -q '@import url("./scrollbars.css")' cyberchef/css/frame/shim.css
+
+          if grep -nE '/cyberchef/shim/|shim/shim\.css|cyberchef/rotary\.js' \
+              tools/cyberchef/cyberchef.py cyberchef/index.html cyberchef/js/*.js; then
+            printf '%s\n' 'ERROR: stale pre-v9 CyberChef shim paths remain in active source.'
+            exit 1
+          fi
 
       - name: Resolve latest official release and build /cyberchef/app/
         shell: bash
@@ -125,17 +173,35 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v5'
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v9'
           assert manifest['native_frontend']['upstream_html_unchanged'] is True
           assert manifest['native_frontend']['index_sha256'] == manifest['native_frontend']['upstream_entry_sha256']
-          assert manifest['custom_frontend']['shim'] == '/cyberchef/shim/shim.css'
-          assert manifest['custom_frontend']['layers'] == [
-              '/cyberchef/shim/core.css',
-              '/cyberchef/shim/themes.css',
-              '/cyberchef/shim/typography.css',
-              '/cyberchef/shim/layouts.css',
-              '/cyberchef/shim/components.css',
-              '/cyberchef/shim/operations.css',
+          assert manifest['custom_frontend']['shim'] == '/cyberchef/css/frame/shim.css'
+          assert manifest['custom_frontend']['css_layers'] == [
+              '/cyberchef/css/frame/tokens.css',
+              '/cyberchef/css/frame/fonts.css',
+              '/cyberchef/css/frame/core.css',
+              '/cyberchef/css/frame/themes.css',
+              '/cyberchef/css/frame/typography.css',
+              '/cyberchef/css/frame/layouts.css',
+              '/cyberchef/css/frame/components.css',
+              '/cyberchef/css/frame/operations.css',
+              '/cyberchef/css/frame/scrollbars.css',
+          ]
+          assert manifest['custom_frontend']['js_modules'] == [
+              '/cyberchef/js/config.js',
+              '/cyberchef/js/storage.js',
+              '/cyberchef/js/status.js',
+              '/cyberchef/js/themes.js',
+              '/cyberchef/js/layouts.js',
+              '/cyberchef/js/runtime.js',
+              '/cyberchef/js/manifest.js',
+              '/cyberchef/js/resize.js',
+              '/cyberchef/js/operations.js',
+              '/cyberchef/js/rotary.js',
+              '/cyberchef/js/page-modes.js',
+              '/cyberchef/js/modifications.js',
+              '/cyberchef/js/bootstrap.js',
           ]
           print('CyberChef:', manifest['release']['tag'])
           print('Asset:', manifest['release']['asset_name'])
