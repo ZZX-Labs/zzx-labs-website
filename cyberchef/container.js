@@ -1,36 +1,29 @@
 (() => {
     "use strict";
 
-    function ready(fn) {
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn, { once: true });
-        } else {
-            fn();
-        }
+    function clamp(value, min, max) {
+        const n = Number.parseFloat(value);
+        if (!Number.isFinite(n)) return 1;
+        return Math.min(max, Math.max(min, n));
     }
 
-    function clampScale(value) {
-        const number = Number.parseFloat(value);
-        if (!Number.isFinite(number)) return 1;
-        return Math.min(1, Math.max(0.65, number));
+    function runtimeHeight() {
+        const width = window.innerWidth;
+        if (width < 520) return 780;
+        if (width < 900) return 860;
+        if (width < 1200) return 940;
+        return 1080;
     }
 
-    function desiredHeight() {
-        if (window.innerWidth < 520) return 760;
-        if (window.innerWidth < 900) return 900;
-        if (window.innerWidth < 1200) return 1000;
-        return Math.max(1080, Math.min(1320, window.innerHeight + 260));
-    }
-
-    function resizeCyberChefCanvas() {
+    function resize() {
         const runtime = document.getElementById("cz-runtime");
         const frame = document.getElementById("cz-frame");
         if (!runtime || !frame) return;
 
         const raw = getComputedStyle(document.documentElement)
             .getPropertyValue("--zzx-cyberchef-scale") || "1";
-        const scale = clampScale(raw);
-        const height = desiredHeight();
+        const scale = clamp(raw, 0.65, 1);
+        const height = runtimeHeight();
 
         runtime.style.height = `${height}px`;
         runtime.style.minHeight = `${height}px`;
@@ -40,26 +33,27 @@
         frame.style.transform = scale === 1 ? "none" : `scale(${scale})`;
         frame.style.width = scale === 1 ? "100%" : `${100 / scale}%`;
         frame.style.height = scale === 1 ? "100%" : `${height / scale}px`;
-
-        document.documentElement.style.setProperty("--cz-runtime-height", `${height}px`);
     }
 
     function setScale(value) {
-        const scale = clampScale(value);
+        const scale = clamp(value, 0.65, 1);
         document.documentElement.style.setProperty("--zzx-cyberchef-scale", String(scale));
-        resizeCyberChefCanvas();
+        resize();
     }
 
-    ready(() => {
-        resizeCyberChefCanvas();
-        window.addEventListener("resize", resizeCyberChefCanvas, { passive: true });
-        window.addEventListener("orientationchange", () => {
-            setTimeout(resizeCyberChefCanvas, 200);
-            setTimeout(resizeCyberChefCanvas, 800);
-        }, { passive: true });
-        window.addEventListener("zzx-cyberchef-ready", resizeCyberChefCanvas);
-    });
+    function boot() {
+        resize();
+        window.addEventListener("resize", resize, { passive: true });
+        window.addEventListener("orientationchange", () => setTimeout(resize, 250), { passive: true });
+        window.addEventListener("zzx-cyberchef-ready", resize);
+    }
 
-    window.ZZXCyberChefResize = resizeCyberChefCanvas;
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else {
+        boot();
+    }
+
+    window.ZZXCyberChefResize = resize;
     window.ZZXCyberChefSetScale = setScale;
 })();
