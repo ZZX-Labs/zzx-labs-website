@@ -4,7 +4,7 @@
     window.ZZX = window.ZZX || {};
 
     window.ZZX.CYBERCHEF = {
-        version: "v11.0.0",
+        version: "latest",
 
         title: "CyberChefZZX",
 
@@ -31,8 +31,8 @@
         frameStateId: "cz-frame-state",
         modificationsId: "cz-modifications",
 
-        cyberChefMainScript: "app/assets/main.js",
-        cyberChefMainStylesheet: "app/assets/main.css",
+        runtimeHtml: "./app/index.html",
+        runtimeManifestUrl: "./runtime-manifest.json",
 
         storageKeys: {
             source: "zzxCyberChefSource",
@@ -51,4 +51,57 @@
             updateUrl: true
         }
     };
+
+    async function hydrateReleaseMetadata() {
+        const config = window.ZZX.CYBERCHEF;
+
+        try {
+            const response = await fetch(config.runtimeManifestUrl, {
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    `runtime manifest request failed: HTTP ${response.status}`
+                );
+            }
+
+            const manifest = await response.json();
+            const native = manifest && manifest.native_frontend
+                ? manifest.native_frontend
+                : {};
+
+            const version = String(native.version || "").trim();
+            const tag = String(native.tag || "").trim();
+            const displayVersion = tag || (version ? `v${version}` : "");
+
+            if (!displayVersion) {
+                throw new Error("runtime manifest contains no CyberChef version");
+            }
+
+            config.version = displayVersion;
+            config.releasePage = String(native.release_page || "").trim();
+            config.releaseSha256 = String(native.release_sha256 || "").trim();
+
+            document
+                .querySelectorAll("[data-cyberchef-version]")
+                .forEach((node) => {
+                    node.textContent = displayVersion;
+                });
+
+            document.documentElement.dataset.cyberchefVersion = displayVersion;
+        } catch (err) {
+            console.warn("CyberChef release metadata unavailable:", err);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            hydrateReleaseMetadata,
+            { once: true }
+        );
+    } else {
+        hydrateReleaseMetadata();
+    }
 })();
