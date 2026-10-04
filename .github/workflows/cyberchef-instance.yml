@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       cyberchef_version:
-        description: "Upstream GCHQ CyberChef release version to host locally"
+        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
         required: false
-        default: "11.0.0"
+        default: "latest"
         type: string
       deploy_pages:
         description: "Deploy the validated build to GitHub Pages"
@@ -17,10 +17,10 @@ on:
   workflow_call:
     inputs:
       cyberchef_version:
-        description: "Upstream GCHQ CyberChef release version to host locally"
+        description: "GCHQ CyberChef release: latest (default) or an explicit version/tag"
         required: false
         type: string
-        default: "11.0.0"
+        default: "latest"
       deploy_pages:
         description: "Deploy the validated build to GitHub Pages"
         required: false
@@ -37,7 +37,7 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
-  CYBERCHEF_VERSION: ${{ inputs.cyberchef_version || '11.0.0' }}
+  CYBERCHEF_REQUESTED_VERSION: ${{ inputs.cyberchef_version || 'latest' }}
 
 jobs:
   build:
@@ -67,6 +67,140 @@ jobs:
           git checkout --force --detach FETCH_HEAD
           git clean -fdx
           printf '%s\n' "Native Git checkout complete: $(git rev-parse HEAD)"
+
+      - name: Resolve official CyberChef release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          requested = os.environ.get("CYBERCHEF_REQUESTED_VERSION", "latest").strip()
+          token = os.environ.get("GH_TOKEN", "").strip()
+
+          if not requested:
+              requested = "latest"
+
+          if requested.lower() in {"latest", "stable"}:
+              api_url = "https://api.github.com/repos/gchq/CyberChef/releases/latest"
+          else:
+              tag = requested if requested.startswith("v") else f"v{requested}"
+              api_url = (
+                  "https://api.github.com/repos/gchq/CyberChef/releases/tags/"
+                  + urllib.parse.quote(tag, safe="")
+              )
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "zzx-cyberchef-release-resolver",
+          }
+
+          if token:
+              headers["Authorization"] = f"Bearer {token}"
+
+          request = urllib.request.Request(api_url, headers=headers)
+
+          with urllib.request.urlopen(request, timeout=30) as response:
+              release = json.load(response)
+
+          tag = str(release.get("tag_name", "")).strip()
+          release_page = str(release.get("html_url", "")).strip()
+          release_name = str(release.get("name", "") or tag).strip()
+
+          if not tag:
+              raise SystemExit("CyberChef release API returned no tag_name.")
+
+          version = tag[1:] if tag.startswith("v") else tag
+
+          if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", version):
+              raise SystemExit(f"Unsafe CyberChef release version: {version!r}")
+
+          assets = release.get("assets") or []
+          preferred_names = (
+              f"CyberChef_{tag}.zip",
+              f"CyberChef_v{version}.zip",
+              f"CyberChef_{version}.zip",
+          )
+
+          asset = next(
+              (
+                  item
+                  for name in preferred_names
+                  for item in assets
+                  if str(item.get("name", "")) == name
+              ),
+              None,
+          )
+
+          if asset is None:
+              candidates = [
+                  item
+                  for item in assets
+                  if str(item.get("name", "")).lower().startswith("cyberchef")
+                  and str(item.get("name", "")).lower().endswith(".zip")
+              ]
+
+              if len(candidates) == 1:
+                  asset = candidates[0]
+              elif len(candidates) > 1:
+                  names = ", ".join(str(item.get("name", "")) for item in candidates)
+                  raise SystemExit(
+                      "CyberChef release has multiple ZIP assets and no canonical match: "
+                      + names
+                  )
+
+          if asset is None:
+              names = ", ".join(
+                  str(item.get("name", ""))
+                  for item in assets
+                  if item.get("name")
+              )
+              raise SystemExit(
+                  "No CyberChef release ZIP asset found. Assets: "
+                  + (names or "<none>")
+              )
+
+          asset_name = str(asset.get("name", "")).strip()
+          asset_url = str(asset.get("browser_download_url", "")).strip()
+
+          if not re.fullmatch(r"[0-9A-Za-z._+-]+\.zip", asset_name):
+              raise SystemExit(f"Unsafe CyberChef asset name: {asset_name!r}")
+
+          parsed = urllib.parse.urlparse(asset_url)
+
+          if parsed.scheme != "https" or parsed.hostname != "github.com":
+              raise SystemExit(f"Unexpected CyberChef asset URL: {asset_url!r}")
+
+          env_file = Path(os.environ["GITHUB_ENV"])
+
+          values = {
+              "CYBERCHEF_VERSION": version,
+              "CYBERCHEF_TAG": tag,
+              "CYBERCHEF_RELEASE_NAME": release_name,
+              "CYBERCHEF_RELEASE_PAGE": release_page,
+              "CYBERCHEF_RELEASE_ASSET": asset_name,
+              "CYBERCHEF_RELEASE_URL": asset_url,
+          }
+
+          with env_file.open("a", encoding="utf-8") as fh:
+              for key, value in values.items():
+                  if "\n" in value or "\r" in value:
+                      raise SystemExit(f"Unsafe newline in {key}.")
+                  fh.write(f"{key}={value}\n")
+
+          print(f"Resolved CyberChef request {requested!r} -> {tag}")
+          print(f"Release asset: {asset_name}")
+          print(f"Release page: {release_page}")
+          PY
       - name: Validate CyberChef source trees
         shell: bash
         run: |
@@ -164,15 +298,14 @@ jobs:
           # tools/cyberchef is repository tooling, not a public runtime.
           rm -rf _site/tools
 
-      - name: Download pinned upstream CyberChef release
+      - name: Download resolved upstream CyberChef release
         shell: bash
         run: |
           set -euo pipefail
 
           mkdir -p _cyberchef-download
 
-          ARCHIVE="_cyberchef-download/CyberChef_v${CYBERCHEF_VERSION}.zip"
-          URL="https://github.com/gchq/CyberChef/releases/download/v${CYBERCHEF_VERSION}/CyberChef_v${CYBERCHEF_VERSION}.zip"
+          ARCHIVE="_cyberchef-download/${CYBERCHEF_RELEASE_ASSET}"
 
           curl \
             --proto '=https' \
@@ -183,7 +316,7 @@ jobs:
             --retry-all-errors \
             --retry-delay 5 \
             --output "${ARCHIVE}" \
-            "${URL}"
+            "${CYBERCHEF_RELEASE_URL}"
 
           test -s "${ARCHIVE}"
           unzip -tqq "${ARCHIVE}"
@@ -191,7 +324,7 @@ jobs:
           sha256sum "${ARCHIVE}" \
             | tee "${RUNNER_TEMP}/cyberchef-release.sha256"
 
-          printf '%s\n' "release_url=${URL}" >> "${GITHUB_ENV}"
+          printf '%s\n' "release_url=${CYBERCHEF_RELEASE_URL}" >> "${GITHUB_ENV}"
           printf '%s\n' "release_archive=${ARCHIVE}" >> "${GITHUB_ENV}"
 
       - name: Install isolated native CyberChef runtime
@@ -253,8 +386,9 @@ jobs:
 
           test -s _site/cyberchef/app/index.html
           test -s _site/cyberchef/app/native.html
-          test -s _site/cyberchef/app/assets/main.js
-          test -s _site/cyberchef/app/assets/main.css
+          test -d _site/cyberchef/app/assets
+          test -n "$(find _site/cyberchef/app/assets -type f -name '*.js' -print -quit)"
+          test -n "$(find _site/cyberchef/app/assets -type f -name '*.css' -print -quit)"
 
       - name: Generate native runtime storage and dark-mode shim
         shell: bash
@@ -378,7 +512,7 @@ jobs:
           })();
           EOF
 
-      - name: Insert native shim before upstream main.js
+      - name: Insert native shim before upstream runtime scripts
         shell: bash
         run: |
           set -euo pipefail
@@ -398,11 +532,7 @@ jobs:
               if f'src="{shim_src}"' in html or f"src='{shim_src}'" in html:
                   return
 
-              pattern = (
-                  r'(<script[^>]+src=["\']'
-                  r'assets/main\.js'
-                  r'["\'][^>]*></script>)'
-              )
+              pattern = r'(<script[^>]+src=["\'][^"\']+["\'][^>]*></script>)'
 
               patched = re.sub(
                   pattern,
@@ -494,7 +624,15 @@ jobs:
               },
               "native_frontend": {
                   "path": "/cyberchef/app/",
+                  "requested_version": os.environ.get(
+                      "CYBERCHEF_REQUESTED_VERSION",
+                      "latest",
+                  ),
                   "version": os.environ["CYBERCHEF_VERSION"],
+                  "tag": os.environ["CYBERCHEF_TAG"],
+                  "release_name": os.environ["CYBERCHEF_RELEASE_NAME"],
+                  "release_page": os.environ["CYBERCHEF_RELEASE_PAGE"],
+                  "release_asset": os.environ["CYBERCHEF_RELEASE_ASSET"],
                   "release_url": os.environ["release_url"],
                   "release_sha256": hashlib.sha256(
                       archive.read_bytes()
@@ -568,17 +706,17 @@ jobs:
           test -s _site/cyberchef/app/index.html
           test -s _site/cyberchef/app/native.html
           test -s _site/cyberchef/app/script.js
-          test -s _site/cyberchef/app/assets/main.css
-          test -s _site/cyberchef/app/assets/main.js
-          test -s _site/cyberchef/assets/main.css
-          test -s _site/cyberchef/assets/main.js
+          test -d _site/cyberchef/app/assets
+          test -d _site/cyberchef/assets
+          test -n "$(find _site/cyberchef/app/assets -type f -name '*.css' -print -quit)"
+          test -n "$(find _site/cyberchef/app/assets -type f -name '*.js' -print -quit)"
+          test -n "$(find _site/cyberchef/assets -type f -name '*.css' -print -quit)"
+          test -n "$(find _site/cyberchef/assets -type f -name '*.js' -print -quit)"
 
           grep -q 'CyberChefZZX' _site/cyberchef/index.html
           grep -q 'id="cz-runtime"' _site/cyberchef/index.html
           grep -q '__zzx_storage_test__' _site/cyberchef/app/script.js
           grep -q 'script.js' _site/cyberchef/app/index.html
-          grep -q 'assets/main.css' _site/cyberchef/app/index.html
-          grep -q 'assets/main.js' _site/cyberchef/app/index.html
 
           python3 -m json.tool \
             _site/cyberchef/runtime-manifest.json \
