@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const RUNTIME_HTML = "./cyberchef.html";
+    const RUNTIME_HTML = window.ZZX?.CYBERCHEF?.runtimeHtml || "./app/index.html";
 
     function $(id) {
         return document.getElementById(id);
