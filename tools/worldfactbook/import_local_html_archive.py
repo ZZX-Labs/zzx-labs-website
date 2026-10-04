@@ -82,9 +82,52 @@ class CountryHTML(HTMLParser):
         if self.mode and not self.hidden:self.parts.append(value)
 
 
+class LegacyCountryHTML(HTMLParser):
+    """Parse the 2000 edition's <p><b>Label:</b> value field grammar."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.category="raw";self.fields=[];self.hidden=0
+        self.paragraph=False;self.bold=False;self.bold_parts=[]
+        self.label="";self.value=[]
+
+    def finish(self):
+        content=clean("".join(self.value))
+        if self.label and content:
+            self.fields.append({"category":self.category,"label":self.label,
+                                "content":content,"ordinal":len(self.fields)+1})
+        self.label="";self.value=[]
+
+    def handle_starttag(self,tag,attrs):
+        attrs=dict(attrs)
+        if tag in {"script","style"}:self.hidden+=1;return
+        if self.hidden:return
+        if tag=="p":self.finish();self.paragraph=True
+        elif tag=="a" and attrs.get("name") in CATEGORY:
+            self.finish();self.category=CATEGORY[attrs["name"]]
+        elif tag=="b" and self.paragraph and not self.label:
+            self.bold=True;self.bold_parts=[]
+        elif tag=="br" and self.label:self.value.append("\n")
+
+    def handle_endtag(self,tag):
+        if tag in {"script","style"} and self.hidden:self.hidden-=1;return
+        if self.hidden:return
+        if tag=="b" and self.bold:
+            candidate=clean("".join(self.bold_parts))
+            if candidate.endswith(":") and len(candidate)<130:
+                self.label=candidate.rstrip(" :")
+            self.bold=False;self.bold_parts=[]
+
+    def handle_data(self,value):
+        if self.hidden:return
+        if self.bold:self.bold_parts.append(value)
+        elif self.label:self.value.append(value)
+
+
 def country_name(raw: bytes, fallback: str) -> str:
-    match=re.search(rb"<title[^>]*>\s*.*?--\s*(.*?)\s*</title>",raw,re.I|re.S)
-    return clean(re.sub(r"<[^>]*>","",match.group(1).decode("latin-1"))) if match else fallback
+    match=re.search(rb"<title[^>]*>(.*?)</title>",raw,re.I|re.S)
+    if not match:return fallback
+    text=clean(re.sub(r"<[^>]*>","",match.group(1).decode("latin-1")))
+    return text.rsplit("--",1)[-1].strip() if "--" in text else fallback
 
 
 def coordinates(fields: list[dict]) -> tuple[float,float] | None:
@@ -129,13 +172,13 @@ def import_zip(path: Path, root: Path, points: dict[str,dict]) -> dict:
     match=re.search(r"factbook[-_ ](19\d\d|20\d\d)\.zip$",path.name,re.I)
     if not match:raise ValueError(f"Archive filename must identify its edition year: {path.name}")
     year=int(match.group(1));api=root/"api/verified-html"
-    countries=[];skipped=[];count=0;images=0
+    countries=[];skipped=[];count=0;images=0;assigned=set()
     with zipfile.ZipFile(path) as z:
         roots={n.split("/")[0] for n in z.namelist() if re.fullmatch(r"[^/]+/geos/[a-z]{2}\.html",n,re.I)}
         if len(roots)!=1 or not any(str(year) in item for item in roots):
             raise ValueError(f"Unexpected edition directory in {path}: {roots}")
         prefix=roots.pop()+"/"
-        notice=prefix+"docs/contributor_copyright.html"
+        notice=prefix+("docs/concopy.html" if year==2000 else "docs/contributor_copyright.html")
         notice_raw=z.read(notice)
         notice_text=re.sub(r"<[^>]*>"," ",notice_raw.decode("latin-1","replace"))
         if not re.search(r"Factbook\s+is\s+in\s+the\s+public\s+domain",notice_text,re.I):
@@ -148,9 +191,20 @@ def import_zip(path: Path, root: Path, points: dict[str,dict]) -> dict:
             title=country_name(raw,stem.upper());key=norm(title)
             point=points.get(key)
             code=point["code"] if point else CIA_CODES.get(stem,"X-CIA-"+stem.upper())
-            parser=CountryHTML();parser.feed(raw.decode("latin-1","replace"))
+            parser=LegacyCountryHTML() if year==2000 else CountryHTML()
+            parser.feed(raw.decode("latin-1","replace"))
+            if isinstance(parser,LegacyCountryHTML):parser.finish()
             fields=parser.fields
             if not fields:skipped.append(item.filename);continue
+            if code in assigned:
+                # Some source ZIPs contain two country pages under different
+                # CIA file codes. Keep both instead of silently overwriting a
+                # page at countries/ISO/year.json. The first source page owns
+                # the ordinary location entry; the other is visibly labeled.
+                code="X-CIA-"+stem.upper()
+                title=f"{title} (alternate source page {stem})"
+            if code in assigned:raise ValueError(f"Country code collision: {item.filename}")
+            assigned.add(code)
             for row in fields:
                 row["locator"]=f"{item.filename}#field:{row['ordinal']}"
                 row["country"]=code;row["edition_year"]=year
@@ -158,6 +212,7 @@ def import_zip(path: Path, root: Path, points: dict[str,dict]) -> dict:
             lat,lon=(point.get("lat"),point.get("lon")) if point else (coord or (None,None))
             media=[]
             for kind,sub,suffix in (("flag","flags","-lgflag.gif"),("map","maps","-map.gif")):
+                if year==2000:suffix=suffix.replace(".gif",".jpg")
                 member=f"{prefix}{sub}/{stem}{suffix}"
                 target=root/f"media/verified-html/{year}/{code}-{kind}.png"
                 record=_image(z,member,target,year,title,kind,notice_sha)
