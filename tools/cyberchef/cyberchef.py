@@ -237,7 +237,7 @@ def validate_custom_page(output_dir: Path) -> None:
     if not page.is_file():
         raise RuntimeError("Custom /cyberchef/index.html is missing.")
     html = page.read_text(encoding="utf-8", errors="strict")
-    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-modifications"', "./app/index.html"):
+    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', "./app/index.html"):
         if marker not in html:
             raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
@@ -271,9 +271,11 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
         validate_entrypoint(source_entry, dist_root)
         app_dir = install_native_runtime(dist_root, source_entry, output_dir)
         validate_entrypoint(app_dir / "index.html", app_dir)
+        if sha256_file(app_dir / "index.html") != sha256_file(source_entry):
+            raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v4",
+            "schema": "zzx-cyberchef-runtime-v5",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -290,13 +292,22 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             "custom_frontend": {
                 "path": "/cyberchef/",
                 "runtime_path": "/cyberchef/app/index.html",
-                "layers": ["/cyberchef/theme.css", "/cyberchef/layout.css"],
+                "shim": "/cyberchef/shim/shim.css",
+                "layers": [
+                    "/cyberchef/shim/core.css",
+                    "/cyberchef/shim/themes.css",
+                    "/cyberchef/shim/typography.css",
+                    "/cyberchef/shim/layouts.css",
+                    "/cyberchef/shim/components.css",
+                    "/cyberchef/shim/operations.css",
+                ],
             },
             "native_frontend": {
                 "path": "/cyberchef/app/",
                 "entrypoint": "/cyberchef/app/index.html",
                 "index_sha256": sha256_file(app_dir / "index.html"),
-                "upstream_html_unchanged": True,
+                "upstream_entry_sha256": sha256_file(source_entry),
+                "upstream_html_unchanged": sha256_file(app_dir / "index.html") == sha256_file(source_entry),
             },
         }
 
@@ -309,7 +320,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
     print(f"Installed CyberChef {manifest['release']['tag']}")
     print(f"Release asset: {manifest['release']['asset_name']}")
     print("Native:   /cyberchef/app/index.html")
-    print("Modified: /cyberchef/ + theme.css + layout.css")
+    print("Modified: /cyberchef/ + post-load /cyberchef/shim/shim.css")
     return manifest
 
 
