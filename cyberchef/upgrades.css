@@ -1,27 +1,132 @@
-/* ZZX overlay enhancements intentionally avoid resizing or transplanting CyberChef's app DOM. */
-
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) .btn-primary,
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) button.btn-primary {
-    border-color: var(--zzx-cc-accent) !important;
+:root {
+    --cz-theme-bg: #202020;
+    --cz-theme-bg-soft: #282828;
+    --cz-theme-bg-deep: #151515;
+    --cz-theme-accent: #c0d674;
+    --cz-theme-gold: #e6a42b;
+    --cz-native-bg: #1b1b1b;
+    --zzx-cyberchef-scale: 1;
 }
 
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) .form-control:focus,
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) input:focus,
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) textarea:focus,
-html.zzx-cyberchef-root:not([data-zzx-theme="upstream"]) select:focus {
-    border-color: var(--zzx-cc-accent) !important;
-    box-shadow: 0 0 0 1px rgba(192, 214, 116, 0.24) !important;
+body.cz-theme-tactical {
+    background:
+        linear-gradient(180deg, rgba(192, 214, 116, 0.035), transparent 320px),
+        var(--cz-theme-bg);
 }
 
-html.zzx-cyberchef-root.zzx-theme-tactical:not([data-zzx-theme="upstream"]) .operation,
-html.zzx-cyberchef-root.zzx-theme-tactical:not([data-zzx-theme="upstream"]) .list-group-item {
-    border-color: #454545;
+body.cz-theme-tactical .cz-kicker,
+body.cz-theme-tactical .cz-sourcebar label {
+    color: var(--cz-theme-gold);
 }
 
-html.zzx-cyberchef-root.zzx-theme-amber:not([data-zzx-theme="upstream"]) #banner {
-    box-shadow: 0 1px 0 var(--zzx-cc-gold), 0 8px 22px rgba(0, 0, 0, 0.25);
+body.cz-theme-tactical h1,
+body.cz-theme-tactical h2,
+body.cz-theme-tactical .cz-card strong,
+body.cz-theme-tactical #cz-active-source {
+    color: var(--cz-theme-accent);
 }
 
-html.zzx-cyberchef-root.zzx-theme-mono:not([data-zzx-theme="upstream"]) #banner {
-    filter: grayscale(1);
+/*
+ * The upstream application stays in its own same-origin iframe.  Do not style
+ * CyberChef's internal geometry from the parent page. frame.css is injected
+ * into /cyberchef/app/ only for Modified mode.
+ */
+#cz-runtime,
+.cz-runtime {
+    position: relative !important;
+    width: 100% !important;
+    height: var(--cz-runtime-height, 1120px) !important;
+    min-height: var(--cz-runtime-height, 1120px) !important;
+    overflow: hidden !important;
+    background: var(--cz-native-bg) !important;
+    isolation: isolate !important;
+}
+
+.cz-frame,
+#cz-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    border: 0;
+    background: var(--cz-native-bg);
+}
+
+body.cz-theme-amber {
+    --cz-theme-accent: #e6a42b;
+    --cz-theme-gold: #c0d674;
+}
+
+body.cz-theme-crt {
+    --cz-theme-bg: #0b120b;
+    --cz-theme-bg-soft: #101f10;
+    --cz-theme-bg-deep: #050805;
+    --cz-theme-accent: #c0d674;
+    --cz-theme-gold: #d6e68b;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(192, 214, 116, 0.035),
+            rgba(192, 214, 116, 0.035) 1px,
+            transparent 1px,
+            transparent 3px
+        ),
+        var(--cz-theme-bg);
+}
+
+body.cz-theme-monochrome {
+    --cz-theme-accent: #d1d1d1;
+    --cz-theme-gold: #9a9a9a;
+}
+
+.cz-compact .cz-grid,
+.cz-compact .cz-credit-grid {
+    display: none;
+}
+
+.cz-compact .cz-hero {
+    padding: 0.75rem 1rem;
+}
+
+.cz-compact .cz-panel {
+    padding: 0.65rem;
+}
+
+body.cz-fullscreen-tool {
+    overflow: auto !important;
+}
+
+.cz-fullscreen-tool .cz-shell {
+    width: 100vw;
+    margin: 0;
+}
+
+.cz-fullscreen-tool #cz-workspace-panel {
+    padding: 0.25rem;
+}
+
+.cz-fullscreen-tool #cz-runtime,
+.cz-fullscreen-tool .cz-runtime {
+    height: calc(100vh - 6rem) !important;
+    min-height: 760px !important;
+}
+
+.cz-analyst-mode .cz-hero,
+.cz-analyst-mode .cz-status,
+.cz-analyst-mode .cz-grid {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    #cz-runtime,
+    .cz-runtime {
+        min-height: 900px !important;
+    }
+}
+
+@media (max-width: 520px) {
+    #cz-runtime,
+    .cz-runtime {
+        min-height: 760px !important;
+    }
 }
