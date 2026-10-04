@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
 
-    <title>CyberChefZZX | ZZX-Labs R&D</title>
+    <title>CyberChefZZX | ZZX-Labs R&amp;D</title>
 
     <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
     <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -22,6 +22,7 @@
     <script src="./container.js" defer></script>
     <script src="./script.js" defer></script>
     <script src="./upgrades.js" defer></script>
+    <script src="./rotary.js" defer></script>
     <script src="./modifications.js" defer></script>
 </head>
 
@@ -41,32 +42,33 @@
         <h2>CyberChefZZX</h2>
 
         <p>
-            The ZZX-Labs R&amp;D CyberChef workspace tracks the current official
-            stable GCHQ CyberChef release while preserving the surrounding ZZX-Labs
-            website, workflow launchers, analyst controls, Bitcoin utilities, OSINT
-            helpers, malware-triage presets, DFIR transforms, and research tooling.
+            A locally hosted GCHQ CyberChef workspace with the original upstream
+            application preserved intact at <a href="./app/">/cyberchef/app/</a>.
+            This page embeds that exact local build and layers ZZX-Labs styling,
+            color systems, typography, layout presets, analyst controls, recipes,
+            Bitcoin utilities, OSINT workflows, malware triage, and DFIR tooling
+            on top of the original presentation without editing upstream files.
         </p>
 
         <p>
-            <strong>Modified</strong> runs the local CyberChef application with the
-            ZZX theme and layout layers applied on top of upstream CyberChef.
-            <strong>Native</strong> runs the exact same locally hosted release without
-            those ZZX presentation layers. The standalone native application is also
-            available directly at <a href="./app/index.html">/cyberchef/app/</a>.
+            The native application loads first. In <strong>Modified</strong> mode,
+            the ZZX CSS shim is appended afterward and therefore wins the normal
+            CSS cascade. <strong>Native</strong> mode reloads the same locally hosted
+            application without the shim. Direct navigation to
+            <a href="./app/">/cyberchef/app/</a> is always unmodified upstream CyberChef.
         </p>
 
         <div class="cz-sourcebar">
-            <label for="cz-source">CyberChef Mode</label>
+            <label for="cz-source">Embedded Runtime</label>
             <select id="cz-source">
-                <option value="modified" selected>CyberChefZZX Modified Instance</option>
+                <option value="modified" selected>CyberChefZZX Modified</option>
                 <option value="native">Native Local CyberChef</option>
-                <option value="upstream">GCHQ Hosted CyberChef</option>
             </select>
 
             <button id="cz-load" type="button">Load</button>
             <button id="cz-refresh" type="button">Refresh</button>
 
-            <a class="cz-link-button" href="./app/index.html" target="_blank" rel="noopener">
+            <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
                 Open Native Local App
             </a>
 
@@ -90,7 +92,7 @@
             <strong data-zzx-cyberchef-version>latest</strong>
         </article>
         <article class="cz-card">
-            <span>Mode</span>
+            <span>Embedded Mode</span>
             <strong id="cz-mode-card">ZZX Modified</strong>
         </article>
         <article class="cz-card">
@@ -98,8 +100,8 @@
             <strong>/cyberchef/app/</strong>
         </article>
         <article class="cz-card">
-            <span>Attribution</span>
-            <strong>GCHQ / CyberChef</strong>
+            <span>Shim</span>
+            <strong>/cyberchef/shim/shim.css</strong>
         </article>
     </section>
 
@@ -110,24 +112,62 @@
             <span class="cz-kicker">Enhanced Tool Engine</span>
             <h2>CyberChefZZX Workspace</h2>
             <p>
-                The workspace below is the locally hosted upstream CyberChef release.
-                Modified mode adds <code>theme.css</code> and <code>layout.css</code>
-                inside that same-origin application document. Native mode removes
-                those additions and leaves the upstream application untouched.
+                Upstream CyberChef remains the application. ZZX-Labs supplies only
+                a post-load CSS shim and external controls. The shim is split into
+                independent theme, typography, layout, component, and operation
+                modules so the original release can continue to update independently.
             </p>
         </header>
 
         <div id="cz-container" class="cz-container" data-cz-container>
             <div class="cz-frame-toolbar">
-                <span id="cz-active-source">CyberChefZZX Modified Instance</span>
+                <span id="cz-active-source">CyberChefZZX Modified</span>
                 <span id="cz-frame-state">Waiting</span>
+            </div>
+
+            <div class="cz-control-deck" id="cz-control-deck" aria-label="CyberChefZZX rotary controls">
+                <div class="cz-rotary" data-rotary="theme">
+                    <span class="cz-rotary-label">Theme Preset</span>
+                    <button class="cz-knob" type="button" role="slider" aria-label="Theme preset" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
+                        <span class="cz-knob-pointer"></span>
+                    </button>
+                    <strong class="cz-rotary-value" id="cz-theme-value">Tactical</strong>
+                    <span class="cz-rotary-help">wheel / drag / arrows</span>
+                </div>
+
+                <div class="cz-rotary" data-rotary="layout">
+                    <span class="cz-rotary-label">Layout Preset</span>
+                    <button class="cz-knob" type="button" role="slider" aria-label="Layout preset" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
+                        <span class="cz-knob-pointer"></span>
+                    </button>
+                    <strong class="cz-rotary-value" id="cz-layout-value">Native</strong>
+                    <span class="cz-rotary-help">workspace geometry</span>
+                </div>
+
+                <div class="cz-rotary" data-rotary="module">
+                    <span class="cz-rotary-label">Module</span>
+                    <button class="cz-knob" type="button" role="slider" aria-label="CyberChef operation module" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+                        <span class="cz-knob-pointer"></span>
+                    </button>
+                    <strong class="cz-rotary-value" id="cz-module-value">Loading…</strong>
+                    <span class="cz-rotary-help">category / module scroll</span>
+                </div>
+
+                <div class="cz-rotary" data-rotary="function">
+                    <span class="cz-rotary-label">Function</span>
+                    <button class="cz-knob" type="button" role="slider" aria-label="CyberChef function" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+                        <span class="cz-knob-pointer"></span>
+                    </button>
+                    <strong class="cz-rotary-value" id="cz-function-value">Loading…</strong>
+                    <span class="cz-rotary-help">press knob to add selected function</span>
+                </div>
             </div>
 
             <div id="cz-runtime" class="cz-runtime" data-cz-runtime>
                 <iframe
                     id="cz-frame"
                     class="cz-frame"
-                    title="CyberChefZZX runtime"
+                    title="CyberChefZZX embedded runtime"
                     src="./app/index.html"
                     loading="eager"
                     allow="clipboard-read; clipboard-write"
@@ -143,9 +183,9 @@
             <span class="cz-kicker">ZZX Additions</span>
             <h2>Recipes, Tooling, Themes, and Analyst Workflows</h2>
             <p>
-                ZZX recipe launchers, Bitcoin transforms, OSINT extraction helpers,
-                malware triage presets, DFIR utilities, cryptographic transforms,
-                workspace themes, sizing controls, and analyst-oriented shortcuts.
+                Wrapper-side recipe launchers and analyst utilities operate on the
+                embedded local CyberChef instance. The native app remains separately
+                available and unchanged for direct comparison and clean-room use.
             </p>
         </header>
 
