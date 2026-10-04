@@ -241,6 +241,48 @@ def validate_custom_page(output_dir: Path) -> None:
         if marker not in html:
             raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
+    required = [
+        "styles.css",
+        "upgrades.css",
+        "modifications.css",
+        "css/page/base.css",
+        "css/page/runtime.css",
+        "css/page/controls.css",
+        "css/page/modes.css",
+        "css/page/modifications.css",
+        "css/page/responsive.css",
+        "css/frame/shim.css",
+        "css/frame/tokens.css",
+        "css/frame/fonts.css",
+        "css/frame/core.css",
+        "css/frame/themes.css",
+        "css/frame/typography.css",
+        "css/frame/layouts.css",
+        "css/frame/components.css",
+        "css/frame/operations.css",
+        "css/frame/scrollbars.css",
+        "js/config.js",
+        "js/storage.js",
+        "js/status.js",
+        "js/themes.js",
+        "js/layouts.js",
+        "js/runtime.js",
+        "js/manifest.js",
+        "js/resize.js",
+        "js/operations.js",
+        "js/rotary.js",
+        "js/page-modes.js",
+        "js/modifications.js",
+        "js/bootstrap.js",
+    ]
+    missing = [relative for relative in required if not (output_dir / relative).is_file()]
+    if missing:
+        raise RuntimeError("Missing CyberChefZZX module(s): " + ", ".join(missing))
+
+    config_js = (output_dir / "js/config.js").read_text(encoding="utf-8", errors="strict")
+    if './css/frame/shim.css' not in config_js:
+        raise RuntimeError("CyberChefZZX config does not point at css/frame/shim.css.")
+
 
 def build(requested_version: str, output_dir: Path, archive: Path | None = None) -> dict[str, object]:
     output_dir = output_dir.resolve()
@@ -275,7 +317,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v5",
+            "schema": "zzx-cyberchef-runtime-v9",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -292,14 +334,32 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             "custom_frontend": {
                 "path": "/cyberchef/",
                 "runtime_path": "/cyberchef/app/index.html",
-                "shim": "/cyberchef/shim/shim.css",
-                "layers": [
-                    "/cyberchef/shim/core.css",
-                    "/cyberchef/shim/themes.css",
-                    "/cyberchef/shim/typography.css",
-                    "/cyberchef/shim/layouts.css",
-                    "/cyberchef/shim/components.css",
-                    "/cyberchef/shim/operations.css",
+                "shim": "/cyberchef/css/frame/shim.css",
+                "css_layers": [
+                    "/cyberchef/css/frame/tokens.css",
+                    "/cyberchef/css/frame/fonts.css",
+                    "/cyberchef/css/frame/core.css",
+                    "/cyberchef/css/frame/themes.css",
+                    "/cyberchef/css/frame/typography.css",
+                    "/cyberchef/css/frame/layouts.css",
+                    "/cyberchef/css/frame/components.css",
+                    "/cyberchef/css/frame/operations.css",
+                    "/cyberchef/css/frame/scrollbars.css",
+                ],
+                "js_modules": [
+                    "/cyberchef/js/config.js",
+                    "/cyberchef/js/storage.js",
+                    "/cyberchef/js/status.js",
+                    "/cyberchef/js/themes.js",
+                    "/cyberchef/js/layouts.js",
+                    "/cyberchef/js/runtime.js",
+                    "/cyberchef/js/manifest.js",
+                    "/cyberchef/js/resize.js",
+                    "/cyberchef/js/operations.js",
+                    "/cyberchef/js/rotary.js",
+                    "/cyberchef/js/page-modes.js",
+                    "/cyberchef/js/modifications.js",
+                    "/cyberchef/js/bootstrap.js",
                 ],
             },
             "native_frontend": {
@@ -320,7 +380,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
     print(f"Installed CyberChef {manifest['release']['tag']}")
     print(f"Release asset: {manifest['release']['asset_name']}")
     print("Native:   /cyberchef/app/index.html")
-    print("Modified: /cyberchef/ + post-load /cyberchef/shim/shim.css")
+    print("Modified: /cyberchef/ + post-load /cyberchef/css/frame/shim.css")
     return manifest
 
 
