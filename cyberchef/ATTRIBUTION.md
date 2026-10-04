@@ -1,20 +1,13 @@
 # CyberChef Attribution
 
-This directory hosts the latest stable self-hosted CyberChef release resolved at deployment time from the official GCHQ CyberChef GitHub Releases API.
+The published `/cyberchef/` and `/cyberchef/app/` runtimes are built from the official GCHQ CyberChef release selected at deployment time. The default selector is `latest`, resolved from the official `gchq/CyberChef` GitHub Releases API on every scheduled/default build.
 
-CyberChef is developed by GCHQ.
-
-Project:
+CyberChef is developed by GCHQ and its contributors:
 https://github.com/gchq/CyberChef
 
 Official hosted version:
 https://gchq.github.io/CyberChef/
 
-Release metadata for the deployed local copy:
-`/cyberchef/runtime-manifest.json`
+The exact release tag, release asset URL, upstream entrypoint, and downloaded archive SHA-256 for each ZZX deployment are recorded in `/cyberchef/runtime-manifest.json`.
 
-The deployment manifest records the exact upstream tag, version, release page, release asset URL, and SHA-256 digest used for the currently published instance.
-
-ZZX-Labs R&D hosts this copy as a public/private browser-based cybersecurity, encoding, decoding, compression, cryptography, and data-analysis toolkit.
-
-CyberChef remains the intellectual property of its original authors and contributors. This local deployment is provided with attribution and without removing upstream license notices.
+`/cyberchef/app/` is copied from the upstream distribution without the ZZX overlay. `/cyberchef/` uses the same upstream distribution and adds ZZX-Labs presentation and recipe-helper assets after the original CyberChef assets; upstream notices and release files remain present.
