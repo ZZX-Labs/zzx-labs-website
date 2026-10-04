@@ -16,27 +16,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
-
 RELEASES_API = "https://api.github.com/repos/gchq/CyberChef/releases"
 APP_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OVERLAY_DIR = APP_ROOT / "cyberchef"
 DEFAULT_OUTPUT_DIR = APP_ROOT / "build" / "cyberchef"
-
-OVERLAY_FILES = (
-    "styles.css",
-    "upgrades.css",
-    "modifications.css",
-    "hook.js",
-    "script.js",
-    "container.js",
-    "upgrades.js",
-    "modifications.js",
-)
-
-NOTICE_FILES = (
-    "ATTRIBUTION.md",
-    "LICENSE-NOTICE.md",
-)
 
 
 @dataclass(frozen=True)
@@ -70,9 +52,35 @@ def github_headers() -> dict[str, str]:
     return headers
 
 
+def choose_release_zip(assets: list[dict[str, object]]) -> dict[str, object]:
+    # Current CyberChef releases use CyberChef_<40-hex-commit>.zip.
+    commit_named = [
+        item
+        for item in assets
+        if re.fullmatch(r"CyberChef_[0-9a-fA-F]{40}\.zip", str(item.get("name", "")))
+    ]
+    if len(commit_named) == 1:
+        return commit_named[0]
+    if len(commit_named) > 1:
+        names = ", ".join(str(item.get("name", "")) for item in commit_named)
+        raise RuntimeError(f"Multiple commit-named CyberChef ZIP assets found: {names}")
+
+    candidates = [
+        item
+        for item in assets
+        if str(item.get("name", "")).lower().startswith("cyberchef")
+        and str(item.get("name", "")).lower().endswith(".zip")
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise RuntimeError("No CyberChef ZIP release asset found.")
+    names = ", ".join(str(item.get("name", "")) for item in candidates)
+    raise RuntimeError(f"Multiple CyberChef ZIP assets found and none is canonical: {names}")
+
+
 def resolve_release(requested: str) -> Release:
     requested = (requested or "latest").strip() or "latest"
-
     if requested.lower() in {"latest", "stable"}:
         api_url = f"{RELEASES_API}/latest"
     else:
@@ -86,89 +94,20 @@ def resolve_release(requested: str) -> Release:
     tag = str(payload.get("tag_name", "")).strip()
     if not tag:
         raise RuntimeError("CyberChef release API returned no tag_name.")
-
     version = tag[1:] if tag.startswith("v") else tag
     if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", version):
         raise RuntimeError(f"Unsafe CyberChef release version: {version!r}")
 
-    assets = payload.get("assets") or []
-
-    # Upstream production release bundles currently use the form
-    # CyberChef_<40-hex commit>.zip (for example the v11.5.0 asset
-    # CyberChef_8cd426dd4f40f1423912d5fad91b578a86a65112.zip).
-    # Prefer that real deployable release artifact over source-code tag
-    # archives or any ancillary ZIP that may be attached in the future.
-    production_candidates = [
-        item
-        for item in assets
-        if re.fullmatch(
-            r"CyberChef_[0-9A-Fa-f]{40}\.zip",
-            str(item.get("name", "")).strip(),
-        )
-    ]
-
-    asset = None
-    if len(production_candidates) == 1:
-        asset = production_candidates[0]
-    elif len(production_candidates) > 1:
-        names = ", ".join(
-            str(item.get("name", "")) for item in production_candidates
-        )
-        raise RuntimeError(
-            "CyberChef release has multiple production ZIP assets: " + names
-        )
-
-    # Retain compatibility with older CyberChef release naming schemes.
-    if asset is None:
-        preferred = (
-            f"CyberChef_{tag}.zip",
-            f"CyberChef_v{version}.zip",
-            f"CyberChef_{version}.zip",
-        )
-        asset = next(
-            (
-                item
-                for expected in preferred
-                for item in assets
-                if str(item.get("name", "")) == expected
-            ),
-            None,
-        )
-
-    if asset is None:
-        candidates = [
-            item
-            for item in assets
-            if str(item.get("name", "")).lower().startswith("cyberchef")
-            and str(item.get("name", "")).lower().endswith(".zip")
-        ]
-        if len(candidates) == 1:
-            asset = candidates[0]
-        elif len(candidates) > 1:
-            names = ", ".join(str(item.get("name", "")) for item in candidates)
-            raise RuntimeError(
-                "CyberChef release has multiple ZIP assets and no canonical match: " + names
-            )
-
-    if asset is None:
-        names = ", ".join(str(item.get("name", "")) for item in assets if item.get("name"))
-        raise RuntimeError("No CyberChef ZIP release asset found. Assets: " + (names or "<none>"))
-
+    asset = choose_release_zip(payload.get("assets") or [])
     asset_name = str(asset.get("name", "")).strip()
     asset_url = str(asset.get("browser_download_url", "")).strip()
     parsed = urllib.parse.urlparse(asset_url)
+    expected_prefix = f"/gchq/CyberChef/releases/download/{tag}/"
 
     if not re.fullmatch(r"[0-9A-Za-z._+-]+\.zip", asset_name):
         raise RuntimeError(f"Unsafe CyberChef asset name: {asset_name!r}")
-    expected_path = f"/gchq/CyberChef/releases/download/{tag}/{asset_name}"
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != "github.com"
-        or parsed.path != expected_path
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise RuntimeError(f"Unexpected CyberChef asset URL: {asset_url!r}")
+    if parsed.scheme != "https" or parsed.hostname != "github.com" or not parsed.path.startswith(expected_prefix):
+        raise RuntimeError(f"Unexpected CyberChef release asset URL: {asset_url!r}")
 
     return Release(
         requested=requested,
@@ -182,34 +121,31 @@ def resolve_release(requested: str) -> Release:
 
 
 def local_release(version: str, archive: Path) -> Release:
-    version = (version or "").strip()
-    if not version or version.lower() in {"latest", "stable"}:
-        raise ValueError("--archive requires an explicit --version for deterministic local builds.")
-    version = version[1:] if version.startswith("v") else version
-    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", version):
-        raise ValueError(f"Unsafe CyberChef version: {version!r}")
+    value = (version or "").strip()
+    if not value or value.lower() in {"latest", "stable"}:
+        raise ValueError("--archive requires an explicit --version.")
+    value = value[1:] if value.startswith("v") else value
+    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", value):
+        raise ValueError(f"Unsafe CyberChef version: {value!r}")
     return Release(
-        requested=version,
-        version=version,
-        tag=f"v{version}",
-        name=f"CyberChef v{version}",
+        requested=value,
+        version=value,
+        tag=f"v{value}",
+        name=f"CyberChef v{value}",
         page_url="",
         asset_name=archive.name,
         asset_url=archive.resolve().as_uri(),
     )
 
 
-def download_file(url: str, dest: Path) -> None:
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "zzx-cyberchef-release-downloader"},
-    )
+def download_file(url: str, destination: Path) -> None:
     print(f"Downloading {url}")
+    request = urllib.request.Request(url, headers={"User-Agent": "zzx-cyberchef-release-downloader"})
     with urllib.request.urlopen(request, timeout=180) as response:
         status = getattr(response, "status", 200)
         if status != 200:
             raise RuntimeError(f"Download failed with HTTP {status}")
-        with dest.open("wb") as fh:
+        with destination.open("wb") as fh:
             shutil.copyfileobj(response, fh)
 
 
@@ -221,199 +157,83 @@ def safe_extract(archive: Path, destination: Path) -> None:
             posix = PurePosixPath(name)
             if posix.is_absolute() or ".." in posix.parts:
                 raise RuntimeError(f"Unsafe path in CyberChef ZIP: {info.filename!r}")
-
             unix_mode = (info.external_attr >> 16) & 0o170000
             if unix_mode == 0o120000:
                 raise RuntimeError(f"Symlink not permitted in CyberChef ZIP: {info.filename!r}")
-
             target = (destination / Path(*posix.parts)).resolve()
             if destination != target and destination not in target.parents:
                 raise RuntimeError(f"ZIP member escapes destination: {info.filename!r}")
-
         zf.extractall(destination)
 
 
 def find_distribution(extract_dir: Path, release: Release) -> tuple[Path, Path]:
     exact_names = (
-        f"CyberChef_{release.tag}.html",
         f"CyberChef_v{release.version}.html",
+        f"CyberChef_{release.tag}.html",
         f"CyberChef_{release.version}.html",
     )
-
-    html_candidates = [p for p in extract_dir.rglob("CyberChef*.html") if p.is_file()]
-    if not html_candidates:
-        html_candidates = [p for p in extract_dir.rglob("Cyberchef*.html") if p.is_file()]
-    if not html_candidates:
-        source_markers = (
-            extract_dir / "CyberChef-master" / "package.json",
-            extract_dir / f"CyberChef-{release.version}" / "package.json",
-        )
-        if any(marker.is_file() for marker in source_markers) or any(extract_dir.rglob("src/web/html/index.html")):
+    candidates = [p for p in extract_dir.rglob("CyberChef*.html") if p.is_file()]
+    if not candidates:
+        candidates = [p for p in extract_dir.rglob("Cyberchef*.html") if p.is_file()]
+    if not candidates:
+        if any(extract_dir.rglob("src/web/html/index.html")) or any(extract_dir.rglob("package.json")):
             raise FileNotFoundError(
-                "The supplied archive is a CyberChef source-code archive, not the "
-                "production release bundle. Source tag archives from "
-                "github.com/gchq/CyberChef/archive/ require the upstream Node/Grunt/Webpack "
-                "build. Use the official ZIP asset attached to the GitHub Release instead."
+                "This is a CyberChef source archive, not the deployable production release bundle. "
+                "Use the ZIP asset attached to the GitHub Release."
             )
         raise FileNotFoundError("No CyberChef HTML entrypoint found in release ZIP.")
 
-    entry = next((p for name in exact_names for p in html_candidates if p.name == name), None)
+    entry = next((p for name in exact_names for p in candidates if p.name == name), None)
     if entry is None:
-        html_candidates.sort(key=lambda p: (len(p.parts), p.as_posix()))
-        entry = html_candidates[0]
+        candidates.sort(key=lambda p: (len(p.parts), p.as_posix()))
+        entry = candidates[0]
 
     dist_root = entry.parent
     assets = dist_root / "assets"
-    if not assets.is_dir():
-        raise FileNotFoundError(
-            f"CyberChef assets directory not found beside entrypoint: {entry}"
-        )
-    if not any(p.is_file() for p in assets.rglob("*")):
-        raise RuntimeError("CyberChef assets directory is empty.")
-
+    if not assets.is_dir() or not any(p.is_file() for p in assets.rglob("*")):
+        raise FileNotFoundError(f"CyberChef assets directory missing beside {entry}")
     return dist_root, entry
 
 
-def copy_distribution(source: Path, destination: Path) -> None:
-    if destination.exists():
-        shutil.rmtree(destination)
-    shutil.copytree(source, destination, copy_function=shutil.copy2)
+def install_native_runtime(dist_root: Path, source_entry: Path, output_dir: Path) -> Path:
+    app_dir = output_dir / "app"
+    if app_dir.exists():
+        shutil.rmtree(app_dir)
+    shutil.copytree(dist_root, app_dir, copy_function=shutil.copy2)
+
+    relative_entry = source_entry.relative_to(dist_root)
+    copied_entry = app_dir / relative_entry
+    if not copied_entry.is_file():
+        raise RuntimeError("CyberChef release entrypoint was not copied correctly.")
+
+    shutil.copy2(copied_entry, app_dir / "index.html")
+    shutil.copy2(copied_entry, app_dir / "native.html")
+    return app_dir
 
 
-def copy_overlay(overlay_dir: Path, destination: Path) -> dict[str, str]:
-    destination.mkdir(parents=True, exist_ok=True)
-    hashes: dict[str, str] = {}
-
-    for name in OVERLAY_FILES:
-        source = overlay_dir / name
-        if not source.is_file() or source.stat().st_size == 0:
-            raise FileNotFoundError(f"Missing ZZX CyberChef overlay file: {source}")
-        target = destination / name
-        shutil.copy2(source, target)
-        hashes[name] = sha256_file(target)
-
-    return hashes
-
-
-def inject_overlay(index_html: Path, release: Release) -> None:
-    html = index_html.read_text(encoding="utf-8", errors="strict")
-    marker = 'name="zzx-cyberchef-overlay"'
-    if marker in html:
-        raise RuntimeError("CyberChef HTML already contains the ZZX overlay marker.")
-
-    head_payload = f"""
-    <!-- ZZX-CyberChef overlay: upstream runtime remains intact; these styles load after upstream CSS. -->
-    <meta name="zzx-cyberchef-overlay" content="1">
-    <meta name="zzx-cyberchef-version" content="{release.version}">
-    <link rel="stylesheet" href="zzx/styles.css">
-    <link rel="stylesheet" href="zzx/upgrades.css">
-    <link rel="stylesheet" href="zzx/modifications.css">
-""".rstrip()
-
-    body_payload = """
-    <!-- ZZX-CyberChef overlay scripts: loaded after the upstream application markup/scripts. -->
-    <script src="zzx/hook.js"></script>
-    <script src="zzx/script.js"></script>
-    <script src="zzx/container.js"></script>
-    <script src="zzx/upgrades.js"></script>
-    <script src="zzx/modifications.js"></script>
-""".rstrip()
-
-    if "</head>" not in html.lower() or "</body>" not in html.lower():
-        raise RuntimeError("Unexpected CyberChef HTML: missing </head> or </body>.")
-
-    html = re.sub(r"</head>", head_payload + "\n</head>", html, count=1, flags=re.I)
-    html = re.sub(r"</body>", body_payload + "\n</body>", html, count=1, flags=re.I)
-
-    # Mark only the customized root. /app/ remains untouched upstream HTML.
-    def add_html_class(match: re.Match[str]) -> str:
-        attrs = match.group(1)
-        class_match = re.search(r'\bclass\s*=\s*(["\'])(.*?)\1', attrs, flags=re.I | re.S)
-        if class_match:
-            current = class_match.group(2).strip()
-            classes = current.split()
-            if "zzx-cyberchef-root" not in classes:
-                classes.append("zzx-cyberchef-root")
-            replacement = f'class={class_match.group(1)}{" ".join(classes)}{class_match.group(1)}'
-            attrs = attrs[: class_match.start()] + replacement + attrs[class_match.end() :]
-        else:
-            attrs += ' class="zzx-cyberchef-root"'
-        return f"<html{attrs}>"
-
-    html = re.sub(r"<html\b([^>]*)>", add_html_class, html, count=1, flags=re.I)
-
-    title_match = re.search(r"<title>(.*?)</title>", html, flags=re.I | re.S)
-    if title_match:
-        original = re.sub(r"\s+", " ", title_match.group(1)).strip()
-        title = f"CyberChefZZX | {original}" if "CyberChefZZX" not in original else original
-        html = html[: title_match.start(1)] + title + html[title_match.end(1) :]
-
-    index_html.write_text(html, encoding="utf-8")
-
-
-def write_redirect(path: Path) -> None:
-    path.write_text(
-        "<!doctype html>\n"
-        "<html lang=\"en\"><head><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        "<meta http-equiv=\"refresh\" content=\"0;url=./\">"
-        "<title>CyberChefZZX</title>"
-        "<script>location.replace('./'+location.search+location.hash);</script>"
-        "</head><body><a href=\"./\">Open CyberChefZZX</a></body></html>\n",
-        encoding="utf-8",
+def validate_root_page(output_dir: Path) -> None:
+    index = output_dir / "index.html"
+    if not index.is_file() or index.stat().st_size == 0:
+        raise RuntimeError("Custom /cyberchef/index.html is missing from the staged website.")
+    html = index.read_text(encoding="utf-8", errors="strict")
+    required = (
+        "CyberChefZZX",
+        'id="cz-frame"',
+        'id="cz-modifications"',
+        './app/',
     )
+    for marker in required:
+        if marker not in html:
+            raise RuntimeError(f"Custom /cyberchef/ page missing required marker: {marker}")
 
 
-def copy_notices(overlay_dir: Path, output_dir: Path) -> None:
-    for name in NOTICE_FILES:
-        source = overlay_dir / name
-        if source.is_file():
-            shutil.copy2(source, output_dir / name)
-
-
-def validate_built_tree(output_dir: Path) -> None:
-    root_index = output_dir / "index.html"
-    app_index = output_dir / "app" / "index.html"
-
-    for path in (root_index, app_index, output_dir / "runtime-manifest.json"):
-        if not path.is_file() or path.stat().st_size == 0:
-            raise RuntimeError(f"Built CyberChef file missing/empty: {path}")
-
-    root_html = root_index.read_text(encoding="utf-8", errors="strict")
-    app_html = app_index.read_text(encoding="utf-8", errors="strict")
-
-    if 'name="zzx-cyberchef-overlay"' not in root_html:
-        raise RuntimeError("Customized /cyberchef/ index is missing the ZZX overlay marker.")
-    if 'name="zzx-cyberchef-overlay"' in app_html:
-        raise RuntimeError("Native /cyberchef/app/ index was modified with the ZZX overlay.")
-
-    for rel in ("assets", "app/assets", "zzx"):
-        path = output_dir / rel
-        if not path.is_dir() or not any(p.is_file() for p in path.rglob("*")):
-            raise RuntimeError(f"Built CyberChef directory missing/empty: {path}")
-
-    for name in OVERLAY_FILES:
-        if f"zzx/{name}" not in root_html and name in {"styles.css", "upgrades.css", "modifications.css", "hook.js", "script.js", "container.js", "upgrades.js", "modifications.js"}:
-            raise RuntimeError(f"Customized root does not reference overlay file: {name}")
-
-
-def build(
-    requested_version: str,
-    output_dir: Path,
-    overlay_dir: Path,
-    archive: Path | None = None,
-) -> dict[str, object]:
+def build(requested_version: str, output_dir: Path, archive: Path | None = None) -> dict[str, object]:
     output_dir = output_dir.resolve()
-    overlay_dir = overlay_dir.resolve()
-
-    for name in OVERLAY_FILES:
-        source = overlay_dir / name
-        if not source.is_file():
-            raise FileNotFoundError(f"Required overlay file not found: {source}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    validate_root_page(output_dir)
 
     with tempfile.TemporaryDirectory(prefix="zzx-cyberchef-") as temp_name:
         temp_dir = Path(temp_name)
-
         if archive is None:
             release = resolve_release(requested_version)
             archive_path = temp_dir / release.asset_name
@@ -432,32 +252,11 @@ def build(
         extract_dir.mkdir(parents=True, exist_ok=True)
         safe_extract(archive_path, extract_dir)
         dist_root, source_entry = find_distribution(extract_dir, release)
-
-        # Build /cyberchef/ from the real upstream distribution.
-        copy_distribution(dist_root, output_dir)
-
-        # Build /cyberchef/app/ from a second untouched copy of the same distribution.
-        app_dir = output_dir / "app"
-        copy_distribution(dist_root, app_dir)
-
-        root_entry = output_dir / source_entry.relative_to(dist_root)
-        app_entry = app_dir / source_entry.relative_to(dist_root)
-        if not root_entry.is_file() or not app_entry.is_file():
-            raise RuntimeError("CyberChef release entrypoint was not copied correctly.")
-
-        shutil.copy2(root_entry, output_dir / "index.html")
-        shutil.copy2(app_entry, app_dir / "index.html")
-        shutil.copy2(app_entry, app_dir / "native.html")
+        app_dir = install_native_runtime(dist_root, source_entry, output_dir)
 
         native_index_sha256 = sha256_file(app_dir / "index.html")
-
-        overlay_hashes = copy_overlay(overlay_dir, output_dir / "zzx")
-        inject_overlay(output_dir / "index.html", release)
-        copy_notices(overlay_dir, output_dir)
-        write_redirect(output_dir / "cyberchef.html")
-
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v2",
+            "schema": "zzx-cyberchef-runtime-v3",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -473,8 +272,9 @@ def build(
             },
             "custom_frontend": {
                 "path": "/cyberchef/",
+                "strategy": "site-page-plus-same-origin-iframe-overlay",
+                "runtime_path": "/cyberchef/app/",
                 "index_sha256": sha256_file(output_dir / "index.html"),
-                "overlay_files": overlay_hashes,
             },
             "native_frontend": {
                 "path": "/cyberchef/app/",
@@ -482,64 +282,39 @@ def build(
                 "overlay_applied": False,
             },
         }
-
         (output_dir / "runtime-manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
 
-    validate_built_tree(output_dir)
+    validate_root_page(output_dir)
+    if not (output_dir / "app" / "index.html").is_file():
+        raise RuntimeError("Native /cyberchef/app/index.html was not generated.")
+    if not (output_dir / "app" / "assets").is_dir():
+        raise RuntimeError("Native /cyberchef/app/assets/ was not generated.")
 
-    print(f"CyberChef {manifest['release']['tag']} built successfully.")
-    print(f"Customized runtime: {output_dir / 'index.html'}")
-    print(f"Native runtime:     {output_dir / 'app' / 'index.html'}")
-    print(f"Release SHA256:     {manifest['release']['sha256']}")
+    print(f"CyberChef {manifest['release']['tag']} installed successfully.")
+    print("Custom site page preserved: /cyberchef/")
+    print("Native runtime installed:   /cyberchef/app/")
+    print(f"Release asset:              {manifest['release']['asset_name']}")
     return manifest
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cyberchef.py",
-        description=(
-            "Build both ZZX-customized and native CyberChef frontends from the same "
-            "official GCHQ release."
-        ),
+        description="Install native CyberChef under /cyberchef/app/ while preserving the ZZX /cyberchef/ site page.",
     )
-    parser.add_argument(
-        "--version",
-        default="latest",
-        help="CyberChef release version/tag, or 'latest' (default).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=DEFAULT_OUTPUT_DIR,
-        help=f"Build destination (default: {DEFAULT_OUTPUT_DIR}).",
-    )
-    parser.add_argument(
-        "--overlay-dir",
-        type=Path,
-        default=DEFAULT_OVERLAY_DIR,
-        help=f"Directory containing ZZX overlay assets (default: {DEFAULT_OVERLAY_DIR}).",
-    )
-    parser.add_argument(
-        "--archive",
-        type=Path,
-        default=None,
-        help="Use a local CyberChef release ZIP instead of downloading one (testing/offline builds).",
-    )
+    parser.add_argument("--version", default="latest", help="CyberChef version/tag or 'latest'.")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Staged cyberchef directory.")
+    parser.add_argument("--archive", type=Path, default=None, help="Local official release ZIP for testing/offline use.")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        build(
-            requested_version=args.version,
-            output_dir=args.output_dir,
-            overlay_dir=args.overlay_dir,
-            archive=args.archive,
-        )
+        build(args.version, args.output_dir, args.archive)
         return 0
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
