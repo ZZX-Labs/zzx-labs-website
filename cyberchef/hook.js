@@ -7,18 +7,17 @@
         version: "latest",
         title: "CyberChefZZX",
 
-        modifiedUrl: "./app/",
-        nativeUrl: "./app/",
+        modifiedUrl: "./app/index.html",
+        nativeUrl: "./app/index.html",
         upstreamUrl: "https://gchq.github.io/CyberChef/",
         manifestUrl: "./runtime-manifest.json",
-        frameStylesheet: "./frame.css",
+
+        modifiedStylesheets: [
+            "./theme.css",
+            "./layout.css"
+        ],
 
         defaultSource: "modified",
-        allowSourceSwitching: true,
-        allowFullscreen: true,
-        allowPopout: true,
-        allowReload: true,
-        allowStatusMessages: true,
 
         frameId: "cz-frame",
         runtimeId: "cz-runtime",
@@ -32,20 +31,12 @@
         modificationsId: "cz-modifications",
 
         storageKeys: {
-            source: "zzxCyberChefSource",
-            fullscreen: "zzxCyberChefFullscreen",
-            compact: "zzxCyberChefCompact",
-            scale: "zzxCyberChefScale",
-            theme: "zzxCyberChefTheme",
-            cyberTheme: "zzxCyberChefInternalTheme",
-            lastLoaded: "zzxCyberChefLastLoaded"
-        },
-
-        defaultOptions: {
-            theme: "dark",
-            wordWrap: true,
-            showErrors: true,
-            updateUrl: true
+            source: "zzxCyberChefSourceV2",
+            fullscreen: "zzxCyberChefFullscreenV2",
+            compact: "zzxCyberChefCompactV2",
+            scale: "zzxCyberChefFrameScaleV2",
+            theme: "zzxCyberChefThemeV2",
+            lastLoaded: "zzxCyberChefLastLoadedV2"
         }
     };
 })();
