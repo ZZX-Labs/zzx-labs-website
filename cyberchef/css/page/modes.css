@@ -1,56 +1,113 @@
+/*
+ * Page-level view modes.  The viewbar is deliberately outside all hide rules so
+ * every compact/analyst/fullscreen state is reversible from the UI.
+ */
+.cz-viewbar {
+    position: sticky;
+    top: 0;
+    z-index: 2147483000;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 44px;
+    margin: 0 0 0.65rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--cz-border);
+    background: rgba(20, 20, 20, 0.97);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(8px);
+}
+
+.cz-viewbar-label {
+    margin-right: 0.25rem;
+    color: var(--cz-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.cz-viewbar button {
+    min-height: 2rem;
+    padding: 0.35rem 0.62rem;
+    border: 1px solid #444;
+    border-radius: 2px;
+    background: #171717;
+    color: var(--cz-text);
+    font: inherit;
+    font-size: 0.74rem;
+    cursor: pointer;
+}
+
+.cz-viewbar button:hover,
+.cz-viewbar button:focus-visible,
+.cz-viewbar button.is-active {
+    border-color: var(--cz-accent);
+    color: #111;
+    background: var(--cz-accent);
+    outline: none;
+}
+
+.cz-viewbar .cz-viewbar-reset {
+    margin-left: auto;
+    border-color: var(--cz-gold);
+    color: var(--cz-gold);
+}
+
+body.cz-compact .cz-shell {
+    gap: 0.45rem;
+}
+
+body.cz-compact .cz-panel,
 body.cz-compact .cz-hero,
-body.cz-compact .cz-grid,
-body.cz-compact .cz-credit-grid {
-    display: none;
-}
-
-body.cz-compact .cz-panel {
-    padding: 0.65rem;
-}
-
-body.cz-compact .cz-panel-head {
-    display: none;
+body.cz-compact .cz-status,
+body.cz-compact .cz-grid {
+    margin-top: 0.35rem;
+    margin-bottom: 0.35rem;
 }
 
 body.cz-fullscreen-tool {
-    overflow: hidden !important;
+    overflow: auto !important;
 }
 
-body.cz-fullscreen-tool header,
+/* Keep the complete control/status segment above the encoders visible. */
 body.cz-fullscreen-tool footer,
-body.cz-fullscreen-tool .cz-hero,
-body.cz-fullscreen-tool .cz-status,
-body.cz-fullscreen-tool .cz-grid,
-body.cz-fullscreen-tool main > br,
-body.cz-fullscreen-tool main > section:not(#cz-workspace-panel) {
+body.cz-fullscreen-tool #cz-workspace-panel ~ section {
     display: none !important;
 }
 
-body.cz-fullscreen-tool .cz-shell,
-body.cz-fullscreen-tool #cz-workspace-panel {
-    width: 100vw;
+body.cz-fullscreen-tool .cz-shell {
+    width: 100%;
     max-width: none;
-    height: 100vh;
     margin: 0;
-    padding: 0;
-    border: 0;
 }
 
-body.cz-fullscreen-tool #cz-workspace-panel > .cz-panel-head {
-    display: none;
+body.cz-fullscreen-tool #cz-workspace-panel {
+    width: 100%;
+    max-width: none;
 }
 
 body.cz-fullscreen-tool .cz-container {
-    height: 100vh;
+    min-height: 72vh;
 }
 
-body.cz-fullscreen-tool .cz-runtime {
-    height: calc(100vh - 156px);
-    min-height: 0;
+body.cz-analyst-mode .cz-shell {
+    max-width: 1800px;
 }
 
 body.cz-analyst-mode .cz-hero,
 body.cz-analyst-mode .cz-status,
-body.cz-analyst-mode .cz-grid {
-    display: none;
+body.cz-analyst-mode .cz-grid,
+body.cz-analyst-mode #cz-workspace-panel > .cz-panel-head {
+    display: block !important;
+}
+
+@media (max-width: 760px) {
+    .cz-viewbar {
+        position: relative;
+    }
+    .cz-viewbar .cz-viewbar-reset {
+        margin-left: 0;
+    }
 }
