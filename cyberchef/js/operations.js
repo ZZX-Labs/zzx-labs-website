@@ -22,26 +22,75 @@
     function cleanText(node) {
         if (!node) return "";
         const clone = node.cloneNode(true);
-        clone.querySelectorAll(".op-count, .material-icons").forEach(n => n.remove());
-        return clone.textContent.replace(/\s+/g, " ").trim();
+        clone.querySelectorAll(".op-count, .material-icons, .badge").forEach(n => n.remove());
+        return (clone.textContent || "").replace(/\s+/g, " ").trim();
+    }
+
+    function unique(nodes) {
+        return Array.from(new Set(nodes.filter(Boolean)));
+    }
+
+    function operationNodes(root) {
+        if (!root) return [];
+        const selectors = [
+            ".op-list li.operation",
+            "li.operation",
+            "[data-operation]",
+            ".operation"
+        ];
+        const nodes = unique(selectors.flatMap(selector => Array.from(root.querySelectorAll(selector))));
+        return nodes.filter(node => !nodes.some(other => other !== node && other.contains(node)));
+    }
+
+    function labelForCategory(node, fallback) {
+        if (!node) return fallback;
+        const title = node.querySelector(
+            ".category-title, .panel-title, [data-category-title], [role=\"heading\"], h2, h3, h4"
+        );
+        return cleanText(title) || node.getAttribute("data-category") || fallback;
+    }
+
+    function categoryModels() {
+        const doc = M.Runtime?.document();
+        if (!doc) return [];
+
+        const selectors = [
+            "#categories .panel.category",
+            "#categories .category",
+            "#operations .panel.category",
+            "#operations [data-category]",
+            "#operations .category"
+        ];
+        const candidates = unique(selectors.flatMap(selector => Array.from(doc.querySelectorAll(selector))));
+        const models = candidates.map((node, index) => ({
+            node,
+            titleNode: node.querySelector(".category-title, .panel-title, [data-category-title], [role=\"heading\"], h2, h3, h4"),
+            label: labelForCategory(node, `Module ${index + 1}`),
+            operations: operationNodes(node)
+        })).filter(model => model.operations.length);
+
+        if (models.length) return models;
+
+        // Release-independent fallback: if CyberChef changes its category wrappers,
+        // retain a functional Function encoder by treating the operations pane as one
+        // aggregate module instead of declaring the runtime invalid.
+        const operationsRoot = doc.querySelector("#operations, [data-panel=\"operations\"], [class*=\"operations\"]");
+        const ops = operationNodes(operationsRoot || doc);
+        if (!ops.length) return [];
+        return [{
+            node: operationsRoot || doc.body,
+            titleNode: null,
+            label: "All Operations",
+            operations: ops
+        }];
     }
 
     function categoryName(category) {
-        return cleanText(category?.querySelector(".category-title")) || "Unnamed module";
+        return category?.label || "Unnamed module";
     }
 
     function operationName(operation) {
-        return cleanText(operation) || "Unnamed function";
-    }
-
-    function categoriesFromFrame() {
-        const doc = M.Runtime?.document();
-        if (!doc) return [];
-        return Array.from(doc.querySelectorAll("#categories .panel.category"));
-    }
-
-    function operationsFor(category) {
-        return category ? Array.from(category.querySelectorAll(".op-list li.operation")) : [];
+        return cleanText(operation) || operation?.getAttribute?.("data-operation") || "Unnamed function";
     }
 
     const Operations = {
@@ -50,12 +99,12 @@
         operationName,
 
         refresh() {
-            const categories = categoriesFromFrame();
+            const categories = categoryModels();
             if (!categories.length) return false;
             state.categories = categories;
 
             const stored = Storage.read(keys.module, "");
-            const storedIndex = categories.findIndex(node => categoryName(node) === stored);
+            const storedIndex = categories.findIndex(category => categoryName(category) === stored);
             state.moduleIndex = storedIndex >= 0 ? storedIndex : Math.min(state.moduleIndex, categories.length - 1);
             this.selectModule(state.moduleIndex, { scroll: false, expand: false, persist: false });
             return true;
@@ -65,22 +114,23 @@
             if (!state.categories.length) return null;
             state.moduleIndex = wrap(index, state.categories.length);
             const category = state.categories[state.moduleIndex];
-            const title = category.querySelector(".category-title");
-            const panel = category.querySelector(".panel-collapse");
+            const node = category.node;
+            const title = category.titleNode;
+            const panel = node?.querySelector?.(".panel-collapse, [data-collapse], [role=\"region\"]");
             const label = categoryName(category);
 
-            state.categories.forEach(node => node.classList.remove("zzx-knob-selected-category"));
-            category.classList.add("zzx-knob-selected-category");
+            state.categories.forEach(item => item.node?.classList?.remove("zzx-knob-selected-category"));
+            node?.classList?.add("zzx-knob-selected-category");
 
             if (panel && !panel.classList.contains("show") && options.expand !== false) {
                 try { title?.click(); } catch (err) {}
             }
             if (options.scroll !== false) {
-                try { category.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (err) {}
+                try { node?.scrollIntoView?.({ block: "center", behavior: "smooth" }); } catch (err) {}
             }
             if (options.persist !== false) Storage.write(keys.module, label);
 
-            state.operations = operationsFor(category);
+            state.operations = category.operations || [];
             const savedFunction = Storage.read(keys.function, "");
             const savedIndex = state.operations.findIndex(node => operationName(node) === savedFunction);
             state.functionIndex = savedIndex >= 0 ? savedIndex : 0;
@@ -130,11 +180,12 @@
 
         observe() {
             state.observer?.disconnect();
-            const root = M.Runtime?.document()?.querySelector("#categories");
+            const doc = M.Runtime?.document();
+            const root = doc?.querySelector("#categories, #operations, [data-panel=\"operations\"]") || doc?.body;
             if (!root || !window.MutationObserver) return;
             state.observer = new MutationObserver(() => {
                 clearTimeout(state.timer);
-                state.timer = setTimeout(() => this.refresh(), 100);
+                state.timer = setTimeout(() => this.refresh(), 150);
             });
             state.observer.observe(root, { childList: true, subtree: true });
         },
@@ -144,8 +195,11 @@
                 this.observe();
                 return;
             }
-            if (attempt >= 80) {
+            if (attempt >= 120) {
                 window.dispatchEvent(new CustomEvent("zzx-cyberchef-module-change", {
+                    detail: { index: 0, count: 0, label: "Unavailable" }
+                }));
+                window.dispatchEvent(new CustomEvent("zzx-cyberchef-function-change", {
                     detail: { index: 0, count: 0, label: "Unavailable" }
                 }));
                 return;
