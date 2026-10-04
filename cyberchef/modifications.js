@@ -1,166 +1,59 @@
 (() => {
     "use strict";
 
+    const config = window.ZZX?.CYBERCHEF || {};
+    const drawerKey = config.storageKeys?.drawer || "zzxCyberChefDrawer";
+
     const RECIPES = {
-        bitcoin: [
-            {
-                name: "SHA256",
-                recipe: "SHA2('256',64,160)"
-            },
-            {
-                name: "Double SHA256",
-                recipe: "SHA2('256',64,160)SHA2('256',64,160)"
-            },
-            {
-                name: "RIPEMD160",
-                recipe: "RIPEMD-160()"
-            },
-            {
-                name: "Hash160",
-                recipe: "SHA2('256',64,160)RIPEMD-160()"
-            },
-            {
-                name: "Base58 Decode",
-                recipe: "From_Base58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',true)"
-            },
-            {
-                name: "Base58 Encode",
-                recipe: "To_Base58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')"
-            },
-            {
-                name: "Reverse Endian",
-                recipe: "Swap_endianness('Hex',4,true)"
-            },
-            {
-                name: "Hex To Decimal",
-                recipe: "From_Hex('Auto')To_Decimal('Space',false)"
-            }
+        Bitcoin: [
+            ["SHA256", "SHA2('256',64,160)"],
+            ["Double SHA256", "SHA2('256',64,160)SHA2('256',64,160)"],
+            ["RIPEMD160", "RIPEMD-160()"],
+            ["Hash160", "SHA2('256',64,160)RIPEMD-160()"],
+            ["Base58 Decode", "From_Base58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',true)"],
+            ["Base58 Encode", "To_Base58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')"],
+            ["Reverse Endian", "Swap_endianness('Hex',4,true)"],
+            ["Hex → Decimal", "From_Hex('Auto')To_Decimal('Space',false)"]
         ],
-
-        osint: [
-            {
-                name: "URL Decode",
-                recipe: "URL_Decode()"
-            },
-            {
-                name: "URL Encode",
-                recipe: "URL_Encode(true)"
-            },
-            {
-                name: "Defang URL",
-                recipe: "Defang_URL(true,true,true,'Valid domains and full URLs')"
-            },
-            {
-                name: "Extract URLs",
-                recipe: "Extract_URLs(false)"
-            },
-            {
-                name: "Extract IPs",
-                recipe: "Extract_IP_addresses()"
-            },
-            {
-                name: "Extract Domains",
-                recipe: "Extract_domains(true)"
-            },
-            {
-                name: "Extract Email Addresses",
-                recipe: "Extract_email_addresses()"
-            },
-            {
-                name: "Parse User Agent",
-                recipe: "Parse_User_Agent()"
-            }
+        OSINT: [
+            ["URL Decode", "URL_Decode()"],
+            ["URL Encode", "URL_Encode(true)"],
+            ["Defang URL", "Defang_URL(true,true,true,'Valid domains and full URLs')"],
+            ["Extract URLs", "Extract_URLs(false)"],
+            ["Extract IPs", "Extract_IP_addresses()"],
+            ["Extract Domains", "Extract_domains(true)"],
+            ["Extract Emails", "Extract_email_addresses()"],
+            ["Parse User Agent", "Parse_User_Agent()"]
         ],
-
-        malware: [
-            {
-                name: "From Hex",
-                recipe: "From_Hex('Auto')"
-            },
-            {
-                name: "Strings",
-                recipe: "Strings('Single byte',4,'Alphanumeric + punctuation (A)',false)"
-            },
-            {
-                name: "Extract Domains",
-                recipe: "Extract_domains(true)"
-            },
-            {
-                name: "Extract Hashes",
-                recipe: "Extract_hashes()"
-            },
-            {
-                name: "XOR Brute Force",
-                recipe: "XOR_Brute_Force(1,100,0,'Standard',false,true,false,'')"
-            },
-            {
-                name: "Entropy",
-                recipe: "Entropy('Shannon scale')"
-            },
-            {
-                name: "PEM To Hex",
-                recipe: "Remove_whitespace(true,true,true,true,true,false)From_Base64('A-Za-z0-9+/=',true,false)To_Hex('Space',0)"
-            }
+        Malware: [
+            ["From Hex", "From_Hex('Auto')"],
+            ["Strings", "Strings('Single byte',4,'Alphanumeric + punctuation (A)',false)"],
+            ["Extract Domains", "Extract_domains(true)"],
+            ["Extract Hashes", "Extract_hashes()"],
+            ["XOR Brute Force", "XOR_Brute_Force(1,100,0,'Standard',false,true,false,'')"],
+            ["Entropy", "Entropy('Shannon scale')"]
         ],
-
-        dfir: [
-            {
-                name: "Parse UNIX Timestamp",
-                recipe: "From_UNIX_Timestamp('Seconds (s)')"
-            },
-            {
-                name: "Parse Windows FILETIME",
-                recipe: "From_FILETIME()"
-            },
-            {
-                name: "Gunzip",
-                recipe: "Gunzip()"
-            },
-            {
-                name: "From Base64",
-                recipe: "From_Base64('A-Za-z0-9+/=',true,false)"
-            },
-            {
-                name: "To Base64",
-                recipe: "To_Base64('A-Za-z0-9+/=')"
-            },
-            {
-                name: "From Hexdump",
-                recipe: "From_Hexdump()"
-            },
-            {
-                name: "JSON Beautify",
-                recipe: "JSON_Beautify('    ',false)"
-            }
+        DFIR: [
+            ["UNIX Timestamp", "From_UNIX_Timestamp('Seconds (s)')"],
+            ["Windows FILETIME", "From_FILETIME()"],
+            ["Gunzip", "Gunzip()"],
+            ["From Base64", "From_Base64('A-Za-z0-9+/=',true,false)"],
+            ["To Base64", "To_Base64('A-Za-z0-9+/=')"],
+            ["From Hexdump", "From_Hexdump()"],
+            ["JSON Beautify", "JSON_Beautify('    ',false)"]
         ],
-
-        crypto: [
-            {
-                name: "MD5",
-                recipe: "MD5()"
-            },
-            {
-                name: "SHA1",
-                recipe: "SHA1()"
-            },
-            {
-                name: "SHA256",
-                recipe: "SHA2('256',64,160)"
-            },
-            {
-                name: "SHA512",
-                recipe: "SHA2('512',64,160)"
-            },
-            {
-                name: "HMAC SHA256",
-                recipe: "HMAC(%7B'option':'UTF8','string':''%7D,'SHA256')"
-            }
+        Crypto: [
+            ["MD5", "MD5()"],
+            ["SHA1", "SHA1()"],
+            ["SHA256", "SHA2('256',64,160)"],
+            ["SHA512", "SHA2('512',64,160)"],
+            ["HMAC SHA256", "HMAC(%7B'option':'UTF8','string':''%7D,'SHA256')"]
         ]
     };
 
     function ready(fn) {
         if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fn);
+            document.addEventListener("DOMContentLoaded", fn, { once: true });
         } else {
             fn();
         }
@@ -170,255 +63,114 @@
         return encodeURIComponent(recipe);
     }
 
-    function openRecipe(recipe) {
-        const url = `#recipe=${encodeRecipe(recipe)}`;
-
-        try {
-            window.location.hash = url.slice(1);
-        } catch (err) {}
-
-        try {
-            window.dispatchEvent(
-                new HashChangeEvent("hashchange")
-            );
-        } catch (err) {}
-
-        try {
-            location.reload();
-        } catch (err) {}
+    function loadRecipe(recipe) {
+        const next = `#recipe=${encodeRecipe(recipe)}`;
+        if (window.location.hash === next) {
+            window.location.reload();
+            return;
+        }
+        window.location.hash = next;
+        window.location.reload();
     }
 
-    function openNativeRecipe(recipe) {
-        window.open(
-            `./app/#recipe=${encodeRecipe(recipe)}`,
-            "_blank",
-            "noopener"
-        );
+    function openNative(recipe) {
+        window.open(`./app/#recipe=${encodeRecipe(recipe)}`, "_blank", "noopener");
     }
 
-    function copyText(text) {
-        if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(text).catch(() => {});
+    function setOpen(drawer, open) {
+        drawer.hidden = !open;
+        document.documentElement.classList.toggle("zzx-drawer-open", open);
+        const toggle = document.getElementById("zzx-recipes-toggle");
+        toggle?.setAttribute("aria-expanded", open ? "true" : "false");
+        try {
+            localStorage.setItem(drawerKey, open ? "1" : "0");
+        } catch (_) {}
+    }
+
+    function getStoredOpen() {
+        try {
+            return localStorage.getItem(drawerKey) === "1";
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function makeRecipeGroup(title, items) {
+        const section = document.createElement("section");
+        section.className = "zzx-recipe-group";
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+        section.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "zzx-recipe-buttons";
+        for (const [name, recipe] of items) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = name;
+            button.title = recipe;
+            button.addEventListener("click", () => loadRecipe(recipe));
+            grid.appendChild(button);
+        }
+        section.appendChild(grid);
+        return section;
+    }
+
+    function buildDrawer() {
+        if (document.getElementById("zzx-cyberchef-drawer")) {
             return;
         }
 
-        const area = document.createElement("textarea");
-        area.value = text;
-        document.body.appendChild(area);
-        area.select();
+        const drawer = document.createElement("aside");
+        drawer.id = "zzx-cyberchef-drawer";
+        drawer.hidden = true;
+        drawer.setAttribute("aria-label", "ZZX CyberChef recipes");
+        drawer.innerHTML = `
+            <header class="zzx-drawer-head">
+                <div>
+                    <strong>ZZX Recipes</strong>
+                    <span>CyberChef remains the runtime; these are recipe launchers.</span>
+                </div>
+                <button id="zzx-drawer-close" type="button" aria-label="Close ZZX recipes">×</button>
+            </header>
+            <div id="zzx-recipe-groups"></div>
+            <section class="zzx-recipe-group">
+                <h3>Scratch Recipe</h3>
+                <textarea id="zzx-recipe-scratch" spellcheck="false" placeholder="Paste a CyberChef recipe string..."></textarea>
+                <div class="zzx-scratch-actions">
+                    <button id="zzx-scratch-load" type="button">Load Here</button>
+                    <button id="zzx-scratch-native" type="button">Open Native</button>
+                </div>
+            </section>
+        `;
 
-        try {
-            document.execCommand("copy");
-        } catch (err) {}
-
-        area.remove();
-    }
-
-    function makeRecipeButton(item) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = item.name;
-        btn.title = item.recipe;
-
-        btn.addEventListener("click", () => {
-            openRecipe(item.recipe);
-        });
-
-        return btn;
-    }
-
-    function makeRecipeCard(title, items) {
-        const card = document.createElement("article");
-        card.className = "cz-mod-card";
-
-        const h = document.createElement("h3");
-        h.textContent = title;
-        card.appendChild(h);
-
-        const note = document.createElement("p");
-        note.className = "cz-mini";
-        note.textContent = "Click to load into CyberChefZZX. Use native launch for the untouched app.";
-        card.appendChild(note);
-
-        for (const item of items) {
-            card.appendChild(makeRecipeButton(item));
+        const groups = drawer.querySelector("#zzx-recipe-groups");
+        for (const [title, items] of Object.entries(RECIPES)) {
+            groups.appendChild(makeRecipeGroup(title, items));
         }
 
-        const nativeBtn = document.createElement("button");
-        nativeBtn.type = "button";
-        nativeBtn.textContent = "Open First Recipe In Native App";
-        nativeBtn.addEventListener("click", () => {
-            if (items[0]) {
-                openNativeRecipe(items[0].recipe);
+        drawer.querySelector("#zzx-drawer-close").addEventListener("click", () => setOpen(drawer, false));
+        drawer.querySelector("#zzx-scratch-load").addEventListener("click", () => {
+            const recipe = drawer.querySelector("#zzx-recipe-scratch").value.trim();
+            if (recipe) loadRecipe(recipe);
+        });
+        drawer.querySelector("#zzx-scratch-native").addEventListener("click", () => {
+            const recipe = drawer.querySelector("#zzx-recipe-scratch").value.trim();
+            if (recipe) openNative(recipe);
+        });
+
+        window.addEventListener("zzx-cyberchef-toggle-drawer", () => {
+            setOpen(drawer, drawer.hidden);
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !drawer.hidden) {
+                setOpen(drawer, false);
             }
         });
 
-        card.appendChild(nativeBtn);
-
-        return card;
+        document.body.appendChild(drawer);
+        setOpen(drawer, getStoredOpen());
     }
 
-    function makeScratchCard() {
-        const scratch = document.createElement("article");
-        scratch.className = "cz-mod-card";
-
-        scratch.innerHTML = `
-            <h3>Recipe Scratchpad</h3>
-
-            <p class="cz-mini">
-                Paste or write CyberChef recipe text, then load it into the
-                modified instance, open it in native CyberChef, or copy it.
-            </p>
-
-            <textarea
-                id="cz-recipe-scratch"
-                placeholder="Paste or write CyberChef recipe text here..."
-            ></textarea>
-
-            <button id="cz-open-scratch" type="button">
-                Open Scratch Recipe
-            </button>
-
-            <button id="cz-open-scratch-native" type="button">
-                Open Scratch In Native App
-            </button>
-
-            <button id="cz-copy-scratch" type="button">
-                Copy Scratch Recipe
-            </button>
-        `;
-
-        return scratch;
-    }
-
-    function wireScratchCard() {
-        const area = document.getElementById("cz-recipe-scratch");
-
-        document.getElementById("cz-open-scratch")
-            ?.addEventListener("click", () => {
-                const text = area?.value || "";
-
-                if (text.trim()) {
-                    openRecipe(text.trim());
-                }
-            });
-
-        document.getElementById("cz-open-scratch-native")
-            ?.addEventListener("click", () => {
-                const text = area?.value || "";
-
-                if (text.trim()) {
-                    openNativeRecipe(text.trim());
-                }
-            });
-
-        document.getElementById("cz-copy-scratch")
-            ?.addEventListener("click", () => {
-                copyText(area?.value || "");
-            });
-    }
-
-    function makeUtilitiesCard() {
-        const card = document.createElement("article");
-        card.className = "cz-mod-card";
-
-        card.innerHTML = `
-            <h3>Workspace Tools</h3>
-
-            <p class="cz-mini">
-                Fast controls for the CyberChefZZX modified workspace.
-            </p>
-
-            <button id="cz-copy-url" type="button">
-                Copy Current URL
-            </button>
-
-            <button id="cz-clear-hash" type="button">
-                Clear Recipe Hash
-            </button>
-
-            <button id="cz-open-native" type="button">
-                Open Native CyberChef
-            </button>
-        `;
-
-        return card;
-    }
-
-    function wireUtilitiesCard() {
-        document.getElementById("cz-copy-url")
-            ?.addEventListener("click", () => {
-                copyText(window.location.href);
-            });
-
-        document.getElementById("cz-clear-hash")
-            ?.addEventListener("click", () => {
-                history.replaceState(
-                    null,
-                    document.title,
-                    window.location.pathname
-                );
-            });
-
-        document.getElementById("cz-open-native")
-            ?.addEventListener("click", () => {
-                window.open("./app/", "_blank", "noopener");
-            });
-    }
-
-    function buildPanel() {
-        const mount =
-            document.getElementById("cz-modifications") ||
-            document.querySelector("[data-cz-modifications]");
-
-        if (!mount) {
-            return;
-        }
-
-        mount.innerHTML = "";
-
-        const panel = document.createElement("section");
-        panel.className = "cz-mod-panel";
-
-        panel.innerHTML = `
-            <h2>ZZX CyberChef Modifications</h2>
-
-            <p class="cz-mod-note">
-                ZZX recipe launchers, analyst helpers, Bitcoin transforms, OSINT extraction,
-                malware triage, DFIR utilities, cryptographic presets, and workspace controls.
-                These augment the CyberChefZZX page without editing upstream CyberChef source.
-            </p>
-
-            <div class="cz-mod-grid" id="cz-mod-grid"></div>
-        `;
-
-        mount.appendChild(panel);
-
-        const grid = panel.querySelector("#cz-mod-grid");
-
-        grid.appendChild(makeRecipeCard("Bitcoin", RECIPES.bitcoin));
-        grid.appendChild(makeRecipeCard("OSINT", RECIPES.osint));
-        grid.appendChild(makeRecipeCard("Malware", RECIPES.malware));
-        grid.appendChild(makeRecipeCard("DFIR", RECIPES.dfir));
-        grid.appendChild(makeRecipeCard("Crypto", RECIPES.crypto));
-        grid.appendChild(makeScratchCard());
-        grid.appendChild(makeUtilitiesCard());
-
-        wireScratchCard();
-        wireUtilitiesCard();
-    }
-
-    ready(() => {
-        buildPanel();
-
-        window.addEventListener(
-            "zzx-cyberchef-ready",
-            () => {
-                buildPanel();
-            },
-            { once: true }
-        );
-
-        console.info("[CyberChefZZX] Modifications loaded.");
-    });
+    ready(buildDrawer);
 })();
