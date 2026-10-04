@@ -14,11 +14,12 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 
 RELEASES_API = "https://api.github.com/repos/gchq/CyberChef/releases"
 APP_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT_DIR = APP_ROOT / "build" / "cyberchef"
+DEFAULT_OUTPUT_DIR = APP_ROOT / "cyberchef"
 
 
 @dataclass(frozen=True)
@@ -32,10 +33,23 @@ class Release:
     asset_url: str
 
 
+class AssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.refs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = dict(attrs)
+        if tag == "script" and attr.get("src"):
+            self.refs.append(str(attr["src"]))
+        elif tag == "link" and attr.get("href"):
+            self.refs.append(str(attr["href"]))
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for block in iter(lambda: fh.read(1024 * 1024), b""):
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
 
@@ -53,30 +67,27 @@ def github_headers() -> dict[str, str]:
 
 
 def choose_release_zip(assets: list[dict[str, object]]) -> dict[str, object]:
-    # Current CyberChef releases use CyberChef_<40-hex-commit>.zip.
-    commit_named = [
-        item
-        for item in assets
+    # Current releases use CyberChef_<40-hex-commit>.zip, e.g. v11.5.0.
+    canonical = [
+        item for item in assets
         if re.fullmatch(r"CyberChef_[0-9a-fA-F]{40}\.zip", str(item.get("name", "")))
     ]
-    if len(commit_named) == 1:
-        return commit_named[0]
-    if len(commit_named) > 1:
-        names = ", ".join(str(item.get("name", "")) for item in commit_named)
-        raise RuntimeError(f"Multiple commit-named CyberChef ZIP assets found: {names}")
+    if len(canonical) == 1:
+        return canonical[0]
+    if len(canonical) > 1:
+        raise RuntimeError("Multiple canonical CyberChef production ZIP assets found.")
 
     candidates = [
-        item
-        for item in assets
+        item for item in assets
         if str(item.get("name", "")).lower().startswith("cyberchef")
         and str(item.get("name", "")).lower().endswith(".zip")
     ]
     if len(candidates) == 1:
         return candidates[0]
     if not candidates:
-        raise RuntimeError("No CyberChef ZIP release asset found.")
+        raise RuntimeError("No deployable CyberChef ZIP release asset found.")
     names = ", ".join(str(item.get("name", "")) for item in candidates)
-    raise RuntimeError(f"Multiple CyberChef ZIP assets found and none is canonical: {names}")
+    raise RuntimeError(f"Ambiguous CyberChef ZIP assets: {names}")
 
 
 def resolve_release(requested: str) -> Release:
@@ -87,8 +98,8 @@ def resolve_release(requested: str) -> Release:
         tag = requested if requested.startswith("v") else f"v{requested}"
         api_url = f"{RELEASES_API}/tags/{urllib.parse.quote(tag, safe='')}"
 
-    request = urllib.request.Request(api_url, headers=github_headers())
-    with urllib.request.urlopen(request, timeout=30) as response:
+    req = urllib.request.Request(api_url, headers=github_headers())
+    with urllib.request.urlopen(req, timeout=30) as response:
         payload = json.load(response)
 
     tag = str(payload.get("tag_name", "")).strip()
@@ -102,12 +113,12 @@ def resolve_release(requested: str) -> Release:
     asset_name = str(asset.get("name", "")).strip()
     asset_url = str(asset.get("browser_download_url", "")).strip()
     parsed = urllib.parse.urlparse(asset_url)
-    expected_prefix = f"/gchq/CyberChef/releases/download/{tag}/"
+    prefix = f"/gchq/CyberChef/releases/download/{tag}/"
 
     if not re.fullmatch(r"[0-9A-Za-z._+-]+\.zip", asset_name):
         raise RuntimeError(f"Unsafe CyberChef asset name: {asset_name!r}")
-    if parsed.scheme != "https" or parsed.hostname != "github.com" or not parsed.path.startswith(expected_prefix):
-        raise RuntimeError(f"Unexpected CyberChef release asset URL: {asset_url!r}")
+    if parsed.scheme != "https" or parsed.hostname != "github.com" or not parsed.path.startswith(prefix):
+        raise RuntimeError(f"Unexpected CyberChef release URL: {asset_url!r}")
 
     return Release(
         requested=requested,
@@ -127,72 +138,83 @@ def local_release(version: str, archive: Path) -> Release:
     value = value[1:] if value.startswith("v") else value
     if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._+-]*", value):
         raise ValueError(f"Unsafe CyberChef version: {value!r}")
-    return Release(
-        requested=value,
-        version=value,
-        tag=f"v{value}",
-        name=f"CyberChef v{value}",
-        page_url="",
-        asset_name=archive.name,
-        asset_url=archive.resolve().as_uri(),
-    )
+    return Release(value, value, f"v{value}", f"CyberChef v{value}", "", archive.name, archive.resolve().as_uri())
 
 
 def download_file(url: str, destination: Path) -> None:
-    print(f"Downloading {url}")
-    request = urllib.request.Request(url, headers={"User-Agent": "zzx-cyberchef-release-downloader"})
-    with urllib.request.urlopen(request, timeout=180) as response:
-        status = getattr(response, "status", 200)
-        if status != 200:
-            raise RuntimeError(f"Download failed with HTTP {status}")
-        with destination.open("wb") as fh:
-            shutil.copyfileobj(response, fh)
+    headers = github_headers()
+    headers["Accept"] = "application/octet-stream"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=180) as response, destination.open("wb") as handle:
+        shutil.copyfileobj(response, handle)
 
 
 def safe_extract(archive: Path, destination: Path) -> None:
     destination = destination.resolve()
     with zipfile.ZipFile(archive, "r") as zf:
         for info in zf.infolist():
-            name = info.filename.replace("\\", "/")
-            posix = PurePosixPath(name)
+            posix = PurePosixPath(info.filename.replace("\\", "/"))
             if posix.is_absolute() or ".." in posix.parts:
-                raise RuntimeError(f"Unsafe path in CyberChef ZIP: {info.filename!r}")
+                raise RuntimeError(f"Unsafe path in release ZIP: {info.filename!r}")
             unix_mode = (info.external_attr >> 16) & 0o170000
             if unix_mode == 0o120000:
-                raise RuntimeError(f"Symlink not permitted in CyberChef ZIP: {info.filename!r}")
+                raise RuntimeError(f"Symlink not permitted in release ZIP: {info.filename!r}")
             target = (destination / Path(*posix.parts)).resolve()
-            if destination != target and destination not in target.parents:
+            if target != destination and destination not in target.parents:
                 raise RuntimeError(f"ZIP member escapes destination: {info.filename!r}")
         zf.extractall(destination)
 
 
 def find_distribution(extract_dir: Path, release: Release) -> tuple[Path, Path]:
-    exact_names = (
-        f"CyberChef_v{release.version}.html",
-        f"CyberChef_{release.tag}.html",
-        f"CyberChef_{release.version}.html",
+    candidates = sorted(
+        [p for p in extract_dir.rglob("CyberChef*.html") if p.is_file()],
+        key=lambda p: (len(p.parts), p.as_posix()),
     )
-    candidates = [p for p in extract_dir.rglob("CyberChef*.html") if p.is_file()]
     if not candidates:
-        candidates = [p for p in extract_dir.rglob("Cyberchef*.html") if p.is_file()]
-    if not candidates:
-        if any(extract_dir.rglob("src/web/html/index.html")) or any(extract_dir.rglob("package.json")):
-            raise FileNotFoundError(
-                "This is a CyberChef source archive, not the deployable production release bundle. "
-                "Use the ZIP asset attached to the GitHub Release."
+        if any(extract_dir.rglob("package.json")) or any(extract_dir.rglob("src/web/html/index.html")):
+            raise RuntimeError(
+                "CyberChef source archive detected. Use the production ZIP attached to the GitHub release, "
+                "not archive/refs/tags/*.zip."
             )
-        raise FileNotFoundError("No CyberChef HTML entrypoint found in release ZIP.")
+        raise RuntimeError("No CyberChef production HTML entrypoint found in release ZIP.")
 
-    entry = next((p for name in exact_names for p in candidates if p.name == name), None)
-    if entry is None:
-        candidates.sort(key=lambda p: (len(p.parts), p.as_posix()))
-        entry = candidates[0]
-
+    preferred = f"CyberChef_v{release.version}.html"
+    entry = next((p for p in candidates if p.name == preferred), candidates[0])
     dist_root = entry.parent
     assets = dist_root / "assets"
     if not assets.is_dir() or not any(p.is_file() for p in assets.rglob("*")):
-        raise FileNotFoundError(f"CyberChef assets directory missing beside {entry}")
+        raise RuntimeError(f"CyberChef assets directory missing beside {entry.name}.")
     return dist_root, entry
+
+
+def validate_entrypoint(entry: Path, dist_root: Path) -> None:
+    html = entry.read_text(encoding="utf-8", errors="strict")
+    required_markers = ("<title>CyberChef", "workspace-wrapper", "id=\"operations\"", "id=\"recipe\"")
+    for marker in required_markers:
+        if marker not in html:
+            raise RuntimeError(f"CyberChef entrypoint missing expected marker: {marker}")
+
+    parser = AssetParser()
+    parser.feed(html)
+    local_refs = []
+    for ref in parser.refs:
+        parsed = urllib.parse.urlparse(ref)
+        if parsed.scheme or parsed.netloc or ref.startswith(("data:", "#", "//")):
+            continue
+        path = urllib.parse.unquote(parsed.path)
+        if not path:
+            continue
+        local_refs.append(path)
+        candidate = (dist_root / path).resolve()
+        if dist_root.resolve() not in candidate.parents and candidate != dist_root.resolve():
+            raise RuntimeError(f"CyberChef entrypoint asset escapes distribution: {ref}")
+        if not candidate.is_file():
+            raise RuntimeError(f"CyberChef entrypoint references missing asset: {ref}")
+
+    if not any(ref.lower().endswith(".js") for ref in local_refs):
+        raise RuntimeError("CyberChef entrypoint contains no local JavaScript bundle reference.")
+    if not any(ref.lower().endswith(".css") for ref in local_refs):
+        raise RuntimeError("CyberChef entrypoint contains no local stylesheet reference.")
 
 
 def install_native_runtime(dist_root: Path, source_entry: Path, output_dir: Path) -> Path:
@@ -201,39 +223,33 @@ def install_native_runtime(dist_root: Path, source_entry: Path, output_dir: Path
         shutil.rmtree(app_dir)
     shutil.copytree(dist_root, app_dir, copy_function=shutil.copy2)
 
-    relative_entry = source_entry.relative_to(dist_root)
-    copied_entry = app_dir / relative_entry
+    copied_entry = app_dir / source_entry.relative_to(dist_root)
     if not copied_entry.is_file():
-        raise RuntimeError("CyberChef release entrypoint was not copied correctly.")
+        raise RuntimeError("CyberChef release entrypoint was not copied.")
 
+    # index.html is an exact byte copy of the official production entrypoint.
     shutil.copy2(copied_entry, app_dir / "index.html")
-    shutil.copy2(copied_entry, app_dir / "native.html")
     return app_dir
 
 
-def validate_root_page(output_dir: Path) -> None:
-    index = output_dir / "index.html"
-    if not index.is_file() or index.stat().st_size == 0:
-        raise RuntimeError("Custom /cyberchef/index.html is missing from the staged website.")
-    html = index.read_text(encoding="utf-8", errors="strict")
-    required = (
-        "CyberChefZZX",
-        'id="cz-frame"',
-        'id="cz-modifications"',
-        './app/',
-    )
-    for marker in required:
+def validate_custom_page(output_dir: Path) -> None:
+    page = output_dir / "index.html"
+    if not page.is_file():
+        raise RuntimeError("Custom /cyberchef/index.html is missing.")
+    html = page.read_text(encoding="utf-8", errors="strict")
+    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-modifications"', "./app/index.html"):
         if marker not in html:
-            raise RuntimeError(f"Custom /cyberchef/ page missing required marker: {marker}")
+            raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
 
 def build(requested_version: str, output_dir: Path, archive: Path | None = None) -> dict[str, object]:
     output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    validate_root_page(output_dir)
+    validate_custom_page(output_dir)
 
     with tempfile.TemporaryDirectory(prefix="zzx-cyberchef-") as temp_name:
         temp_dir = Path(temp_name)
+
         if archive is None:
             release = resolve_release(requested_version)
             archive_path = temp_dir / release.asset_name
@@ -241,22 +257,23 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
         else:
             archive_path = archive.resolve()
             if not archive_path.is_file():
-                raise FileNotFoundError(f"CyberChef archive not found: {archive_path}")
+                raise FileNotFoundError(archive_path)
             release = local_release(requested_version, archive_path)
 
         if not zipfile.is_zipfile(archive_path):
-            raise RuntimeError(f"CyberChef release is not a valid ZIP: {archive_path}")
+            raise RuntimeError("CyberChef production asset is not a valid ZIP file.")
 
-        release_sha256 = sha256_file(archive_path)
+        release_sha = sha256_file(archive_path)
         extract_dir = temp_dir / "extract"
-        extract_dir.mkdir(parents=True, exist_ok=True)
+        extract_dir.mkdir()
         safe_extract(archive_path, extract_dir)
         dist_root, source_entry = find_distribution(extract_dir, release)
+        validate_entrypoint(source_entry, dist_root)
         app_dir = install_native_runtime(dist_root, source_entry, output_dir)
+        validate_entrypoint(app_dir / "index.html", app_dir)
 
-        native_index_sha256 = sha256_file(app_dir / "index.html")
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v3",
+            "schema": "zzx-cyberchef-runtime-v4",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -267,52 +284,41 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
                 "page_url": release.page_url,
                 "asset_name": release.asset_name,
                 "asset_url": release.asset_url,
-                "sha256": release_sha256,
+                "sha256": release_sha,
                 "entrypoint": source_entry.name,
             },
             "custom_frontend": {
                 "path": "/cyberchef/",
-                "strategy": "site-page-plus-same-origin-iframe-overlay",
-                "runtime_path": "/cyberchef/app/",
-                "index_sha256": sha256_file(output_dir / "index.html"),
+                "runtime_path": "/cyberchef/app/index.html",
+                "layers": ["/cyberchef/theme.css", "/cyberchef/layout.css"],
             },
             "native_frontend": {
                 "path": "/cyberchef/app/",
-                "index_sha256": native_index_sha256,
-                "overlay_applied": False,
+                "entrypoint": "/cyberchef/app/index.html",
+                "index_sha256": sha256_file(app_dir / "index.html"),
+                "upstream_html_unchanged": True,
             },
         }
+
         (output_dir / "runtime-manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
 
-    validate_root_page(output_dir)
-    if not (output_dir / "app" / "index.html").is_file():
-        raise RuntimeError("Native /cyberchef/app/index.html was not generated.")
-    if not (output_dir / "app" / "assets").is_dir():
-        raise RuntimeError("Native /cyberchef/app/assets/ was not generated.")
-
-    print(f"CyberChef {manifest['release']['tag']} installed successfully.")
-    print("Custom site page preserved: /cyberchef/")
-    print("Native runtime installed:   /cyberchef/app/")
-    print(f"Release asset:              {manifest['release']['asset_name']}")
+    validate_custom_page(output_dir)
+    print(f"Installed CyberChef {manifest['release']['tag']}")
+    print(f"Release asset: {manifest['release']['asset_name']}")
+    print("Native:   /cyberchef/app/index.html")
+    print("Modified: /cyberchef/ + theme.css + layout.css")
     return manifest
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="cyberchef.py",
-        description="Install native CyberChef under /cyberchef/app/ while preserving the ZZX /cyberchef/ site page.",
-    )
-    parser.add_argument("--version", default="latest", help="CyberChef version/tag or 'latest'.")
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Staged cyberchef directory.")
-    parser.add_argument("--archive", type=Path, default=None, help="Local official release ZIP for testing/offline use.")
-    return parser
-
-
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", default="latest")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--archive", type=Path)
+    args = parser.parse_args()
     try:
         build(args.version, args.output_dir, args.archive)
         return 0
