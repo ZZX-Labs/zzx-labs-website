@@ -1,13 +1,8 @@
 (() => {
     "use strict";
 
-    const STORAGE = {
-        theme: "zzxCyberChefTheme",
-        compact: "zzxCyberChefCompact",
-        fullscreen: "zzxCyberChefFullscreen",
-        analyst: "zzxCyberChefAnalystMode",
-        scale: "zzxCyberChefScale"
-    };
+    const config = window.ZZX?.CYBERCHEF || {};
+    const STORAGE = config.storageKeys || {};
 
     function ready(fn) {
         if (document.readyState === "loading") {
@@ -18,37 +13,33 @@
     }
 
     function get(key, fallback = null) {
-        try {
-            return localStorage.getItem(key) ?? fallback;
-        } catch (err) {
-            return fallback;
-        }
+        try { return localStorage.getItem(key) ?? fallback; }
+        catch (err) { return fallback; }
     }
 
     function set(key, value) {
-        try {
-            localStorage.setItem(key, value);
-        } catch (err) {}
+        try { localStorage.setItem(key, value); }
+        catch (err) {}
     }
 
-    function makeButton(text, id) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.id = id;
-        button.textContent = text;
-        return button;
-    }
-
-    function makeSelect(id, values) {
+    function optionSelect(id, entries) {
         const select = document.createElement("select");
         select.id = id;
-        for (const [value, label] of values) {
+        for (const [value, label] of entries) {
             const option = document.createElement("option");
             option.value = value;
             option.textContent = label;
             select.appendChild(option);
         }
         return select;
+    }
+
+    function button(id, label) {
+        const node = document.createElement("button");
+        node.type = "button";
+        node.id = id;
+        node.textContent = label;
+        return node;
     }
 
     function applyTheme(theme) {
@@ -59,89 +50,75 @@
             "cz-theme-monochrome"
         );
         if (theme !== "plain") document.body.classList.add(`cz-theme-${theme}`);
-        set(STORAGE.theme, theme);
+        set(STORAGE.theme || "zzxCyberChefThemeV2", theme);
+        window.ZZXCyberChef?.applyInternalTheme?.(theme);
     }
 
     function applyScale(scale) {
-        set(STORAGE.scale, String(scale));
+        set(STORAGE.scale || "zzxCyberChefFrameScaleV2", String(scale));
         window.ZZXCyberChefSetScale?.(scale);
     }
 
-    function setCompact(enabled) {
-        document.body.classList.toggle("cz-compact", enabled);
-        set(STORAGE.compact, enabled ? "1" : "0");
+    function toggleClass(className, storageKey) {
+        const enabled = !document.body.classList.contains(className);
+        document.body.classList.toggle(className, enabled);
+        set(storageKey, enabled ? "1" : "0");
         window.ZZXCyberChefResize?.();
-    }
-
-    function setFullscreen(enabled) {
-        document.body.classList.toggle("cz-fullscreen-tool", enabled);
-        set(STORAGE.fullscreen, enabled ? "1" : "0");
-        window.ZZXCyberChefResize?.();
-    }
-
-    function setAnalyst(enabled) {
-        document.body.classList.toggle("cz-analyst-mode", enabled);
-        set(STORAGE.analyst, enabled ? "1" : "0");
-        window.ZZXCyberChefResize?.();
-    }
-
-    function forceCyberChefDarkTheme() {
-        window.ZZXCyberChef?.forceFrameDark?.();
     }
 
     function injectControls() {
         const bar = document.querySelector(".cz-sourcebar");
         if (!bar || document.getElementById("cz-theme")) return;
 
-        const theme = makeSelect("cz-theme", [
+        const theme = optionSelect("cz-theme", [
             ["tactical", "ZZX Tactical"],
             ["amber", "ZZX Amber"],
             ["crt", "ZZX CRT"],
             ["monochrome", "ZZX Mono"],
-            ["plain", "Plain Dark"]
+            ["plain", "CyberChef Dark"]
         ]);
 
-        const scale = makeSelect("cz-scale", [
-            ["0.70", "Zoom 70%"],
-            ["0.75", "Zoom 75%"],
-            ["0.80", "Zoom 80%"],
-            ["0.85", "Zoom 85%"],
-            ["0.90", "Zoom 90%"],
+        const scale = optionSelect("cz-scale", [
+            ["1", "Zoom 100%"],
             ["0.95", "Zoom 95%"],
-            ["1", "Zoom 100%"]
+            ["0.90", "Zoom 90%"],
+            ["0.85", "Zoom 85%"],
+            ["0.80", "Zoom 80%"],
+            ["0.75", "Zoom 75%"],
+            ["0.70", "Zoom 70%"],
+            ["0.65", "Zoom 65%"]
         ]);
 
-        theme.value = get(STORAGE.theme, "tactical");
-        scale.value = get(STORAGE.scale, "1");
+        const compact = button("cz-compact-toggle", "Compact");
+        const fullscreen = button("cz-fullscreen-toggle", "Tool Fullscreen");
+        const analyst = button("cz-analyst-toggle", "Analyst Mode");
 
-        const compact = makeButton("Compact", "cz-compact-toggle");
-        const fullscreen = makeButton("Tool Fullscreen", "cz-fullscreen-toggle");
-        const analyst = makeButton("Analyst Mode", "cz-analyst-toggle");
-        const dark = makeButton("Force Dark", "cz-force-dark");
+        theme.value = get(STORAGE.theme || "zzxCyberChefThemeV2", "tactical");
+        scale.value = get(STORAGE.scale || "zzxCyberChefFrameScaleV2", "1");
 
-        bar.append(theme, scale, compact, fullscreen, analyst, dark);
+        bar.append(theme, scale, compact, fullscreen, analyst);
 
         theme.addEventListener("change", () => applyTheme(theme.value));
         scale.addEventListener("change", () => applyScale(scale.value));
-        compact.addEventListener("click", () => setCompact(!document.body.classList.contains("cz-compact")));
-        fullscreen.addEventListener("click", () => setFullscreen(!document.body.classList.contains("cz-fullscreen-tool")));
-        analyst.addEventListener("click", () => setAnalyst(!document.body.classList.contains("cz-analyst-mode")));
-        dark.addEventListener("click", forceCyberChefDarkTheme);
+        compact.addEventListener("click", () => toggleClass("cz-compact", STORAGE.compact || "zzxCyberChefCompactV2"));
+        fullscreen.addEventListener("click", () => toggleClass("cz-fullscreen-tool", STORAGE.fullscreen || "zzxCyberChefFullscreenV2"));
+        analyst.addEventListener("click", () => toggleClass("cz-analyst-mode", "zzxCyberChefAnalystV2"));
     }
 
     ready(() => {
         injectControls();
-        applyTheme(get(STORAGE.theme, "tactical"));
-        applyScale(get(STORAGE.scale, "1"));
-        setCompact(get(STORAGE.compact, "0") === "1");
-        setFullscreen(get(STORAGE.fullscreen, "0") === "1");
-        setAnalyst(get(STORAGE.analyst, "0") === "1");
+
+        const theme = get(STORAGE.theme || "zzxCyberChefThemeV2", "tactical");
+        const scale = get(STORAGE.scale || "zzxCyberChefFrameScaleV2", "1");
+        applyTheme(theme);
+        applyScale(scale);
+
+        document.body.classList.toggle("cz-compact", get(STORAGE.compact || "zzxCyberChefCompactV2", "0") === "1");
+        document.body.classList.toggle("cz-fullscreen-tool", get(STORAGE.fullscreen || "zzxCyberChefFullscreenV2", "0") === "1");
 
         window.addEventListener("zzx-cyberchef-ready", () => {
-            forceCyberChefDarkTheme();
+            window.ZZXCyberChef?.applyInternalTheme?.(theme);
             window.ZZXCyberChefResize?.();
         });
-
-        console.info("[CyberChefZZX] iframe-safe upgrades loaded.");
     });
 })();
