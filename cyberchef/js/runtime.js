@@ -24,7 +24,8 @@
     }
 
     function clearShim(doc) {
-        doc.querySelectorAll("link[data-zzx-cyberchef-shim]").forEach(node => node.remove());
+        doc?.querySelectorAll("link[data-zzx-cyberchef-shim]").forEach(node => node.remove());
+        if (!doc?.documentElement) return;
         doc.documentElement.classList.remove("zzx-cyberchef-modified");
         delete doc.documentElement.dataset.zzxTheme;
         delete doc.documentElement.dataset.zzxLayout;
@@ -43,23 +44,57 @@
         });
     }
 
-    function validate(doc) {
+    function expectedNativeUrl() {
+        return new URL(config.nativeUrl, window.location.href);
+    }
+
+    function sameOriginNative(win) {
+        if (!win) return false;
+        try {
+            const actual = new URL(win.location.href);
+            const expected = expectedNativeUrl();
+            return actual.origin === window.location.origin && actual.pathname === expected.pathname;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function hasCyberChefAssets(doc) {
+        if (!doc) return false;
+        const expected = expectedNativeUrl();
+        const appBase = expected.pathname.replace(/index\.html$/, "");
+        return Array.from(doc.querySelectorAll('script[src], link[rel="stylesheet"][href]')).some(node => {
+            const raw = node.getAttribute("src") || node.getAttribute("href") || "";
+            try {
+                const url = new URL(raw, expected);
+                return url.origin === window.location.origin && url.pathname.startsWith(`${appBase}assets/`);
+            } catch (err) {
+                return false;
+            }
+        });
+    }
+
+    function validate(doc, win) {
         const title = doc?.querySelector("title")?.textContent || "";
         return Boolean(
             doc?.documentElement &&
+            doc?.head &&
+            doc?.body &&
+            sameOriginNative(win) &&
             /CyberChef/i.test(title) &&
-            doc.querySelector("#workspace-wrapper") &&
-            doc.querySelector("#operations") &&
-            doc.querySelector("#recipe") &&
-            doc.querySelector("#IO")
+            hasCyberChefAssets(doc)
         );
     }
 
     async function afterLoad(mode) {
         const doc = frameDocument();
-        if (!validate(doc)) {
+        const win = frameWindow();
+        if (!validate(doc, win)) {
             Status.frame("Invalid runtime");
-            Status.set("/cyberchef/app/ did not return a complete same-origin CyberChef production document.", "error");
+            Status.set(
+                "/cyberchef/app/ did not return the locally hosted CyberChef production document and assets.",
+                "error"
+            );
             return;
         }
 
@@ -71,7 +106,7 @@
                 doc.documentElement.classList.add("dark", "zzx-cyberchef-modified");
                 M.Themes?.applyCurrent(false);
                 M.Layouts?.applyCurrent(false);
-                Status.set("CyberChefZZX loaded: original CyberChef first; ZZX CSS/JS modules applied afterward.", "ready");
+                Status.set("CyberChefZZX loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.", "ready");
             } else {
                 clearShim(doc);
                 Status.set("Native local CyberChef loaded without ZZX override modules.", "ready");
