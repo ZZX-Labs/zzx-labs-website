@@ -1,59 +1,46 @@
 (() => {
     "use strict";
 
-    function clamp(value, min, max) {
-        const n = Number.parseFloat(value);
-        if (!Number.isFinite(n)) return 1;
-        return Math.min(max, Math.max(min, n));
+    function frame() {
+        return document.getElementById("cz-frame");
     }
 
-    function runtimeHeight() {
-        const width = window.innerWidth;
-        if (width < 520) return 780;
-        if (width < 900) return 860;
-        if (width < 1200) return 940;
-        return 1080;
+    function runtime() {
+        return document.getElementById("cz-runtime");
     }
 
     function resize() {
-        const runtime = document.getElementById("cz-runtime");
-        const frame = document.getElementById("cz-frame");
-        if (!runtime || !frame) return;
+        const box = runtime();
+        const child = frame();
+        if (!box || !child) return;
 
-        const raw = getComputedStyle(document.documentElement)
-            .getPropertyValue("--zzx-cyberchef-scale") || "1";
-        const scale = clamp(raw, 0.65, 1);
-        const height = runtimeHeight();
+        let height;
+        if (document.body.classList.contains("cz-fullscreen-tool")) {
+            const toolbar = document.querySelector(".cz-frame-toolbar")?.getBoundingClientRect().height || 0;
+            const deck = document.querySelector(".cz-control-deck")?.getBoundingClientRect().height || 0;
+            height = Math.max(540, window.innerHeight - toolbar - deck - 8);
+        } else if (window.innerWidth < 760) {
+            height = 760;
+        } else if (window.innerWidth < 1200) {
+            height = Math.max(820, Math.floor(window.innerHeight * 0.76));
+        } else {
+            height = Math.max(900, Math.floor(window.innerHeight * 0.78));
+        }
 
-        runtime.style.height = `${height}px`;
-        runtime.style.minHeight = `${height}px`;
-        runtime.style.overflow = "hidden";
-
-        frame.style.transformOrigin = "top left";
-        frame.style.transform = scale === 1 ? "none" : `scale(${scale})`;
-        frame.style.width = scale === 1 ? "100%" : `${100 / scale}%`;
-        frame.style.height = scale === 1 ? "100%" : `${height / scale}px`;
+        box.style.height = `${height}px`;
+        box.style.minHeight = `${height}px`;
+        child.style.height = `${height}px`;
     }
 
-    function setScale(value) {
-        const scale = clamp(value, 0.65, 1);
-        document.documentElement.style.setProperty("--zzx-cyberchef-scale", String(scale));
-        resize();
-    }
-
-    function boot() {
-        resize();
-        window.addEventListener("resize", resize, { passive: true });
-        window.addEventListener("orientationchange", () => setTimeout(resize, 250), { passive: true });
-        window.addEventListener("zzx-cyberchef-ready", resize);
-    }
+    window.addEventListener("resize", resize, { passive: true });
+    window.addEventListener("orientationchange", () => setTimeout(resize, 200), { passive: true });
+    window.addEventListener("zzx-cyberchef-frame-ready", resize);
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot, { once: true });
+        document.addEventListener("DOMContentLoaded", resize, { once: true });
     } else {
-        boot();
+        resize();
     }
 
     window.ZZXCyberChefResize = resize;
-    window.ZZXCyberChefSetScale = setScale;
 })();
