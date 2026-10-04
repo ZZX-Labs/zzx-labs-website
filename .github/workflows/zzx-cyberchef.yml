@@ -15,7 +15,7 @@ on:
         default: "latest"
         type: string
       deploy_pages:
-        description: "Deploy the validated local frontends to GitHub Pages"
+        description: "Deploy the validated site to GitHub Pages"
         required: false
         default: true
         type: boolean
@@ -28,7 +28,7 @@ on:
         type: string
         default: "latest"
       deploy_pages:
-        description: "Deploy the validated local frontends to GitHub Pages"
+        description: "Deploy the validated site to GitHub Pages"
         required: false
         type: boolean
         default: true
@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   local_frontends:
-    name: Build and Host Local CyberChef Frontends
+    name: Build Native + ZZX CyberChef Frontends
     uses: ./.github/workflows/cyberchef-instance.yml
     with:
       cyberchef_version: ${{ inputs.cyberchef_version || 'latest' }}
