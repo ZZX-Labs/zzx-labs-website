@@ -159,7 +159,9 @@
                 doc.documentElement.classList.remove("classic", "geocities", "solarizedDark", "solarizedLight");
                 doc.documentElement.classList.add("dark", "zzx-cyberchef-modified");
                 M.Themes?.applyCurrent(false);
-                M.Layouts?.applyCurrent(false);
+                /* Layout application intentionally waits for the frame-ready event.
+                   This guarantees the native Split.js geometry is snapshotted before
+                   any custom four-pane topology is applied. */
                 Status.set(
                     isGuardedDocument(doc)
                         ? "CyberChefZZX loaded with the ZZX CSS shim and an in-memory storage fallback because browser localStorage is full."
