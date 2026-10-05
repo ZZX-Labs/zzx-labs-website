@@ -6,15 +6,18 @@
     const Storage = M.Storage;
     const key = config.storageKeys.layout;
     const cache = new Map();
+
     let catalogPromise = null;
     let nativeSnapshot = null;
     let observer = null;
+    let frameResizeObserver = null;
     let reapplyTimer = null;
     let applying = false;
     let applySerial = 0;
 
     const wrap = (i, n) => n ? ((Number(i) % n) + n) % n : 0;
     const isMobile = () => Boolean(window.matchMedia?.("(max-width: 760px)")?.matches);
+
     const nodesFor = doc => ({
         workspace: doc?.querySelector("#workspace-wrapper"),
         content: doc?.querySelector("#content-wrapper"),
@@ -36,6 +39,8 @@
         const nodes = nodesFor(doc);
         nativeSnapshot = {
             nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snapshotNode(node)])),
+            rootStyle: doc.documentElement?.getAttribute("style") ?? null,
+            bodyStyle: doc.body?.getAttribute("style") ?? null,
             gutters: Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).map(node => ({
                 node,
                 style: node.getAttribute("style"),
@@ -44,10 +49,15 @@
         };
     }
 
+    function restoreStyle(node, value) {
+        if (!node) return;
+        if (value === null) node.removeAttribute("style");
+        else node.setAttribute("style", value);
+    }
+
     function restoreNode(node, snap) {
         if (!node || !snap) return;
-        if (snap.style === null) node.removeAttribute("style");
-        else node.setAttribute("style", snap.style);
+        restoreStyle(node, snap.style);
         node.className = snap.className;
     }
 
@@ -57,16 +67,25 @@
         Object.entries(nodes).forEach(([name, node]) => restoreNode(node, nativeSnapshot.nodes[name]));
         nativeSnapshot.gutters.forEach(item => {
             if (!item.node?.isConnected) return;
-            if (item.style === null) item.node.removeAttribute("style");
-            else item.node.setAttribute("style", item.style);
+            restoreStyle(item.node, item.style);
             item.node.className = item.className;
         });
+        restoreStyle(doc.documentElement, nativeSnapshot.rootStyle);
+        restoreStyle(doc.body, nativeSnapshot.bodyStyle);
+
         const root = doc.documentElement;
         root.classList.remove("zzx-layout-custom", "zzx-layout-mobile", "zzx-sticky-titles", "zzx-compact-banner");
         doc.body?.classList.remove("zzx-layout-custom");
         ["zzxLayout", "zzxLayoutOrientation", "zzxLayoutMode"].forEach(name => { delete root.dataset[name]; });
-        ["--zzx-ui-scale", "--zzx-op-pad-y", "--zzx-banner-height", "--zzx-mobile-zoom", "--zzx-workspace-gap", "--zzx-workspace-padding", "--zzx-layout-height"]
-            .forEach(name => root.style.removeProperty(name));
+        [
+            "--zzx-ui-scale",
+            "--zzx-op-pad-y",
+            "--zzx-banner-height",
+            "--zzx-mobile-zoom",
+            "--zzx-workspace-gap",
+            "--zzx-workspace-padding"
+        ].forEach(name => root.style.removeProperty(name));
+        root.dataset.zzxLayoutMode = "native";
         try { M.Runtime?.window()?.dispatchEvent(new Event("resize")); } catch (_) {}
     }
 
@@ -79,15 +98,18 @@
     const areaTemplate = areas => (areas || []).map(row => `"${row}"`).join(" ");
 
     function resolvedGeometry(preset) {
-        if (!preset || preset.native || !isMobile() || !preset.mobile) return { ...preset, mobileActive: false };
+        if (!preset || preset.native || !isMobile() || !preset.mobile) {
+            return { ...preset, mobileActive: false };
+        }
         return {
             ...preset,
             workspace: {
                 ...(preset.workspace || {}),
                 areas: (preset.mobile.areas || ["io", "recipe", "ops"]).map(String),
                 columns: preset.mobile.columns || ["minmax(0,1fr)"],
-                rows: preset.mobile.rows || ["auto", "auto", "minmax(500px,1fr)"],
-                gap: Math.min(8, Number(preset.workspace?.gap ?? 6))
+                rows: preset.mobile.rows || ["minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)"],
+                gap: Math.min(8, Number(preset.workspace?.gap ?? 6)),
+                padding: Math.min(.35, Number(preset.workspace?.padding ?? .25))
             },
             io: {
                 ...(preset.io || {}),
@@ -109,24 +131,71 @@
         const ioc = resolved.io || {};
         const density = resolved.density || {};
         const behavior = resolved.behavior || {};
+
         const areas = w.areas || ["ops recipe io"];
-        const columns = Array.isArray(w.columns) ? w.columns.join(" ") : (w.columns || "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)");
-        const rows = Array.isArray(w.rows) ? w.rows.join(" ") : (w.rows || "minmax(0,1fr)");
+        const columns = Array.isArray(w.columns)
+            ? w.columns.join(" ")
+            : (w.columns || "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)");
+        const rows = Array.isArray(w.rows)
+            ? w.rows.join(" ")
+            : (w.rows || "minmax(0,1fr)");
         const gap = `${Number(w.gap ?? 8)}px`;
         const padding = `${Number(w.padding ?? .35)}rem`;
         const bannerHeight = Math.max(28, Number(density.bannerHeight ?? 42));
-        const viewportHeight = Math.max(
-            Number(w.minHeight || (isMobile() ? 360 : 560)),
-            Math.round((doc.defaultView?.innerHeight || 0) - bannerHeight)
-        );
 
-        important(workspace.style, "width", "100%");
-        important(workspace.style, "max-width", "100%");
+        const root = doc.documentElement;
+        const body = doc.body;
+        root.classList.add("zzx-layout-custom");
+        root.classList.toggle("zzx-layout-mobile", Boolean(resolved.mobileActive));
+        root.classList.toggle("zzx-sticky-titles", Boolean(behavior.stickyTitles));
+        root.classList.toggle("zzx-compact-banner", Boolean(behavior.compactBanner));
+        root.dataset.zzxLayout = preset.id;
+        root.dataset.zzxLayoutMode = "custom";
+        root.dataset.zzxLayoutOrientation = ioc.orientation || "vertical";
+        body?.classList.add("zzx-layout-custom");
+
+        important(root.style, "width", "100%");
+        important(root.style, "height", "100%");
+        important(root.style, "overflow", "hidden");
+        if (body) {
+            important(body.style, "width", "100%");
+            important(body.style, "height", "100%");
+            important(body.style, "min-width", "0");
+            important(body.style, "margin", "0");
+            important(body.style, "overflow", "hidden");
+        }
+
+        if (banner) {
+            important(banner.style, "position", "absolute");
+            important(banner.style, "left", "0");
+            important(banner.style, "right", "0");
+            important(banner.style, "top", "0");
+            important(banner.style, "height", `${bannerHeight}px`);
+            important(banner.style, "min-height", `${bannerHeight}px`);
+            important(banner.style, "max-height", `${bannerHeight}px`);
+            important(banner.style, "overflow", "hidden");
+            important(banner.style, "box-sizing", "border-box");
+            important(banner.style, "z-index", "20");
+        }
+
+        /* Dock the workspace to the iframe viewport. This is the key sizing
+           contract: layouts fill the feature frame, not the parent browser. */
+        important(workspace.style, "position", "absolute");
+        important(workspace.style, "left", "0");
+        important(workspace.style, "right", "0");
+        important(workspace.style, "top", `${bannerHeight}px`);
+        important(workspace.style, "bottom", "0");
+        important(workspace.style, "width", "auto");
+        important(workspace.style, "height", "auto");
         important(workspace.style, "min-width", "0");
+        important(workspace.style, "min-height", "0");
+        important(workspace.style, "max-width", "none");
+        important(workspace.style, "max-height", "none");
         important(workspace.style, "overflow", "hidden");
-        important(workspace.style, "height", `${viewportHeight}px`);
-        important(workspace.style, "min-height", `${viewportHeight}px`);
+        important(workspace.style, "box-sizing", "border-box");
 
+        important(content.style, "position", "absolute");
+        important(content.style, "inset", "0");
         important(content.style, "display", "grid");
         important(content.style, "grid-template-areas", areaTemplate(areas));
         important(content.style, "grid-template-columns", columns);
@@ -134,25 +203,34 @@
         important(content.style, "gap", gap);
         important(content.style, "padding", padding);
         important(content.style, "box-sizing", "border-box");
-        important(content.style, "width", "100%");
-        important(content.style, "max-width", "100%");
+        important(content.style, "width", "auto");
+        important(content.style, "height", "auto");
         important(content.style, "min-width", "0");
         important(content.style, "min-height", "0");
-        important(content.style, "height", `${viewportHeight}px`);
+        important(content.style, "max-width", "none");
+        important(content.style, "max-height", "none");
         important(content.style, "overflow", "hidden");
         important(content.style, "align-items", "stretch");
+        important(content.style, "justify-items", "stretch");
 
         [[operations, "ops"], [recipe, "recipe"], [io, "io"]].forEach(([node, area]) => {
             important(node.style, "grid-area", area);
+            important(node.style, "position", "relative");
+            important(node.style, "left", "auto");
+            important(node.style, "right", "auto");
+            important(node.style, "top", "auto");
+            important(node.style, "bottom", "auto");
+            important(node.style, "float", "none");
             important(node.style, "width", "100%");
             important(node.style, "height", "100%");
             important(node.style, "min-width", "0");
             important(node.style, "min-height", "0");
             important(node.style, "max-width", "none");
             important(node.style, "max-height", "none");
+            important(node.style, "flex", "none");
             important(node.style, "flex-basis", "auto");
-            const overflow = node === io ? "hidden" : "auto";
-            important(node.style, "overflow", overflow);
+            important(node.style, "box-sizing", "border-box");
+            important(node.style, "overflow", node === io ? "hidden" : "auto");
         });
 
         const horizontal = ioc.orientation === "horizontal";
@@ -162,16 +240,25 @@
         important(io.style, "grid-template-areas", horizontal ? '"input output"' : '"input" "output"');
         important(io.style, "grid-template-columns", horizontal ? `${split[0]}fr ${split[1]}fr` : "minmax(0,1fr)");
         important(io.style, "grid-template-rows", horizontal ? "minmax(0,1fr)" : `${split[0]}fr ${split[1]}fr`);
+        important(io.style, "align-items", "stretch");
 
         [[input, "input"], [output, "output"]].forEach(([node, area]) => {
             important(node.style, "grid-area", area);
+            important(node.style, "position", "relative");
+            important(node.style, "left", "auto");
+            important(node.style, "right", "auto");
+            important(node.style, "top", "auto");
+            important(node.style, "bottom", "auto");
+            important(node.style, "float", "none");
             important(node.style, "width", "100%");
             important(node.style, "height", "100%");
             important(node.style, "min-width", "0");
             important(node.style, "min-height", "0");
             important(node.style, "max-width", "none");
             important(node.style, "max-height", "none");
+            important(node.style, "flex", "none");
             important(node.style, "flex-basis", "auto");
+            important(node.style, "box-sizing", "border-box");
             important(node.style, "overflow", "auto");
         });
 
@@ -179,24 +266,18 @@
             important(gutter.style, "display", behavior.hideGutters === false ? null : "none");
         });
 
-        const root = doc.documentElement;
-        root.classList.add("zzx-layout-custom");
-        root.classList.toggle("zzx-layout-mobile", Boolean(resolved.mobileActive));
-        root.classList.toggle("zzx-sticky-titles", Boolean(behavior.stickyTitles));
-        root.classList.toggle("zzx-compact-banner", Boolean(behavior.compactBanner));
-        root.dataset.zzxLayout = preset.id;
-        root.dataset.zzxLayoutMode = "custom";
-        root.dataset.zzxLayoutOrientation = ioc.orientation || "vertical";
-        doc.body?.classList.add("zzx-layout-custom");
         root.style.setProperty("--zzx-ui-scale", String(density.scale ?? 1));
         root.style.setProperty("--zzx-op-pad-y", `${Number(density.operationPadding ?? 5)}px`);
-        root.style.setProperty("--zzx-banner-height", `${Number(density.bannerHeight ?? 42)}px`);
+        root.style.setProperty("--zzx-banner-height", `${bannerHeight}px`);
         root.style.setProperty("--zzx-mobile-zoom", String(preset.mobile?.zoom ?? .68));
         root.style.setProperty("--zzx-workspace-gap", gap);
         root.style.setProperty("--zzx-workspace-padding", padding);
-        root.style.setProperty("--zzx-layout-height", `${viewportHeight}px`);
-        if (banner && behavior.compactBanner) important(banner.style, "min-height", `${Math.max(28, Number(density.bannerHeight ?? 36))}px`);
-        try { M.Runtime?.window()?.dispatchEvent(new Event("resize")); } catch (_) {}
+
+        try {
+            const win = M.Runtime?.window();
+            win?.dispatchEvent(new Event("resize"));
+            requestAnimationFrame(() => win?.dispatchEvent(new Event("resize")));
+        } catch (_) {}
         return true;
     }
 
@@ -279,7 +360,7 @@
                 if (doc && M.Runtime?.mode() === "modified") {
                     applying = true;
                     captureNative(doc);
-                    if (preset.native) { restoreNative(doc); doc.documentElement.dataset.zzxLayoutMode = "native"; }
+                    if (preset.native) restoreNative(doc);
                     else if (!applyCustom(doc, preset)) throw new Error("CyberChef workspace nodes are not ready for the selected layout.");
                     requestAnimationFrame(() => requestAnimationFrame(() => { applying = false; }));
                 }
@@ -318,20 +399,35 @@
 
         observe() {
             observer?.disconnect();
+            frameResizeObserver?.disconnect();
+
             const doc = M.Runtime?.document();
             const content = doc?.querySelector("#content-wrapper");
-            if (!content || !window.MutationObserver) return;
-            observer = new MutationObserver(() => {
-                if (applying) return;
-                clearTimeout(reapplyTimer);
-                reapplyTimer = setTimeout(() => this.applyCurrent(false), 140);
-            });
-            observer.observe(content, { subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+            if (content && window.MutationObserver) {
+                observer = new MutationObserver(() => {
+                    if (applying || this.current()?.id === "native") return;
+                    clearTimeout(reapplyTimer);
+                    reapplyTimer = setTimeout(() => this.applyCurrent(false), 120);
+                });
+                observer.observe(content, { subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+            }
+
+            const frame = M.Runtime?.frame?.();
+            if (frame && window.ResizeObserver) {
+                frameResizeObserver = new ResizeObserver(() => {
+                    if (applying || this.current()?.id === "native") return;
+                    clearTimeout(reapplyTimer);
+                    reapplyTimer = setTimeout(() => this.applyCurrent(false), 80);
+                });
+                frameResizeObserver.observe(frame);
+            }
         },
 
         reset() {
             observer?.disconnect();
+            frameResizeObserver?.disconnect();
             observer = null;
+            frameResizeObserver = null;
             nativeSnapshot = null;
             clearTimeout(reapplyTimer);
             applying = false;
@@ -347,12 +443,12 @@
         setTimeout(() => {
             Layouts.applyCurrent(false);
             Layouts.observe();
-        }, 170);
+        }, 120);
     });
 
     window.addEventListener("resize", () => {
-        if (!Layouts.ready || M.Runtime?.mode() !== "modified") return;
+        if (!Layouts.ready || M.Runtime?.mode() !== "modified" || Layouts.current()?.id === "native") return;
         clearTimeout(reapplyTimer);
-        reapplyTimer = setTimeout(() => Layouts.applyCurrent(false), 180);
+        reapplyTimer = setTimeout(() => Layouts.applyCurrent(false), 100);
     }, { passive: true });
 })();
