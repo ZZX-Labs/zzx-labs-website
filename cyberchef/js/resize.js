@@ -17,7 +17,7 @@
                 const deck = document.querySelector(".cz-control-deck")?.getBoundingClientRect().height || 0;
                 height = Math.max(540, window.innerHeight - viewbar - toolbar - deck - 8);
             } else if (window.innerWidth < 760) {
-                height = 760;
+                height = window.innerWidth <= 420 ? 1040 : 980;
             } else if (window.innerWidth < 1200) {
                 height = Math.max(820, Math.floor(window.innerHeight * 0.76));
             } else {
