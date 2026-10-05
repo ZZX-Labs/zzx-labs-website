@@ -107,6 +107,7 @@ jobs:
           JS_MODULES=(
             cyberchef/js/config.js
             cyberchef/js/storage.js
+            cyberchef/js/quota.js
             cyberchef/js/status.js
             cyberchef/js/themes.js
             cyberchef/js/layouts.js
@@ -125,7 +126,9 @@ jobs:
           done
 
           grep -q 'id="cz-frame"' cyberchef/index.html
-          grep -q './app/index.html' cyberchef/index.html
+          grep -q 'src="about:blank"' cyberchef/index.html
+          grep -q './js/quota.js' cyberchef/index.html
+          grep -q 'nativeUrl: "./app/index.html"' cyberchef/js/config.js
           grep -q 'id="cz-control-deck"' cyberchef/index.html
           grep -q './css/frame/shim.css' cyberchef/js/config.js
           grep -q '@import url("./tokens.css")' cyberchef/css/frame/shim.css
@@ -193,6 +196,7 @@ jobs:
           assert manifest['custom_frontend']['js_modules'] == [
               '/cyberchef/js/config.js',
               '/cyberchef/js/storage.js',
+              '/cyberchef/js/quota.js',
               '/cyberchef/js/status.js',
               '/cyberchef/js/themes.js',
               '/cyberchef/js/layouts.js',
