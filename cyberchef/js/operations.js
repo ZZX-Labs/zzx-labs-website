@@ -174,8 +174,23 @@
         activateNode(operation) {
             const win = M.Runtime?.window();
             if (!operation || !win) return false;
+            const name = operationName(operation);
             operation.dispatchEvent(new win.MouseEvent("dblclick", { bubbles: true, cancelable: true, view: win }));
+            setTimeout(() => window.dispatchEvent(new CustomEvent("zzx-cyberchef-operation-activated", { detail: { name } })), 40);
             return true;
+        },
+
+        recipeNodes() {
+            const doc = M.Runtime?.document();
+            return doc ? Array.from(doc.querySelectorAll("#rec-list li.operation")) : [];
+        },
+
+        recipeNodeForSelectedFunction() {
+            const target = String(state.operations[state.functionIndex] ? operationName(state.operations[state.functionIndex]) : "").trim().toLowerCase();
+            const nodes = this.recipeNodes();
+            if (!target) return nodes[nodes.length - 1] || null;
+            const matches = nodes.filter(node => cleanText(node.querySelector(".op-title") || node).toLowerCase() === target);
+            return matches[matches.length - 1] || null;
         },
 
         allOperations() {
