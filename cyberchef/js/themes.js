@@ -6,6 +6,8 @@
     const Storage = M.Storage;
     const key = config.storageKeys.theme;
     const cache = new Map();
+    let catalogPromise = null;
+    let applySerial = 0;
 
     function mix(hexA, hexB, t) {
         const parse = value => {
@@ -78,7 +80,7 @@
             "--arg-font-colour": c.text,
             "--arg-background": c.panel,
             "--arg-border-colour": c.border,
-            "--arg-disabled-background": deep,
+            "--arg-disabled-background": mix(c.panel || "#222222", c.muted || "#777777", .18),
             "--arg-label-colour": c.secondary,
             "--btn-default-font-colour": c.text,
             "--btn-default-bg-colour": c.panel,
@@ -102,8 +104,8 @@
         root.dataset.zzxScanlines = effects.scanlines ? "1" : "0";
         try {
             const raw = String(c.background || "#000000").replace("#", "");
-            const rgb = raw.length >= 6 ? [0,2,4].map(i => parseInt(raw.slice(i,i+2),16)||0) : [0,0,0];
-            const lum = (rgb[0]*.2126 + rgb[1]*.7152 + rgb[2]*.0722) / 255;
+            const rgb = raw.length >= 6 ? [0, 2, 4].map(i => parseInt(raw.slice(i, i + 2), 16) || 0) : [0, 0, 0];
+            const lum = (rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722) / 255;
             root.style.colorScheme = lum > .6 ? "light" : "dark";
         } catch (_) {}
     }
@@ -111,36 +113,132 @@
     function applyParent(preset) {
         if (!preset) return;
         const c = preset.colors || {}, fonts = preset.fonts || {}, style = document.documentElement.style;
-        setVar(style,"--cz-bg",c.background);setVar(style,"--cz-bg-alt",c.deep||c.background);setVar(style,"--cz-panel",c.panel);setVar(style,"--cz-panel-hi",c.panelHigh||c.panel);
-        setVar(style,"--cz-border",c.border);setVar(style,"--cz-text",c.text);setVar(style,"--cz-muted",c.muted);setVar(style,"--cz-accent",c.accent);setVar(style,"--cz-gold",c.secondary);setVar(style,"--cz-font",fonts.ui);
+        setVar(style, "--cz-bg", c.background);
+        setVar(style, "--cz-bg-alt", c.deep || c.background);
+        setVar(style, "--cz-panel", c.panel);
+        setVar(style, "--cz-panel-hi", c.panelHigh || c.panel);
+        setVar(style, "--cz-border", c.border);
+        setVar(style, "--cz-text", c.text);
+        setVar(style, "--cz-muted", c.muted);
+        setVar(style, "--cz-accent", c.accent);
+        setVar(style, "--cz-gold", c.secondary);
+        setVar(style, "--cz-font", fonts.ui);
+        document.documentElement.dataset.czTheme = preset.id || "";
     }
 
-    async function fetchJSON(url) {
+    async function fetchJSON(url, label) {
         const response = await fetch(url, { cache: "no-store", credentials: "same-origin" });
-        if (!response.ok) throw new Error(`Theme catalog request failed: HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`${label} request failed: HTTP ${response.status}`);
         return response.json();
     }
 
     const Themes = {
-        presets: [], index: 0, ready: false,
-        current(){ return this.presets[this.index] || null; },
-        restore(){ const id=Storage.read(key,config.defaultThemeId||"tactical-olive"); const found=this.presets.findIndex(item=>item.id===id); this.index=found>=0?found:0; return this.current(); },
-        async loadCatalog(){
-            if(this.ready && this.presets.length===64) return this.presets;
-            const index=await fetchJSON(config.themeIndexUrl);
-            if(!Array.isArray(index.themes)||index.themes.length!==64) throw new Error("CyberChefZZX theme index must contain exactly 64 themes.");
-            this.presets=index.themes.map((entry,i)=>({...entry,index:i})); this.ready=true; this.restore();
-            window.dispatchEvent(new CustomEvent("zzx-cyberchef-themes-ready",{detail:{count:this.presets.length}}));
-            return this.presets;
+        presets: [],
+        index: 0,
+        ready: false,
+        error: null,
+
+        current() { return this.presets[this.index] || null; },
+
+        restore() {
+            const id = Storage.read(key, config.defaultThemeId || "tactical-olive");
+            const found = this.presets.findIndex(item => item.id === id);
+            this.index = found >= 0 ? found : 0;
+            return this.current();
         },
-        async resolve(meta){ if(!meta)return null; if(cache.has(meta.id))return cache.get(meta.id); const preset=await fetchJSON(new URL(`./themes/${meta.file}`,window.location.href).href); cache.set(meta.id,preset); return preset; },
-        apply(index=this.index,persist=true){ if(!this.presets.length)return null; this.index=((Number(index)%this.presets.length)+this.presets.length)%this.presets.length; const meta=this.current(); if(persist)Storage.write(key,meta.id); void this.applyResolved(meta); return meta; },
-        async applyResolved(meta){
-            try{ const preset=await this.resolve(meta); applyParent(preset); const doc=M.Runtime?.document(); if(doc&&M.Runtime?.mode()==="modified")applyToDocument(doc,preset); window.dispatchEvent(new CustomEvent("zzx-cyberchef-theme-change",{detail:{index:this.index,count:this.presets.length,preset:meta,resolved:preset}})); return preset; }
-            catch(err){ console.error("[CyberChefZZX themes]",err); M.Status?.set(err.message||"Theme failed to load.","error"); return null; }
+
+        loadCatalog() {
+            if (this.ready && this.presets.length === 64) return Promise.resolve(this.presets);
+            if (catalogPromise) return catalogPromise;
+            catalogPromise = (async () => {
+                const index = await fetchJSON(config.themeIndexUrl, "Theme catalog");
+                if (!Array.isArray(index.themes) || index.themes.length !== 64) {
+                    throw new Error(`CyberChefZZX theme index contains ${Array.isArray(index.themes) ? index.themes.length : 0} themes; expected 64.`);
+                }
+                this.presets = index.themes.map((entry, i) => ({ ...entry, index: i }));
+                this.ready = true;
+                this.error = null;
+                this.restore();
+                window.dispatchEvent(new CustomEvent("zzx-cyberchef-themes-ready", { detail: { count: this.presets.length } }));
+                return this.presets;
+            })().catch(err => {
+                this.ready = false;
+                this.error = err;
+                catalogPromise = null;
+                console.error("[CyberChefZZX themes]", err);
+                M.Status?.set(err.message || "Theme catalog failed to load.", "error");
+                throw err;
+            });
+            return catalogPromise;
         },
-        applyCurrent(persist=false){ const meta=this.current(); if(!meta)return null; if(persist)Storage.write(key,meta.id); void this.applyResolved(meta); return meta; }
+
+        ensureReady() { return this.loadCatalog(); },
+
+        async resolve(meta) {
+            if (!meta) return null;
+            if (cache.has(meta.id)) return cache.get(meta.id);
+            const url = new URL(`./themes/${meta.file}`, window.location.href).href;
+            const preset = await fetchJSON(url, `Theme ${meta.label || meta.id}`);
+            cache.set(meta.id, preset);
+            return preset;
+        },
+
+        apply(index = this.index, persist = true) {
+            if (!this.presets.length) return null;
+            this.index = ((Number(index) % this.presets.length) + this.presets.length) % this.presets.length;
+            const meta = this.current();
+            if (persist && meta) Storage.write(key, meta.id);
+            const serial = ++applySerial;
+            window.dispatchEvent(new CustomEvent("zzx-cyberchef-theme-change", {
+                detail: { index: this.index, count: this.presets.length, preset: meta, pending: true }
+            }));
+            void this.applyResolved(meta, serial);
+            return meta;
+        },
+
+        async applyResolved(meta, serial = ++applySerial) {
+            if (!meta) return null;
+            try {
+                const preset = await this.resolve(meta);
+                if (serial !== applySerial || this.current()?.id !== meta.id) return preset;
+                applyParent(preset);
+                const doc = M.Runtime?.document();
+                if (doc && M.Runtime?.mode() === "modified") applyToDocument(doc, preset);
+                window.dispatchEvent(new CustomEvent("zzx-cyberchef-theme-change", {
+                    detail: { index: this.index, count: this.presets.length, preset: meta, resolved: preset, pending: false }
+                }));
+                this.preloadNeighbors();
+                return preset;
+            } catch (err) {
+                if (serial === applySerial) {
+                    console.error("[CyberChefZZX themes]", err);
+                    M.Status?.set(err.message || "Theme failed to load.", "error");
+                }
+                return null;
+            }
+        },
+
+        applyCurrent(persist = false) {
+            const meta = this.current();
+            if (!meta) return null;
+            if (persist) Storage.write(key, meta.id);
+            const serial = ++applySerial;
+            void this.applyResolved(meta, serial);
+            return meta;
+        },
+
+        preloadNeighbors() {
+            if (!this.presets.length) return;
+            [-1, 1].forEach(offset => {
+                const i = ((this.index + offset) % this.presets.length + this.presets.length) % this.presets.length;
+                const meta = this.presets[i];
+                if (meta && !cache.has(meta.id)) void this.resolve(meta).catch(() => {});
+            });
+        }
     };
-    M.Themes=Themes;
-    window.addEventListener("zzx-cyberchef-frame-ready",e=>{if(e.detail?.mode==="modified")Themes.applyCurrent(false);});
+
+    M.Themes = Themes;
+    window.addEventListener("zzx-cyberchef-frame-ready", e => {
+        if (e.detail?.mode === "modified") Themes.applyCurrent(false);
+    });
 })();
