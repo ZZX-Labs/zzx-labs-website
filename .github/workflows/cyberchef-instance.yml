@@ -85,9 +85,12 @@ jobs:
           PAGE_CSS=(
             cyberchef/css/page/base.css
             cyberchef/css/page/runtime.css
+            cyberchef/css/page/workbench.css
             cyberchef/css/page/controls.css
+            cyberchef/css/page/macros.css
             cyberchef/css/page/modes.css
             cyberchef/css/page/modifications.css
+            cyberchef/css/page/history.css
             cyberchef/css/page/responsive.css
           )
 
@@ -115,8 +118,11 @@ jobs:
             cyberchef/js/manifest.js
             cyberchef/js/resize.js
             cyberchef/js/operations.js
+            cyberchef/js/macros.js
             cyberchef/js/rotary.js
+            cyberchef/js/downloads.js
             cyberchef/js/page-modes.js
+            cyberchef/js/history.js
             cyberchef/js/modifications.js
             cyberchef/js/bootstrap.js
           )
@@ -130,6 +136,9 @@ jobs:
           grep -q './js/quota.js' cyberchef/index.html
           grep -q 'nativeUrl: "./app/index.html"' cyberchef/js/config.js
           grep -q 'id="cz-control-deck"' cyberchef/index.html
+          grep -q 'data-rotary="macro-a"' cyberchef/index.html
+          grep -q 'data-rotary="macro-d"' cyberchef/index.html
+          grep -q 'data-cz-official-download' cyberchef/index.html
           grep -q './css/frame/shim.css' cyberchef/js/config.js
           grep -q '@import url("./tokens.css")' cyberchef/css/frame/shim.css
           grep -q '@import url("./scrollbars.css")' cyberchef/css/frame/shim.css
@@ -173,7 +182,7 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v11'
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v13'
           assert manifest['native_frontend']['upstream_html_unchanged'] is True
           assert manifest['native_frontend']['index_sha256'] == manifest['native_frontend']['upstream_entry_sha256']
           upstream_entry = Path('cyberchef/app') / manifest['release']['entrypoint']
@@ -204,8 +213,11 @@ jobs:
               '/cyberchef/js/manifest.js',
               '/cyberchef/js/resize.js',
               '/cyberchef/js/operations.js',
+              '/cyberchef/js/macros.js',
               '/cyberchef/js/rotary.js',
+              '/cyberchef/js/downloads.js',
               '/cyberchef/js/page-modes.js',
+              '/cyberchef/js/history.js',
               '/cyberchef/js/modifications.js',
               '/cyberchef/js/bootstrap.js',
           ]
