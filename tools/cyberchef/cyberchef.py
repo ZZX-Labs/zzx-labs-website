@@ -244,7 +244,7 @@ def validate_custom_page(output_dir: Path) -> None:
     if not page.is_file():
         raise RuntimeError("Custom /cyberchef/index.html is missing.")
     html = page.read_text(encoding="utf-8", errors="strict")
-    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', "./app/index.html"):
+    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', 'src="about:blank"', './js/quota.js'):
         if marker not in html:
             raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
@@ -270,6 +270,7 @@ def validate_custom_page(output_dir: Path) -> None:
         "css/frame/scrollbars.css",
         "js/config.js",
         "js/storage.js",
+        "js/quota.js",
         "js/status.js",
         "js/themes.js",
         "js/layouts.js",
@@ -356,6 +357,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
                 "js_modules": [
                     "/cyberchef/js/config.js",
                     "/cyberchef/js/storage.js",
+                    "/cyberchef/js/quota.js",
                     "/cyberchef/js/status.js",
                     "/cyberchef/js/themes.js",
                     "/cyberchef/js/layouts.js",
