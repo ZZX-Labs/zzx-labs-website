@@ -1,155 +1,16 @@
 (() => {
     "use strict";
-
     const M = window.ZZXCyberChefModules;
-    const config = window.ZZX.CYBERCHEF;
-    const Themes = M.Themes;
-    const Layouts = M.Layouts;
-    const Operations = M.Operations;
-
-    function wrap(index, count) {
-        return count ? ((index % count) + count) % count : 0;
-    }
-
-    function root(name) {
-        return document.querySelector(`.cz-rotary[data-rotary="${name}"]`);
-    }
-
-    function button(name) {
-        return root(name)?.querySelector(".cz-knob") || null;
-    }
-
-    function value(name) {
-        return root(name)?.querySelector(".cz-rotary-value") || null;
-    }
-
-    function visual(name, index, count, label) {
-        const btn = button(name);
-        const pointer = btn?.querySelector(".cz-knob-pointer");
-        if (!btn) return;
-        const safeCount = Math.max(1, count);
-        const normalized = wrap(index, safeCount);
-        const angle = safeCount <= 1 ? -135 : -135 + (normalized / (safeCount - 1)) * 270;
-        if (pointer) pointer.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-        if (value(name)) value(name).textContent = label || "—";
-        btn.setAttribute("aria-valuemin", "0");
-        btn.setAttribute("aria-valuemax", String(Math.max(0, safeCount - 1)));
-        btn.setAttribute("aria-valuenow", String(normalized));
-        btn.setAttribute("aria-valuetext", label || "Unavailable");
-    }
-
-    function refreshPresetVisuals() {
-        const t = Themes.current();
-        const l = Layouts.current();
-        visual("theme", Themes.index, config.themePresets.length, t?.label || "—");
-        visual("layout", Layouts.index, config.layoutPresets.length, l?.label || "—");
-    }
-
-    function step(name, delta) {
-        if (name === "theme") {
-            const preset = Themes.apply(Themes.index + delta);
-            visual(name, Themes.index, config.themePresets.length, preset?.label);
-        } else if (name === "layout") {
-            const preset = Layouts.apply(Layouts.index + delta);
-            visual(name, Layouts.index, config.layoutPresets.length, preset?.label);
-        } else if (name === "module") {
-            Operations.selectModule(Operations.state.moduleIndex + delta);
-        } else if (name === "function") {
-            Operations.selectFunction(Operations.state.functionIndex + delta);
-        }
-    }
-
-    function press(name) {
-        if (name === "module") Operations.selectModule(Operations.state.moduleIndex, { expand: true, scroll: true });
-        if (name === "function") Operations.activateFunction();
-    }
-
-    function wire(name) {
-        const btn = button(name);
-        if (!btn) return;
-        let pointerId = null;
-        let lastY = 0;
-        let accumulator = 0;
-        let moved = false;
-
-        btn.addEventListener("wheel", event => {
-            event.preventDefault();
-            step(name, event.deltaY > 0 ? 1 : -1);
-        }, { passive: false });
-
-        btn.addEventListener("keydown", event => {
-            if (["ArrowRight", "ArrowUp"].includes(event.key)) {
-                event.preventDefault(); step(name, 1);
-            } else if (["ArrowLeft", "ArrowDown"].includes(event.key)) {
-                event.preventDefault(); step(name, -1);
-            } else if (event.key === "PageUp") {
-                event.preventDefault(); step(name, 5);
-            } else if (event.key === "PageDown") {
-                event.preventDefault(); step(name, -5);
-            } else if (["Enter", " "].includes(event.key)) {
-                event.preventDefault(); press(name);
-            }
-        });
-
-        btn.addEventListener("pointerdown", event => {
-            pointerId = event.pointerId;
-            lastY = event.clientY;
-            accumulator = 0;
-            moved = false;
-            btn.setPointerCapture(pointerId);
-        });
-
-        btn.addEventListener("pointermove", event => {
-            if (pointerId !== event.pointerId) return;
-            accumulator += lastY - event.clientY;
-            lastY = event.clientY;
-            if (Math.abs(accumulator) >= 12) {
-                step(name, accumulator > 0 ? 1 : -1);
-                accumulator = 0;
-                moved = true;
-            }
-        });
-
-        btn.addEventListener("pointerup", event => {
-            if (pointerId !== event.pointerId) return;
-            try { btn.releasePointerCapture(pointerId); } catch (err) {}
-            pointerId = null;
-            if (!moved) press(name);
-        });
-        btn.addEventListener("pointercancel", () => { pointerId = null; });
-    }
-
-    const Rotary = {
-        boot() {
-            ["theme", "layout", "module", "function"].forEach(wire);
-            refreshPresetVisuals();
-            visual("module", 0, 1, "Loading…");
-            visual("function", 0, 1, "Loading…");
-
-            window.addEventListener("zzx-cyberchef-module-change", event => {
-                const d = event.detail || {};
-                visual("module", d.index || 0, d.count || 1, d.label || "—");
-            });
-            window.addEventListener("zzx-cyberchef-function-change", event => {
-                const d = event.detail || {};
-                visual("function", d.index || 0, d.count || 1, d.label || "—");
-            });
-            window.addEventListener("zzx-cyberchef-frame-ready", event => {
-                const modified = event.detail?.mode === "modified";
-                const deck = document.getElementById("cz-control-deck");
-                if (deck) deck.hidden = !modified;
-                Operations.reset();
-                if (modified) {
-                    Themes.restore();
-                    Layouts.restore();
-                    Themes.applyCurrent(false);
-                    Layouts.applyCurrent(false);
-                    refreshPresetVisuals();
-                    Operations.wait();
-                }
-            });
-        }
-    };
-
-    M.Rotary = Rotary;
+    const Themes=M.Themes, Layouts=M.Layouts, Operations=M.Operations, Macros=M.Macros;
+    const names=["theme","layout","module","function","macro-a","macro-b","macro-c","macro-d"];
+    const wrap=(i,n)=>n?((i%n)+n)%n:0;
+    const root=name=>document.querySelector(`.cz-rotary[data-rotary="${name}"]`);
+    const button=name=>root(name)?.querySelector(".cz-knob")||null;
+    const value=name=>root(name)?.querySelector(".cz-rotary-value")||null;
+    function visual(name,index,count,label){const btn=button(name);if(!btn)return;const safe=Math.max(1,count),norm=wrap(index,safe),angle=safe<=1?-135:-135+(norm/(safe-1))*270;btn.style.setProperty("--cz-knob-angle",`${angle}deg`);if(value(name))value(name).textContent=label||"—";btn.setAttribute("aria-valuemin","0");btn.setAttribute("aria-valuemax",String(Math.max(0,safe-1)));btn.setAttribute("aria-valuenow",String(norm));btn.setAttribute("aria-valuetext",label||"Unavailable");}
+    function refresh(){const t=Themes.current(),l=Layouts.current();visual("theme",Themes.index,Themes.presets.length,t?.label);visual("layout",Layouts.index,Layouts.presets.length,l?.label);["a","b","c","d"].forEach(bank=>{const s=Macros.selected(bank);visual(`macro-${bank}`,s.index,(Macros.definitions[bank]||[]).length,s.slot.name);});}
+    function step(name,delta){if(name==="theme"){const p=Themes.apply(Themes.index+delta);visual(name,Themes.index,Themes.presets.length,p?.label);}else if(name==="layout"){const p=Layouts.apply(Layouts.index+delta);visual(name,Layouts.index,Layouts.presets.length,p?.label);}else if(name==="module")Operations.selectModule(Operations.state.moduleIndex+delta);else if(name==="function")Operations.selectFunction(Operations.state.functionIndex+delta);else if(name.startsWith("macro-")){const bank=name.slice(-1);const s=Macros.step(bank,delta);visual(name,s.index,(Macros.definitions[bank]||[]).length,s.slot.name);}}
+    function press(name){if(name==="module")Operations.selectModule(Operations.state.moduleIndex,{expand:true,scroll:true});else if(name==="function")Operations.activateFunction();else if(name.startsWith("macro-"))Macros.run(name.slice(-1));}
+    function wire(name){const btn=button(name);if(!btn)return;let pid=null,lastY=0,acc=0,moved=false;btn.addEventListener("wheel",e=>{e.preventDefault();step(name,e.deltaY>0?1:-1);},{passive:false});btn.addEventListener("keydown",e=>{if(["ArrowRight","ArrowUp"].includes(e.key)){e.preventDefault();step(name,1);}else if(["ArrowLeft","ArrowDown"].includes(e.key)){e.preventDefault();step(name,-1);}else if(e.key==="PageUp"){e.preventDefault();step(name,8);}else if(e.key==="PageDown"){e.preventDefault();step(name,-8);}else if(["Enter"," "].includes(e.key)){e.preventDefault();press(name);}});btn.addEventListener("pointerdown",e=>{pid=e.pointerId;lastY=e.clientY;acc=0;moved=false;btn.setPointerCapture(pid);});btn.addEventListener("pointermove",e=>{if(pid!==e.pointerId)return;acc+=lastY-e.clientY;lastY=e.clientY;if(Math.abs(acc)>=12){step(name,acc>0?1:-1);acc=0;moved=true;}});btn.addEventListener("pointerup",e=>{if(pid!==e.pointerId)return;try{btn.releasePointerCapture(pid);}catch(_){}pid=null;if(!moved)press(name);});btn.addEventListener("pointercancel",()=>{pid=null;});}
+    M.Rotary={boot(){names.forEach(wire);refresh();visual("module",0,1,"Loading…");visual("function",0,1,"Loading…");window.addEventListener("zzx-cyberchef-module-change",e=>{const d=e.detail||{};visual("module",d.index||0,d.count||1,d.label||"—");});window.addEventListener("zzx-cyberchef-function-change",e=>{const d=e.detail||{};visual("function",d.index||0,d.count||1,d.label||"—");});window.addEventListener("zzx-cyberchef-macro-change",e=>{const d=e.detail||{};visual(`macro-${d.bank}`,d.index||0,d.count||1,d.label||"—");});window.addEventListener("zzx-cyberchef-frame-ready",e=>{const modified=e.detail?.mode==="modified",deck=document.getElementById("cz-control-deck");if(deck)deck.hidden=!modified;Operations.reset();if(modified){Themes.restore();Layouts.restore();Themes.applyCurrent(false);Layouts.applyCurrent(false);refresh();Operations.wait();}});}};
 })();
