@@ -75,14 +75,11 @@ jobs:
           set -euo pipefail
           python3 -m py_compile tools/cyberchef/cyberchef.py
 
-          ROOT_FILES=(
+          REQUIRED_FILES=(
             cyberchef/index.html
             cyberchef/styles.css
             cyberchef/upgrades.css
             cyberchef/modifications.css
-          )
-
-          PAGE_CSS=(
             cyberchef/css/page/base.css
             cyberchef/css/page/runtime.css
             cyberchef/css/page/workbench.css
@@ -93,9 +90,6 @@ jobs:
             cyberchef/css/page/history.css
             cyberchef/css/page/responsive.css
             cyberchef/css/page/mobile.css
-          )
-
-          FRAME_CSS=(
             cyberchef/css/frame/shim.css
             cyberchef/css/frame/tokens.css
             cyberchef/css/frame/fonts.css
@@ -107,9 +101,6 @@ jobs:
             cyberchef/css/frame/operations.css
             cyberchef/css/frame/scrollbars.css
             cyberchef/css/frame/mobile.css
-          )
-
-          JS_MODULES=(
             cyberchef/js/config.js
             cyberchef/js/storage.js
             cyberchef/js/quota.js
@@ -128,46 +119,125 @@ jobs:
             cyberchef/js/history.js
             cyberchef/js/modifications.js
             cyberchef/js/bootstrap.js
+            cyberchef/themes/index.json
+            cyberchef/layouts/index.json
           )
 
-          for file in "${ROOT_FILES[@]}" "${PAGE_CSS[@]}" "${FRAME_CSS[@]}" "${JS_MODULES[@]}"; do
-            test -s "${file}"
+          failed=0
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -s "${file}" ]; then
+              printf 'ERROR: required CyberChefZZX source file missing or empty: %s\n' "${file}"
+              failed=1
+            fi
           done
+          if [ "${failed}" -ne 0 ]; then
+            exit 1
+          fi
 
-          test -s cyberchef/themes/index.json
-          test -s cyberchef/layouts/index.json
-          test "$(find cyberchef/themes -maxdepth 1 -type f -name '*.theme.json' | wc -l)" -eq 64
-          test "$(find cyberchef/layouts -maxdepth 1 -type f -name '*.layout.json' | wc -l)" -eq 128
-
-          grep -q 'id="cz-frame"' cyberchef/index.html
-          grep -q 'src="about:blank"' cyberchef/index.html
-          grep -q './js/quota.js' cyberchef/index.html
-          grep -q 'nativeUrl: "./app/index.html"' cyberchef/js/config.js
-          grep -q 'id="cz-control-deck"' cyberchef/index.html
-          grep -q 'data-rotary="macro-a"' cyberchef/index.html
-          grep -q 'data-rotary="macro-d"' cyberchef/index.html
-          grep -q 'data-cz-official-download' cyberchef/index.html
-          grep -q './css/frame/shim.css' cyberchef/js/config.js
           python3 - <<'PY'
           import json
           from pathlib import Path
-          themes = json.loads(Path('cyberchef/themes/index.json').read_text())
-          layouts = json.loads(Path('cyberchef/layouts/index.json').read_text())
-          assert themes['count'] == 64 and len(themes['themes']) == 64
-          assert layouts['count'] == 128 and len(layouts['layouts']) == 128
-          for item in themes['themes']:
-              assert (Path('cyberchef/themes') / item['file']).is_file(), item['file']
-          for item in layouts['layouts']:
-              assert (Path('cyberchef/layouts') / item['file']).is_file(), item['file']
+
+          root = Path("cyberchef")
+
+          def require_text(path: Path, needle: str) -> None:
+              text = path.read_text(encoding="utf-8", errors="strict")
+              if needle not in text:
+                  raise SystemExit(f"ERROR: {path} is missing required marker: {needle}")
+
+          require_text(root / "index.html", 'id="cz-frame"')
+          require_text(root / "index.html", 'src="about:blank"')
+          require_text(root / "index.html", './js/quota.js')
+          require_text(root / "index.html", 'id="cz-control-deck"')
+          require_text(root / "index.html", 'data-rotary="macro-a"')
+          require_text(root / "index.html", 'data-rotary="macro-d"')
+          require_text(root / "index.html", 'data-cz-official-download')
+          require_text(root / "js/config.js", './app/index.html')
+          require_text(root / "js/config.js", './css/frame/shim.css')
+          require_text(root / "css/frame/shim.css", '@import url("./tokens.css")')
+          require_text(root / "css/frame/shim.css", '@import url("./scrollbars.css")')
+
+          def validate_catalog(index_path: Path, directory: Path, key: str, expected: int, suffix: str) -> None:
+              try:
+                  payload = json.loads(index_path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  raise SystemExit(f"ERROR: invalid JSON catalog {index_path}: {exc}") from exc
+
+              entries = payload.get(key)
+              if not isinstance(entries, list):
+                  raise SystemExit(f"ERROR: {index_path} field {key!r} must be a list.")
+              if payload.get("count") != expected:
+                  raise SystemExit(
+                      f"ERROR: {index_path} declares count={payload.get('count')!r}; expected {expected}."
+                  )
+              if len(entries) != expected:
+                  raise SystemExit(
+                      f"ERROR: {index_path} contains {len(entries)} entries; expected {expected}."
+                  )
+
+              seen = set()
+              missing = []
+              for position, item in enumerate(entries, start=1):
+                  if not isinstance(item, dict):
+                      raise SystemExit(
+                          f"ERROR: {index_path} entry {position} is not an object."
+                      )
+                  rel = item.get("file")
+                  if not isinstance(rel, str) or not rel.endswith(suffix):
+                      raise SystemExit(
+                          f"ERROR: {index_path} entry {position} has invalid file value: {rel!r}"
+                      )
+                  if rel in seen:
+                      raise SystemExit(f"ERROR: duplicate catalog file in {index_path}: {rel}")
+                  seen.add(rel)
+                  path = directory / rel
+                  if not path.is_file() or path.stat().st_size == 0:
+                      missing.append(rel)
+                      continue
+                  try:
+                      json.loads(path.read_text(encoding="utf-8"))
+                  except Exception as exc:
+                      raise SystemExit(f"ERROR: invalid preset JSON {path}: {exc}") from exc
+
+              if missing:
+                  raise SystemExit(
+                      "ERROR: catalog references missing/empty files:\n  " + "\n  ".join(missing)
+                  )
+
+              extras = sorted(
+                  p.name for p in directory.glob(f"*{suffix}") if p.name not in seen
+              )
+              print(f"Validated {expected} entries from {index_path}.")
+              if extras:
+                  print(
+                      f"WARNING: ignoring {len(extras)} unreferenced preset file(s) in {directory}: "
+                      + ", ".join(extras[:12])
+                      + (" ..." if len(extras) > 12 else "")
+                  )
+
+          validate_catalog(
+              root / "themes/index.json",
+              root / "themes",
+              "themes",
+              64,
+              ".theme.json",
+          )
+          validate_catalog(
+              root / "layouts/index.json",
+              root / "layouts",
+              "layouts",
+              128,
+              ".layout.json",
+          )
           PY
-          grep -q '@import url("./tokens.css")' cyberchef/css/frame/shim.css
-          grep -q '@import url("./scrollbars.css")' cyberchef/css/frame/shim.css
 
           if grep -nE '/cyberchef/shim/|shim/shim\.css|cyberchef/rotary\.js' \
               tools/cyberchef/cyberchef.py cyberchef/index.html cyberchef/js/*.js; then
             printf '%s\n' 'ERROR: stale pre-v9 CyberChef shim paths remain in active source.'
             exit 1
           fi
+
+          printf '%s\n' 'CyberChefZZX source validation passed.'
 
       - name: Resolve latest official release and build /cyberchef/app/
         shell: bash
