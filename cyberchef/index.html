@@ -139,34 +139,54 @@
                     <div class="cz-control-tier-label"><span>Primary Encoders</span><small>theme · layout · module · function</small></div>
                     <div class="cz-encoder-grid cz-encoder-grid-primary">
                         <div class="cz-rotary" data-rotary="theme">
-                            <span class="cz-rotary-index">01</span><span class="cz-rotary-label">Theme Preset</span>
+                            <span class="cz-rotary-index">01</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="Theme preset" aria-valuemin="0" aria-valuemax="63" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-theme-value">Tactical / Standard</strong><span class="cz-rotary-help">64 independent *.theme.json systems</span>
+                            <div class="cz-rotary-display cz-oled" role="status" aria-live="polite">
+                                <span class="cz-rotary-label">Theme Preset</span>
+                                <strong class="cz-rotary-value" id="cz-theme-value">Tactical Olive</strong>
+                                <span class="cz-rotary-help">64 independent *.theme.json systems</span>
+                                <span class="cz-rotary-meter">01 / 64</span>
+                            </div>
                         </div>
                         <div class="cz-rotary" data-rotary="layout">
-                            <span class="cz-rotary-index">02</span><span class="cz-rotary-label">Layout Preset</span>
+                            <span class="cz-rotary-index">02</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="Layout preset" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-layout-value">Native / Standard</strong><span class="cz-rotary-help">128 independent *.layout.json topologies</span>
+                            <div class="cz-rotary-display cz-oled" role="status" aria-live="polite">
+                                <span class="cz-rotary-label">Layout Preset</span>
+                                <strong class="cz-rotary-value" id="cz-layout-value">Native CyberChef</strong>
+                                <span class="cz-rotary-help">128 independent *.layout.json topologies</span>
+                                <span class="cz-rotary-meter">01 / 128</span>
+                            </div>
                         </div>
                         <div class="cz-rotary" data-rotary="module">
-                            <span class="cz-rotary-index">03</span><span class="cz-rotary-label">Module</span>
+                            <span class="cz-rotary-index">03</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="CyberChef operation module" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-module-value">Loading…</strong><span class="cz-rotary-help">scroll operation categories</span>
+                            <div class="cz-rotary-display cz-oled" role="status" aria-live="polite">
+                                <span class="cz-rotary-label">Module</span>
+                                <strong class="cz-rotary-value" id="cz-module-value">Loading…</strong>
+                                <span class="cz-rotary-help">scroll operation categories</span>
+                                <span class="cz-rotary-meter">01 / 01</span>
+                            </div>
                         </div>
                         <div class="cz-rotary" data-rotary="function">
-                            <span class="cz-rotary-index">04</span><span class="cz-rotary-label">Function</span>
+                            <span class="cz-rotary-index">04</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="CyberChef function" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-function-value">Loading…</strong><span class="cz-rotary-help">press to add selected operation</span>
+                            <div class="cz-rotary-display cz-oled" role="status" aria-live="polite">
+                                <span class="cz-rotary-label">Function</span>
+                                <strong class="cz-rotary-value" id="cz-function-value">Loading…</strong>
+                                <span class="cz-rotary-help">press to add selected operation</span>
+                                <span class="cz-rotary-meter">01 / 01</span>
+                            </div>
                             <div id="cz-parameter-rack" class="cz-parameter-rack" aria-live="polite" hidden></div>
                         </div>
                     </div>
 
                     <div class="cz-control-tier-label cz-control-tier-label-macros"><span>User Macro Banks</span><small>16 programmable slots per encoder</small></div>
                     <div class="cz-encoder-grid cz-encoder-grid-macros">
-                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-a"><span class="cz-rotary-index">05</span><span class="cz-rotary-label">Macro A</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank A" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-a-value">Magic Inspect</strong><span class="cz-rotary-help">press to run preset</span></div>
-                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-b"><span class="cz-rotary-index">06</span><span class="cz-rotary-label">Macro B</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank B" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-b-value">Base64 Decode</strong><span class="cz-rotary-help">press to run preset</span></div>
-                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-c"><span class="cz-rotary-index">07</span><span class="cz-rotary-label">Macro C</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank C" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-c-value">SHA2-256</strong><span class="cz-rotary-help">press to run preset</span></div>
-                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-d"><span class="cz-rotary-index">08</span><span class="cz-rotary-label">Macro D</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank D" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-d-value">Extract URLs</strong><span class="cz-rotary-help">press to run preset</span></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-a"><span class="cz-rotary-index">05</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank A" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><div class="cz-rotary-display cz-oled" role="status" aria-live="polite"><span class="cz-rotary-label">Macro A</span><strong class="cz-rotary-value" id="cz-macro-a-value">Magic Inspect</strong><span class="cz-rotary-help">press to run preset</span><span class="cz-rotary-meter">01 / 16</span></div></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-b"><span class="cz-rotary-index">06</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank B" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><div class="cz-rotary-display cz-oled" role="status" aria-live="polite"><span class="cz-rotary-label">Macro B</span><strong class="cz-rotary-value" id="cz-macro-b-value">Base64 Decode</strong><span class="cz-rotary-help">press to run preset</span><span class="cz-rotary-meter">01 / 16</span></div></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-c"><span class="cz-rotary-index">07</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank C" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><div class="cz-rotary-display cz-oled" role="status" aria-live="polite"><span class="cz-rotary-label">Macro C</span><strong class="cz-rotary-value" id="cz-macro-c-value">SHA2-256</strong><span class="cz-rotary-help">press to run preset</span><span class="cz-rotary-meter">01 / 16</span></div></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-d"><span class="cz-rotary-index">08</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank D" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><div class="cz-rotary-display cz-oled" role="status" aria-live="polite"><span class="cz-rotary-label">Macro D</span><strong class="cz-rotary-value" id="cz-macro-d-value">Extract URLs</strong><span class="cz-rotary-help">press to run preset</span><span class="cz-rotary-meter">01 / 16</span></div></div>
                     </div>
                 </div>
 
