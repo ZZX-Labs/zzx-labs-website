@@ -64,8 +64,8 @@
         const root = doc.documentElement;
         root.classList.remove("zzx-layout-custom", "zzx-layout-mobile", "zzx-sticky-titles", "zzx-compact-banner");
         doc.body?.classList.remove("zzx-layout-custom");
-        ["zzxLayout", "zzxLayoutOrientation"].forEach(name => { delete root.dataset[name]; });
-        ["--zzx-ui-scale", "--zzx-op-pad-y", "--zzx-banner-height", "--zzx-mobile-zoom", "--zzx-workspace-gap", "--zzx-workspace-padding"]
+        ["zzxLayout", "zzxLayoutOrientation", "zzxLayoutMode"].forEach(name => { delete root.dataset[name]; });
+        ["--zzx-ui-scale", "--zzx-op-pad-y", "--zzx-banner-height", "--zzx-mobile-zoom", "--zzx-workspace-gap", "--zzx-workspace-padding", "--zzx-layout-height"]
             .forEach(name => root.style.removeProperty(name));
         try { M.Runtime?.window()?.dispatchEvent(new Event("resize")); } catch (_) {}
     }
@@ -114,11 +114,18 @@
         const rows = Array.isArray(w.rows) ? w.rows.join(" ") : (w.rows || "minmax(0,1fr)");
         const gap = `${Number(w.gap ?? 8)}px`;
         const padding = `${Number(w.padding ?? .35)}rem`;
+        const bannerHeight = Math.max(28, Number(density.bannerHeight ?? 42));
+        const viewportHeight = Math.max(
+            Number(w.minHeight || (isMobile() ? 360 : 560)),
+            Math.round((doc.defaultView?.innerHeight || 0) - bannerHeight)
+        );
 
         important(workspace.style, "width", "100%");
         important(workspace.style, "max-width", "100%");
         important(workspace.style, "min-width", "0");
         important(workspace.style, "overflow", "hidden");
+        important(workspace.style, "height", `${viewportHeight}px`);
+        important(workspace.style, "min-height", `${viewportHeight}px`);
 
         important(content.style, "display", "grid");
         important(content.style, "grid-template-areas", areaTemplate(areas));
@@ -130,9 +137,10 @@
         important(content.style, "width", "100%");
         important(content.style, "max-width", "100%");
         important(content.style, "min-width", "0");
-        important(content.style, "min-height", `${Number(w.minHeight || 620)}px`);
-        important(content.style, "height", "auto");
+        important(content.style, "min-height", "0");
+        important(content.style, "height", `${viewportHeight}px`);
         important(content.style, "overflow", "hidden");
+        important(content.style, "align-items", "stretch");
 
         [[operations, "ops"], [recipe, "recipe"], [io, "io"]].forEach(([node, area]) => {
             important(node.style, "grid-area", area);
@@ -143,7 +151,8 @@
             important(node.style, "max-width", "none");
             important(node.style, "max-height", "none");
             important(node.style, "flex-basis", "auto");
-            important(node.style, "overflow", node === operations && behavior.scrollOperations !== false ? "auto" : "hidden");
+            const overflow = node === io ? "hidden" : "auto";
+            important(node.style, "overflow", overflow);
         });
 
         const horizontal = ioc.orientation === "horizontal";
@@ -163,6 +172,7 @@
             important(node.style, "max-width", "none");
             important(node.style, "max-height", "none");
             important(node.style, "flex-basis", "auto");
+            important(node.style, "overflow", "auto");
         });
 
         Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).forEach(gutter => {
@@ -175,6 +185,7 @@
         root.classList.toggle("zzx-sticky-titles", Boolean(behavior.stickyTitles));
         root.classList.toggle("zzx-compact-banner", Boolean(behavior.compactBanner));
         root.dataset.zzxLayout = preset.id;
+        root.dataset.zzxLayoutMode = "custom";
         root.dataset.zzxLayoutOrientation = ioc.orientation || "vertical";
         doc.body?.classList.add("zzx-layout-custom");
         root.style.setProperty("--zzx-ui-scale", String(density.scale ?? 1));
@@ -183,6 +194,7 @@
         root.style.setProperty("--zzx-mobile-zoom", String(preset.mobile?.zoom ?? .68));
         root.style.setProperty("--zzx-workspace-gap", gap);
         root.style.setProperty("--zzx-workspace-padding", padding);
+        root.style.setProperty("--zzx-layout-height", `${viewportHeight}px`);
         if (banner && behavior.compactBanner) important(banner.style, "min-height", `${Math.max(28, Number(density.bannerHeight ?? 36))}px`);
         try { M.Runtime?.window()?.dispatchEvent(new Event("resize")); } catch (_) {}
         return true;
@@ -267,7 +279,7 @@
                 if (doc && M.Runtime?.mode() === "modified") {
                     applying = true;
                     captureNative(doc);
-                    if (preset.native) restoreNative(doc);
+                    if (preset.native) { restoreNative(doc); doc.documentElement.dataset.zzxLayoutMode = "native"; }
                     else if (!applyCustom(doc, preset)) throw new Error("CyberChef workspace nodes are not ready for the selected layout.");
                     requestAnimationFrame(() => requestAnimationFrame(() => { applying = false; }));
                 }
