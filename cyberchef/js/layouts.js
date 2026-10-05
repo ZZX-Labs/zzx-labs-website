@@ -9,7 +9,7 @@
 
     let catalogPromise = null;
     let nativeSnapshot = null;
-    let observer = null;
+    let mutationObserver = null;
     let frameResizeObserver = null;
     let reapplyTimer = null;
     let applying = false;
@@ -17,6 +17,7 @@
 
     const wrap = (i, n) => n ? ((Number(i) % n) + n) % n : 0;
     const isMobile = () => Boolean(window.matchMedia?.("(max-width: 760px)")?.matches);
+    const paneNames = ["ops", "recipe", "input", "output"];
 
     const nodesFor = doc => ({
         workspace: doc?.querySelector("#workspace-wrapper"),
@@ -29,64 +30,61 @@
         banner: doc?.querySelector("#banner")
     });
 
-    function snapshotNode(node) {
+    function snap(node) {
         if (!node) return null;
-        return { style: node.getAttribute("style"), className: node.className };
+        return {
+            style: node.getAttribute("style"),
+            className: node.className
+        };
+    }
+
+    function restoreNode(node, state) {
+        if (!node || !state) return;
+        if (state.style === null) node.removeAttribute("style");
+        else node.setAttribute("style", state.style);
+        node.className = state.className;
     }
 
     function captureNative(doc) {
         if (nativeSnapshot || !doc) return;
         const nodes = nodesFor(doc);
         nativeSnapshot = {
-            nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snapshotNode(node)])),
-            rootStyle: doc.documentElement?.getAttribute("style") ?? null,
-            bodyStyle: doc.body?.getAttribute("style") ?? null,
+            root: snap(doc.documentElement),
+            body: snap(doc.body),
+            nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snap(node)])),
             gutters: Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).map(node => ({
                 node,
-                style: node.getAttribute("style"),
-                className: node.className
+                state: snap(node)
             }))
         };
-    }
-
-    function restoreStyle(node, value) {
-        if (!node) return;
-        if (value === null) node.removeAttribute("style");
-        else node.setAttribute("style", value);
-    }
-
-    function restoreNode(node, snap) {
-        if (!node || !snap) return;
-        restoreStyle(node, snap.style);
-        node.className = snap.className;
     }
 
     function restoreNative(doc) {
         if (!doc || !nativeSnapshot) return;
         const nodes = nodesFor(doc);
+        restoreNode(doc.documentElement, nativeSnapshot.root);
+        restoreNode(doc.body, nativeSnapshot.body);
         Object.entries(nodes).forEach(([name, node]) => restoreNode(node, nativeSnapshot.nodes[name]));
-        nativeSnapshot.gutters.forEach(item => {
-            if (!item.node?.isConnected) return;
-            restoreStyle(item.node, item.style);
-            item.node.className = item.className;
+        nativeSnapshot.gutters.forEach(({ node, state }) => {
+            if (node?.isConnected) restoreNode(node, state);
         });
-        restoreStyle(doc.documentElement, nativeSnapshot.rootStyle);
-        restoreStyle(doc.body, nativeSnapshot.bodyStyle);
 
         const root = doc.documentElement;
-        root.classList.remove("zzx-layout-custom", "zzx-layout-mobile", "zzx-sticky-titles", "zzx-compact-banner");
-        doc.body?.classList.remove("zzx-layout-custom");
-        ["zzxLayout", "zzxLayoutOrientation", "zzxLayoutMode"].forEach(name => { delete root.dataset[name]; });
-        [
-            "--zzx-ui-scale",
-            "--zzx-op-pad-y",
-            "--zzx-banner-height",
-            "--zzx-mobile-zoom",
-            "--zzx-workspace-gap",
-            "--zzx-workspace-padding"
-        ].forEach(name => root.style.removeProperty(name));
+        root.classList.remove(
+            "zzx-layout-custom",
+            "zzx-layout-mobile",
+            "zzx-sticky-titles",
+            "zzx-compact-banner",
+            "zzx-four-pane-layout"
+        );
+        doc.body?.classList.remove("zzx-layout-custom", "zzx-four-pane-layout");
+        ["zzxLayout", "zzxLayoutMode", "zzxLayoutFamily"].forEach(name => { delete root.dataset[name]; });
         root.dataset.zzxLayoutMode = "native";
-        try { M.Runtime?.window()?.dispatchEvent(new Event("resize")); } catch (_) {}
+        try {
+            const win = M.Runtime?.window();
+            win?.dispatchEvent(new Event("resize"));
+            requestAnimationFrame(() => win?.dispatchEvent(new Event("resize")));
+        } catch (_) {}
     }
 
     function important(style, name, value) {
@@ -95,72 +93,105 @@
         else style.setProperty(name, String(value), "important");
     }
 
-    const areaTemplate = areas => (areas || []).map(row => `"${row}"`).join(" ");
+    function areaTemplate(areas) {
+        return (areas || []).map(row => `"${row}"`).join(" ");
+    }
 
-    function resolvedGeometry(preset) {
-        if (!preset || preset.native || !isMobile() || !preset.mobile) {
-            return { ...preset, mobileActive: false };
+    function validateGeometry(preset) {
+        const w = preset?.workspace || {};
+        const areas = Array.isArray(w.areas) ? w.areas.map(String) : [];
+        const columns = Array.isArray(w.columns) ? w.columns : [];
+        const rows = Array.isArray(w.rows) ? w.rows : [];
+        if (!areas.length || !columns.length || !rows.length) {
+            throw new Error(`Layout ${preset?.id || "unknown"} has incomplete grid geometry.`);
         }
+        const widths = areas.map(row => row.trim().split(/\s+/).filter(Boolean).length);
+        if (new Set(widths).size !== 1 || widths[0] !== columns.length || areas.length !== rows.length) {
+            throw new Error(`Layout ${preset.id} grid dimensions are inconsistent.`);
+        }
+        const tokens = new Set(areas.flatMap(row => row.trim().split(/\s+/).filter(Boolean)));
+        const missing = paneNames.filter(name => !tokens.has(name));
+        if (missing.length) throw new Error(`Layout ${preset.id} is missing pane(s): ${missing.join(", ")}.`);
+        return true;
+    }
+
+    function resolvedPreset(preset) {
+        if (!preset || preset.native || !isMobile() || !preset.mobile) return preset;
         return {
             ...preset,
             workspace: {
                 ...(preset.workspace || {}),
-                areas: (preset.mobile.areas || ["io", "recipe", "ops"]).map(String),
+                areas: (preset.mobile.areas || ["ops", "recipe", "input", "output"]).map(String),
                 columns: preset.mobile.columns || ["minmax(0,1fr)"],
-                rows: preset.mobile.rows || ["minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)"],
-                gap: Math.min(8, Number(preset.workspace?.gap ?? 6)),
-                padding: Math.min(.35, Number(preset.workspace?.padding ?? .25))
-            },
-            io: {
-                ...(preset.io || {}),
-                orientation: preset.mobile.ioOrientation || "vertical",
-                split: preset.mobile.ioSplit || [50, 50]
+                rows: preset.mobile.rows || ["minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)"],
+                gap: Math.min(6, Number(preset.workspace?.gap ?? 4)),
+                padding: Math.min(.24, Number(preset.workspace?.padding ?? .16))
             },
             mobileActive: true
         };
     }
 
-    function applyCustom(doc, preset) {
-        const resolved = resolvedGeometry(preset);
+    function resetGridItem(node, area, overflow = "hidden") {
+        important(node.style, "grid-area", area);
+        important(node.style, "position", "relative");
+        important(node.style, "inset", "auto");
+        important(node.style, "left", "auto");
+        important(node.style, "right", "auto");
+        important(node.style, "top", "auto");
+        important(node.style, "bottom", "auto");
+        important(node.style, "float", "none");
+        important(node.style, "display", "block");
+        important(node.style, "width", "100%");
+        important(node.style, "height", "100%");
+        important(node.style, "min-width", "0");
+        important(node.style, "min-height", "0");
+        important(node.style, "max-width", "none");
+        important(node.style, "max-height", "none");
+        important(node.style, "flex", "none");
+        important(node.style, "flex-basis", "auto");
+        important(node.style, "box-sizing", "border-box");
+        important(node.style, "overflow", overflow);
+        important(node.style, "transform", "none");
+    }
+
+    function applyCustom(doc, originalPreset) {
+        const preset = resolvedPreset(originalPreset);
+        validateGeometry(preset);
         const nodes = nodesFor(doc);
         const { workspace, content, operations, recipe, io, input, output, banner } = nodes;
         if (!workspace || !content || !operations || !recipe || !io || !input || !output) return false;
         captureNative(doc);
 
-        const w = resolved.workspace || {};
-        const ioc = resolved.io || {};
-        const density = resolved.density || {};
-        const behavior = resolved.behavior || {};
-
-        const areas = w.areas || ["ops recipe io"];
-        const columns = Array.isArray(w.columns)
-            ? w.columns.join(" ")
-            : (w.columns || "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)");
-        const rows = Array.isArray(w.rows)
-            ? w.rows.join(" ")
-            : (w.rows || "minmax(0,1fr)");
-        const gap = `${Number(w.gap ?? 8)}px`;
-        const padding = `${Number(w.padding ?? .35)}rem`;
-        const bannerHeight = Math.max(28, Number(density.bannerHeight ?? 42));
-
+        const w = preset.workspace || {};
+        const density = preset.density || {};
+        const behavior = preset.behavior || {};
+        const areas = w.areas;
+        const columns = w.columns.join(" ");
+        const rows = w.rows.join(" ");
+        const gap = `${Number(w.gap ?? 4)}px`;
+        const padding = `${Number(w.padding ?? .16)}rem`;
+        const bannerHeight = Math.max(28, Number(density.bannerHeight ?? 36));
         const root = doc.documentElement;
         const body = doc.body;
-        root.classList.add("zzx-layout-custom");
-        root.classList.toggle("zzx-layout-mobile", Boolean(resolved.mobileActive));
+
+        root.classList.add("zzx-layout-custom", "zzx-four-pane-layout");
+        root.classList.toggle("zzx-layout-mobile", Boolean(preset.mobileActive));
         root.classList.toggle("zzx-sticky-titles", Boolean(behavior.stickyTitles));
         root.classList.toggle("zzx-compact-banner", Boolean(behavior.compactBanner));
-        root.dataset.zzxLayout = preset.id;
+        body?.classList.add("zzx-layout-custom", "zzx-four-pane-layout");
+        root.dataset.zzxLayout = originalPreset.id;
         root.dataset.zzxLayoutMode = "custom";
-        root.dataset.zzxLayoutOrientation = ioc.orientation || "vertical";
-        body?.classList.add("zzx-layout-custom");
+        root.dataset.zzxLayoutFamily = originalPreset.family || "custom";
 
         important(root.style, "width", "100%");
         important(root.style, "height", "100%");
+        important(root.style, "min-width", "0");
         important(root.style, "overflow", "hidden");
         if (body) {
             important(body.style, "width", "100%");
             important(body.style, "height", "100%");
             important(body.style, "min-width", "0");
+            important(body.style, "min-height", "0");
             important(body.style, "margin", "0");
             important(body.style, "overflow", "hidden");
         }
@@ -173,13 +204,11 @@
             important(banner.style, "height", `${bannerHeight}px`);
             important(banner.style, "min-height", `${bannerHeight}px`);
             important(banner.style, "max-height", `${bannerHeight}px`);
-            important(banner.style, "overflow", "hidden");
             important(banner.style, "box-sizing", "border-box");
-            important(banner.style, "z-index", "20");
+            important(banner.style, "overflow", "hidden");
+            important(banner.style, "z-index", "30");
         }
 
-        /* Dock the workspace to the iframe viewport. This is the key sizing
-           contract: layouts fill the feature frame, not the parent browser. */
         important(workspace.style, "position", "absolute");
         important(workspace.style, "left", "0");
         important(workspace.style, "right", "0");
@@ -202,74 +231,47 @@
         important(content.style, "grid-template-rows", rows);
         important(content.style, "gap", gap);
         important(content.style, "padding", padding);
-        important(content.style, "box-sizing", "border-box");
         important(content.style, "width", "auto");
         important(content.style, "height", "auto");
         important(content.style, "min-width", "0");
         important(content.style, "min-height", "0");
         important(content.style, "max-width", "none");
         important(content.style, "max-height", "none");
+        important(content.style, "box-sizing", "border-box");
         important(content.style, "overflow", "hidden");
         important(content.style, "align-items", "stretch");
         important(content.style, "justify-items", "stretch");
 
-        [[operations, "ops"], [recipe, "recipe"], [io, "io"]].forEach(([node, area]) => {
-            important(node.style, "grid-area", area);
-            important(node.style, "position", "relative");
-            important(node.style, "left", "auto");
-            important(node.style, "right", "auto");
-            important(node.style, "top", "auto");
-            important(node.style, "bottom", "auto");
-            important(node.style, "float", "none");
-            important(node.style, "width", "100%");
-            important(node.style, "height", "100%");
-            important(node.style, "min-width", "0");
-            important(node.style, "min-height", "0");
-            important(node.style, "max-width", "none");
-            important(node.style, "max-height", "none");
-            important(node.style, "flex", "none");
-            important(node.style, "flex-basis", "auto");
-            important(node.style, "box-sizing", "border-box");
-            important(node.style, "overflow", node === io ? "hidden" : "auto");
-        });
+        resetGridItem(operations, "ops", "auto");
+        resetGridItem(recipe, "recipe", "auto");
 
-        const horizontal = ioc.orientation === "horizontal";
-        const split = Array.isArray(ioc.split) && ioc.split.length === 2 ? ioc.split : [50, 50];
-        important(io.style, "display", "grid");
-        important(io.style, "gap", `${Number(ioc.gap ?? 6)}px`);
-        important(io.style, "grid-template-areas", horizontal ? '"input output"' : '"input" "output"');
-        important(io.style, "grid-template-columns", horizontal ? `${split[0]}fr ${split[1]}fr` : "minmax(0,1fr)");
-        important(io.style, "grid-template-rows", horizontal ? "minmax(0,1fr)" : `${split[0]}fr ${split[1]}fr`);
-        important(io.style, "align-items", "stretch");
+        /* #IO remains in the DOM for upstream code, but stops creating its own
+           box.  Input and Output therefore become real grid items of
+           #content-wrapper without reparenting or touching upstream files. */
+        important(io.style, "display", "contents");
+        important(io.style, "position", "static");
+        important(io.style, "width", "auto");
+        important(io.style, "height", "auto");
+        important(io.style, "min-width", "0");
+        important(io.style, "min-height", "0");
+        important(io.style, "overflow", "visible");
+        important(io.style, "transform", "none");
 
-        [[input, "input"], [output, "output"]].forEach(([node, area]) => {
-            important(node.style, "grid-area", area);
-            important(node.style, "position", "relative");
-            important(node.style, "left", "auto");
-            important(node.style, "right", "auto");
-            important(node.style, "top", "auto");
-            important(node.style, "bottom", "auto");
-            important(node.style, "float", "none");
-            important(node.style, "width", "100%");
-            important(node.style, "height", "100%");
-            important(node.style, "min-width", "0");
-            important(node.style, "min-height", "0");
-            important(node.style, "max-width", "none");
-            important(node.style, "max-height", "none");
-            important(node.style, "flex", "none");
-            important(node.style, "flex-basis", "auto");
-            important(node.style, "box-sizing", "border-box");
-            important(node.style, "overflow", "auto");
-        });
+        resetGridItem(input, "input", "hidden");
+        resetGridItem(output, "output", "hidden");
 
         Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).forEach(gutter => {
-            important(gutter.style, "display", behavior.hideGutters === false ? null : "none");
+            important(gutter.style, "display", "none");
+            important(gutter.style, "width", "0");
+            important(gutter.style, "height", "0");
+            important(gutter.style, "min-width", "0");
+            important(gutter.style, "min-height", "0");
+            important(gutter.style, "flex-basis", "0");
         });
 
-        root.style.setProperty("--zzx-ui-scale", String(density.scale ?? 1));
-        root.style.setProperty("--zzx-op-pad-y", `${Number(density.operationPadding ?? 5)}px`);
+        root.style.setProperty("--zzx-ui-scale", String(density.scale ?? .88));
+        root.style.setProperty("--zzx-op-pad-y", `${Number(density.operationPadding ?? 3)}px`);
         root.style.setProperty("--zzx-banner-height", `${bannerHeight}px`);
-        root.style.setProperty("--zzx-mobile-zoom", String(preset.mobile?.zoom ?? .68));
         root.style.setProperty("--zzx-workspace-gap", gap);
         root.style.setProperty("--zzx-workspace-padding", padding);
 
@@ -334,6 +336,8 @@
             if (cache.has(meta.id)) return cache.get(meta.id);
             const url = new URL(`./layouts/${meta.file}`, window.location.href).href;
             const preset = await fetchJSON(url, `Layout ${meta.label || meta.id}`);
+            preset.family = meta.family || preset.family || "custom";
+            if (!preset.native) validateGeometry(resolvedPreset(preset));
             cache.set(meta.id, preset);
             return preset;
         },
@@ -397,36 +401,38 @@
             });
         },
 
+        scheduleReapply(delay = 90) {
+            if (applying || this.current()?.id === "native" || M.Runtime?.mode() !== "modified") return;
+            clearTimeout(reapplyTimer);
+            reapplyTimer = setTimeout(() => this.applyCurrent(false), delay);
+        },
+
         observe() {
-            observer?.disconnect();
+            mutationObserver?.disconnect();
             frameResizeObserver?.disconnect();
 
             const doc = M.Runtime?.document();
             const content = doc?.querySelector("#content-wrapper");
             if (content && window.MutationObserver) {
-                observer = new MutationObserver(() => {
+                mutationObserver = new MutationObserver(mutations => {
                     if (applying || this.current()?.id === "native") return;
-                    clearTimeout(reapplyTimer);
-                    reapplyTimer = setTimeout(() => this.applyCurrent(false), 120);
+                    const meaningful = mutations.some(m => m.target === content || m.target?.classList?.contains("gutter"));
+                    if (meaningful) this.scheduleReapply(100);
                 });
-                observer.observe(content, { subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+                mutationObserver.observe(content, { subtree: true, attributes: true, attributeFilter: ["style", "class"] });
             }
 
             const frame = M.Runtime?.frame?.();
             if (frame && window.ResizeObserver) {
-                frameResizeObserver = new ResizeObserver(() => {
-                    if (applying || this.current()?.id === "native") return;
-                    clearTimeout(reapplyTimer);
-                    reapplyTimer = setTimeout(() => this.applyCurrent(false), 80);
-                });
+                frameResizeObserver = new ResizeObserver(() => this.scheduleReapply(70));
                 frameResizeObserver.observe(frame);
             }
         },
 
         reset() {
-            observer?.disconnect();
+            mutationObserver?.disconnect();
             frameResizeObserver?.disconnect();
-            observer = null;
+            mutationObserver = null;
             frameResizeObserver = null;
             nativeSnapshot = null;
             clearTimeout(reapplyTimer);
@@ -443,12 +449,8 @@
         setTimeout(() => {
             Layouts.applyCurrent(false);
             Layouts.observe();
-        }, 120);
+        }, 160);
     });
 
-    window.addEventListener("resize", () => {
-        if (!Layouts.ready || M.Runtime?.mode() !== "modified" || Layouts.current()?.id === "native") return;
-        clearTimeout(reapplyTimer);
-        reapplyTimer = setTimeout(() => Layouts.applyCurrent(false), 100);
-    }, { passive: true });
+    window.addEventListener("resize", () => Layouts.scheduleReapply(90), { passive: true });
 })();
