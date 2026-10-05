@@ -168,14 +168,41 @@
 
         activateFunction() {
             const operation = state.operations[state.functionIndex];
+            return this.activateNode(operation);
+        },
+
+        activateNode(operation) {
             const win = M.Runtime?.window();
             if (!operation || !win) return false;
-            operation.dispatchEvent(new win.MouseEvent("dblclick", {
-                bubbles: true,
-                cancelable: true,
-                view: win
-            }));
+            operation.dispatchEvent(new win.MouseEvent("dblclick", { bubbles: true, cancelable: true, view: win }));
             return true;
+        },
+
+        allOperations() {
+            return Array.from(new Set(state.categories.flatMap(category => category.operations || [])));
+        },
+
+        findByName(name) {
+            const target = String(name || "").trim().toLowerCase();
+            if (!target) return null;
+            const all = this.allOperations();
+            return all.find(node => operationName(node).toLowerCase() === target) ||
+                   all.find(node => operationName(node).toLowerCase().includes(target)) || null;
+        },
+
+        activateByName(name) {
+            if (!state.categories.length) this.refresh();
+            return this.activateNode(this.findByName(name));
+        },
+
+        recipeOperationNames() {
+            const doc = M.Runtime?.document();
+            if (!doc) return [];
+            const nodes = Array.from(doc.querySelectorAll("#recipe .operation, #recipe .recipe-op, #recipe [data-operation]"));
+            return nodes.map(node => {
+                const title = node.querySelector?.(".op-title, .operation-title, .title, [data-operation-title]");
+                return cleanText(title || node) || node.getAttribute?.("data-operation") || "";
+            }).filter(Boolean);
         },
 
         observe() {
