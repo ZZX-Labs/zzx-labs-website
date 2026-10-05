@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./upgrades.css">
     <link rel="stylesheet" href="./modifications.css">
+    <link rel="stylesheet" href="./css/page/mobile.css">
 
     <script src="../static/script.js" defer></script>
     <script src="./js/config.js" defer></script>
@@ -91,7 +92,8 @@
                 </div>
                 <button id="cz-load" type="button">Load</button>
                 <button id="cz-refresh" type="button">Refresh</button>
-                <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">Open Native Local App</a>
+                <button id="cz-repair-native" type="button" title="Back up and remove only CyberChef/ZZX-owned localStorage keys if Firefox reports QuotaExceededError">Repair Native Storage</button>
+                <a class="cz-link-button" id="cz-open-native" data-cz-open-native href="./app/" target="_blank" rel="noopener">Open Native Local App</a>
                 <a class="cz-link-button" href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener">Official Live CyberChef</a>
                 <a class="cz-link-button cz-download-button" data-cz-official-download href="https://github.com/gchq/CyberChef/releases/latest" target="_blank" rel="noopener">Download Official Release</a>
             </div>
@@ -139,12 +141,12 @@
                         <div class="cz-rotary" data-rotary="theme">
                             <span class="cz-rotary-index">01</span><span class="cz-rotary-label">Theme Preset</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="Theme preset" aria-valuemin="0" aria-valuemax="63" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-theme-value">Tactical / Standard</strong><span class="cz-rotary-help">64 visual systems</span>
+                            <strong class="cz-rotary-value" id="cz-theme-value">Tactical / Standard</strong><span class="cz-rotary-help">64 independent *.theme.json systems</span>
                         </div>
                         <div class="cz-rotary" data-rotary="layout">
                             <span class="cz-rotary-index">02</span><span class="cz-rotary-label">Layout Preset</span>
                             <button class="cz-knob" type="button" role="slider" aria-label="Layout preset" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
-                            <strong class="cz-rotary-value" id="cz-layout-value">Native / Standard</strong><span class="cz-rotary-help">128 workspace geometries</span>
+                            <strong class="cz-rotary-value" id="cz-layout-value">Native / Standard</strong><span class="cz-rotary-help">128 independent *.layout.json topologies</span>
                         </div>
                         <div class="cz-rotary" data-rotary="module">
                             <span class="cz-rotary-index">03</span><span class="cz-rotary-label">Module</span>
@@ -178,7 +180,7 @@
             <header class="cz-panel-head">
                 <span class="cz-kicker">Programmable Presets</span>
                 <h2>Macro Editor</h2>
-                <p>Each lower encoder owns a 16-slot bank. Select a slot with the knob, define a comma- or newline-separated sequence of CyberChef operation names, save it locally, and press the encoder to execute it.</p>
+                <p>Each lower encoder owns a 16-slot bank. Every slot can be either an operation macro or a complete CyberChef recipe preset with operation arguments. Save user macros, capture the live recipe, and press the encoder to execute or restore it.</p>
             </header>
             <div id="cz-macro-editor" class="cz-macro-editor" data-cz-macro-editor></div>
         </section>
