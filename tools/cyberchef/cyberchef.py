@@ -351,9 +351,37 @@ def validate_custom_page(output_dir: Path) -> None:
         if not path.is_file() or path.stat().st_size == 0:
             raise RuntimeError(f"Missing CyberChefZZX layout file: {rel!r}")
         try:
-            json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"Invalid CyberChefZZX layout JSON {rel!r}: {exc}") from exc
+
+        if payload.get("native"):
+            continue
+        if payload.get("schema") != "zzx-cyberchef-layout-v3":
+            raise RuntimeError(f"CyberChefZZX layout {rel!r} must use schema zzx-cyberchef-layout-v3.")
+        workspace = payload.get("workspace") or {}
+        areas = workspace.get("areas") or []
+        columns = workspace.get("columns") or []
+        rows = workspace.get("rows") or []
+        if not isinstance(areas, list) or not isinstance(columns, list) or not isinstance(rows, list) or not areas or not columns or not rows:
+            raise RuntimeError(f"CyberChefZZX layout {rel!r} has incomplete workspace geometry.")
+        widths = [len(str(row).split()) for row in areas]
+        if len(set(widths)) != 1 or widths[0] != len(columns) or len(areas) != len(rows):
+            raise RuntimeError(f"CyberChefZZX layout {rel!r} has inconsistent grid dimensions.")
+        matrix = [str(row).split() for row in areas]
+        required_panes = {"ops", "recipe", "input", "output"}
+        tokens = {token for row in matrix for token in row}
+        missing_panes = sorted(required_panes - tokens)
+        if missing_panes:
+            raise RuntimeError(f"CyberChefZZX layout {rel!r} is missing pane(s): {', '.join(missing_panes)}")
+        for pane in sorted(required_panes):
+            cells = [(r, c) for r, row in enumerate(matrix) for c, value in enumerate(row) if value == pane]
+            rs = [r for r, _ in cells]
+            cs = [c for _, c in cells]
+            for r in range(min(rs), max(rs) + 1):
+                for c in range(min(cs), max(cs) + 1):
+                    if matrix[r][c] != pane:
+                        raise RuntimeError(f"CyberChefZZX layout {rel!r} has a non-rectangular grid area for {pane}.")
 
     extra_themes = sorted(path.name for path in theme_dir.glob("*.theme.json") if path.name not in theme_seen)
     extra_layouts = sorted(path.name for path in layout_dir.glob("*.layout.json") if path.name not in layout_seen)
