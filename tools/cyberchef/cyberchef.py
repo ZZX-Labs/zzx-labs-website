@@ -244,7 +244,7 @@ def validate_custom_page(output_dir: Path) -> None:
     if not page.is_file():
         raise RuntimeError("Custom /cyberchef/index.html is missing.")
     html = page.read_text(encoding="utf-8", errors="strict")
-    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', 'src="about:blank"', './js/quota.js'):
+    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', 'src="about:blank"', './js/quota.js', 'data-rotary="macro-a"', 'data-rotary="macro-d"', 'data-cz-official-download'):
         if marker not in html:
             raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
@@ -254,9 +254,12 @@ def validate_custom_page(output_dir: Path) -> None:
         "modifications.css",
         "css/page/base.css",
         "css/page/runtime.css",
+        "css/page/workbench.css",
         "css/page/controls.css",
+        "css/page/macros.css",
         "css/page/modes.css",
         "css/page/modifications.css",
+        "css/page/history.css",
         "css/page/responsive.css",
         "css/frame/shim.css",
         "css/frame/tokens.css",
@@ -278,8 +281,11 @@ def validate_custom_page(output_dir: Path) -> None:
         "js/manifest.js",
         "js/resize.js",
         "js/operations.js",
+        "js/macros.js",
         "js/rotary.js",
+        "js/downloads.js",
         "js/page-modes.js",
+        "js/history.js",
         "js/modifications.js",
         "js/bootstrap.js",
     ]
@@ -325,7 +331,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v11",
+            "schema": "zzx-cyberchef-runtime-v13",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -365,8 +371,11 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
                     "/cyberchef/js/manifest.js",
                     "/cyberchef/js/resize.js",
                     "/cyberchef/js/operations.js",
+                    "/cyberchef/js/macros.js",
                     "/cyberchef/js/rotary.js",
+                    "/cyberchef/js/downloads.js",
                     "/cyberchef/js/page-modes.js",
+                    "/cyberchef/js/history.js",
                     "/cyberchef/js/modifications.js",
                     "/cyberchef/js/bootstrap.js",
                 ],
