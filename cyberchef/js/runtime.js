@@ -8,6 +8,7 @@
     const keys = config.storageKeys;
 
     let currentMode = "modified";
+    let loadSerial = 0;
 
     function frame() {
         return document.getElementById(config.frameId);
@@ -48,8 +49,13 @@
         return new URL(config.nativeUrl, window.location.href);
     }
 
-    function sameOriginNative(win) {
+    function isGuardedDocument(doc) {
+        return doc?.documentElement?.dataset?.zzxStorageFallback === "memory";
+    }
+
+    function sameOriginNative(win, doc) {
         if (!win) return false;
+        if (isGuardedDocument(doc)) return true;
         try {
             const actual = new URL(win.location.href);
             const expected = expectedNativeUrl();
@@ -80,10 +86,58 @@
             doc?.documentElement &&
             doc?.head &&
             doc?.body &&
-            sameOriginNative(win) &&
+            sameOriginNative(win, doc) &&
             /CyberChef/i.test(title) &&
             hasCyberChefAssets(doc)
         );
+    }
+
+    function escapeHtmlAttr(value) {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;");
+    }
+
+    function guardedHtml(html, recipe = "") {
+        const expected = expectedNativeUrl();
+        const baseHref = expected.href.replace(/index\.html(?:[?#].*)?$/, "");
+        const recipeScript = recipe
+            ? `<script data-zzx-cyberchef-recipe>try{location.hash="recipe=${encodeURIComponent(String(recipe))}";}catch(e){}<\/script>`
+            : "";
+        const injection = `<base href="${escapeHtmlAttr(baseHref)}">\n${M.Quota.memoryPrelude()}\n${recipeScript}`;
+        if (/<head(?:\s[^>]*)?>/i.test(html)) {
+            return html.replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${injection}`);
+        }
+        return `${injection}\n${html}`;
+    }
+
+    async function fetchNativeHtml() {
+        const url = expectedNativeUrl();
+        const response = await fetch(url.href, {
+            cache: "no-store",
+            credentials: "same-origin"
+        });
+        if (!response.ok) {
+            throw new Error(`Local CyberChef HTML request failed: HTTP ${response.status}`);
+        }
+        const html = await response.text();
+        if (!/<title[^>]*>[^<]*CyberChef/i.test(html)) {
+            throw new Error("Local CyberChef HTML response is not the expected production document.");
+        }
+        return html;
+    }
+
+    function setNativeFrame(node, target) {
+        node.removeAttribute("srcdoc");
+        node.setAttribute("src", target);
+    }
+
+    async function setGuardedFrame(node, recipe = "") {
+        const html = await fetchNativeHtml();
+        node.setAttribute("src", "about:blank");
+        node.srcdoc = guardedHtml(html, recipe);
     }
 
     async function afterLoad(mode) {
@@ -106,7 +160,12 @@
                 doc.documentElement.classList.add("dark", "zzx-cyberchef-modified");
                 M.Themes?.applyCurrent(false);
                 M.Layouts?.applyCurrent(false);
-                Status.set("CyberChefZZX loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.", "ready");
+                Status.set(
+                    isGuardedDocument(doc)
+                        ? "CyberChefZZX loaded with the ZZX CSS shim and an in-memory storage fallback because browser localStorage is full."
+                        : "CyberChefZZX loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.",
+                    "ready"
+                );
             } else {
                 clearShim(doc);
                 Status.set("Native local CyberChef loaded without ZZX override modules.", "ready");
@@ -127,6 +186,23 @@
         return value === "native" ? "native" : "modified";
     }
 
+    async function prepareStorage(mode) {
+        if (!M.Quota?.ensureWritable) return { ok: true, repaired: false, fallback: false, removed: [] };
+        const result = await M.Quota.ensureWritable();
+        if (result.repaired) {
+            Status.set(
+                `CyberChef browser storage quota was full. ZZX backed up CyberChef storage to IndexedDB and freed ${result.removed.length} CyberChef key(s) before loading.`,
+                "ready"
+            );
+        } else if (!result.ok && mode === "native") {
+            Status.set(
+                "Browser localStorage is still full. The pristine native app is unmodified and may show CyberChef's QuotaExceededError. Use Modified mode for the guarded runtime or clear site storage for zzx-labs.io.",
+                "error"
+            );
+        }
+        return result;
+    }
+
     const Runtime = {
         frame,
         document: frameDocument,
@@ -134,16 +210,22 @@
         mode() { return currentMode; },
         selectedMode,
 
-        load(mode = selectedMode(), options = {}) {
+        async load(mode = selectedMode(), options = {}) {
             const node = frame();
             if (!node) return;
 
+            const serial = ++loadSerial;
             currentMode = mode === "native" ? "native" : "modified";
             const select = document.getElementById(config.sourceId);
             if (select) select.value = currentMode;
 
             Storage.write(keys.source, currentMode);
             Status.source(currentMode);
+            Status.frame("Checking storage…");
+
+            const storage = await prepareStorage(currentMode);
+            if (serial !== loadSerial) return;
+
             Status.frame("Loading…");
             Status.set(currentMode === "modified"
                 ? "Loading pristine local CyberChef, then applying ZZX CSS/JS modules…"
@@ -156,22 +238,34 @@
                 ? `${base}#recipe=${encodeURIComponent(String(options.recipe))}`
                 : base;
 
+            if (currentMode === "modified" && !storage.ok) {
+                try {
+                    await setGuardedFrame(node, options.recipe || "");
+                    return;
+                } catch (err) {
+                    console.error("[CyberChefZZX storage fallback]", err);
+                    Status.frame("Storage fallback failed");
+                    Status.set(err?.message || "Could not start guarded CyberChef runtime.", "error");
+                    return;
+                }
+            }
+
             const current = node.getAttribute("src") || "";
-            if (current === target && options.force) {
+            if (!node.hasAttribute("srcdoc") && current === target && options.force) {
                 try {
                     node.contentWindow.location.reload();
                     return;
                 } catch (err) {}
             }
-            node.setAttribute("src", target);
+            setNativeFrame(node, target);
         },
 
         reload() {
-            this.load(currentMode, { force: true });
+            return this.load(currentMode, { force: true });
         },
 
         loadRecipe(recipe) {
-            this.load(currentMode, { recipe, force: true });
+            return this.load(currentMode, { recipe, force: true });
         },
 
         reapply() {
