@@ -244,7 +244,18 @@ def validate_custom_page(output_dir: Path) -> None:
     if not page.is_file():
         raise RuntimeError("Custom /cyberchef/index.html is missing.")
     html = page.read_text(encoding="utf-8", errors="strict")
-    for marker in ("CyberChefZZX", 'id="cz-frame"', 'id="cz-control-deck"', 'id="cz-modifications"', 'src="about:blank"', './js/quota.js', 'data-rotary="macro-a"', 'data-rotary="macro-d"', 'data-cz-official-download'):
+    markers = (
+        "CyberChefZZX",
+        'id="cz-frame"',
+        'id="cz-control-deck"',
+        'id="cz-modifications"',
+        'src="about:blank"',
+        './js/quota.js',
+        'data-rotary="macro-a"',
+        'data-rotary="macro-d"',
+        'data-cz-official-download',
+    )
+    for marker in markers:
         if marker not in html:
             raise RuntimeError(f"Custom CyberChef page missing marker: {marker}")
 
@@ -261,6 +272,7 @@ def validate_custom_page(output_dir: Path) -> None:
         "css/page/modifications.css",
         "css/page/history.css",
         "css/page/responsive.css",
+        "css/page/mobile.css",
         "css/frame/shim.css",
         "css/frame/tokens.css",
         "css/frame/fonts.css",
@@ -271,6 +283,7 @@ def validate_custom_page(output_dir: Path) -> None:
         "css/frame/components.css",
         "css/frame/operations.css",
         "css/frame/scrollbars.css",
+        "css/frame/mobile.css",
         "js/config.js",
         "js/storage.js",
         "js/quota.js",
@@ -289,14 +302,40 @@ def validate_custom_page(output_dir: Path) -> None:
         "js/history.js",
         "js/modifications.js",
         "js/bootstrap.js",
+        "themes/index.json",
+        "layouts/index.json",
     ]
     missing = [relative for relative in required if not (output_dir / relative).is_file()]
     if missing:
         raise RuntimeError("Missing CyberChefZZX module(s): " + ", ".join(missing))
 
+    theme_index = json.loads((output_dir / "themes/index.json").read_text(encoding="utf-8"))
+    layout_index = json.loads((output_dir / "layouts/index.json").read_text(encoding="utf-8"))
+    if theme_index.get("count") != 64 or len(theme_index.get("themes", [])) != 64:
+        raise RuntimeError("CyberChefZZX must expose exactly 64 JSON themes.")
+    if layout_index.get("count") != 128 or len(layout_index.get("layouts", [])) != 128:
+        raise RuntimeError("CyberChefZZX must expose exactly 128 JSON layouts.")
+
+    theme_files = list((output_dir / "themes").glob("*.theme.json"))
+    layout_files = list((output_dir / "layouts").glob("*.layout.json"))
+    if len(theme_files) != 64:
+        raise RuntimeError(f"CyberChefZZX requires 64 *.theme.json files; found {len(theme_files)}.")
+    if len(layout_files) != 128:
+        raise RuntimeError(f"CyberChefZZX requires 128 *.layout.json files; found {len(layout_files)}.")
+
+    for item in theme_index["themes"]:
+        rel = item.get("file", "")
+        if not rel or not (output_dir / "themes" / rel).is_file():
+            raise RuntimeError(f"Missing CyberChefZZX theme file: {rel!r}")
+    for item in layout_index["layouts"]:
+        rel = item.get("file", "")
+        if not rel or not (output_dir / "layouts" / rel).is_file():
+            raise RuntimeError(f"Missing CyberChefZZX layout file: {rel!r}")
+
     config_js = (output_dir / "js/config.js").read_text(encoding="utf-8", errors="strict")
-    if './css/frame/shim.css' not in config_js:
-        raise RuntimeError("CyberChefZZX config does not point at css/frame/shim.css.")
+    for expected in ('./css/frame/shim.css', './themes/index.json', './layouts/index.json'):
+        if expected not in config_js:
+            raise RuntimeError(f"CyberChefZZX config is missing {expected}.")
 
 
 def build(requested_version: str, output_dir: Path, archive: Path | None = None) -> dict[str, object]:
@@ -332,7 +371,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v13",
+            "schema": "zzx-cyberchef-runtime-v16",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -360,7 +399,13 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
                     "/cyberchef/css/frame/components.css",
                     "/cyberchef/css/frame/operations.css",
                     "/cyberchef/css/frame/scrollbars.css",
+                    "/cyberchef/css/frame/mobile.css",
                 ],
+                "theme_index": "/cyberchef/themes/index.json",
+                "theme_count": 64,
+                "layout_index": "/cyberchef/layouts/index.json",
+                "layout_count": 128,
+                "mobile_stylesheet": "/cyberchef/css/page/mobile.css",
                 "js_modules": [
                     "/cyberchef/js/config.js",
                     "/cyberchef/js/storage.js",
