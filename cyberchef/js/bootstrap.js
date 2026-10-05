@@ -61,8 +61,8 @@
             M.Status?.set(err.message || "Preset catalog failed to load.", "error");
         }
 
-        M.Rotary?.boot();
-        M.Runtime.load(initialMode, { force: true });
+        await M.Rotary?.boot?.();
+        await M.Runtime.load(initialMode, { force: true });
 
         window.ZZXCyberChef = {
             load: (...args) => M.Runtime.load(...args),
