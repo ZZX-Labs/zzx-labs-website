@@ -110,22 +110,6 @@
         } catch (_) {}
     }
 
-    function applyParent(preset) {
-        if (!preset) return;
-        const c = preset.colors || {}, fonts = preset.fonts || {}, style = document.documentElement.style;
-        setVar(style, "--cz-bg", c.background);
-        setVar(style, "--cz-bg-alt", c.deep || c.background);
-        setVar(style, "--cz-panel", c.panel);
-        setVar(style, "--cz-panel-hi", c.panelHigh || c.panel);
-        setVar(style, "--cz-border", c.border);
-        setVar(style, "--cz-text", c.text);
-        setVar(style, "--cz-muted", c.muted);
-        setVar(style, "--cz-accent", c.accent);
-        setVar(style, "--cz-gold", c.secondary);
-        setVar(style, "--cz-font", fonts.ui);
-        document.documentElement.dataset.czTheme = preset.id || "";
-    }
-
     async function fetchJSON(url, label) {
         const response = await fetch(url, { cache: "no-store", credentials: "same-origin" });
         if (!response.ok) throw new Error(`${label} request failed: HTTP ${response.status}`);
@@ -201,7 +185,6 @@
             try {
                 const preset = await this.resolve(meta);
                 if (serial !== applySerial || this.current()?.id !== meta.id) return preset;
-                applyParent(preset);
                 const doc = M.Runtime?.document();
                 if (doc && M.Runtime?.mode() === "modified") applyToDocument(doc, preset);
                 window.dispatchEvent(new CustomEvent("zzx-cyberchef-theme-change", {
