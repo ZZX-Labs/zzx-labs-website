@@ -53,7 +53,8 @@
         let bar = document.getElementById("cz-viewbar");
         if (bar) return bar;
 
-        const main = document.querySelector("main.cz-shell") || document.querySelector("main") || document.body;
+        const host = document.getElementById("cz-viewbar-host");
+        const main = host || document.querySelector("main.cz-shell") || document.querySelector("main") || document.body;
         bar = document.createElement("div");
         bar.id = "cz-viewbar";
         bar.className = "cz-viewbar";
@@ -82,7 +83,8 @@
         reset.addEventListener("click", () => applyMode("normal"));
         bar.appendChild(reset);
 
-        main.insertBefore(bar, main.firstChild);
+        if (host) host.replaceChildren(bar);
+        else main.insertBefore(bar, main.firstChild);
         return bar;
     }
 
