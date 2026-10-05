@@ -1,65 +1,85 @@
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #content-wrapper{
-  min-width:0!important;
-  max-width:100%!important;
-  box-sizing:border-box!important;
-}
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #operations,
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #recipe{
+/* CyberChefZZX layout layer. Applied only inside the modified iframe. */
+:root.zzx-cyberchef-modified.zzx-layout-custom,
+:root.zzx-cyberchef-modified.zzx-layout-custom body{
+  width:100%!important;
+  height:100%!important;
   min-width:0!important;
   min-height:0!important;
-  box-sizing:border-box!important;
-  overflow:auto!important;
+  margin:0!important;
+  overflow:hidden!important;
 }
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #IO{
-  min-width:0!important;
-  min-height:0!important;
+
+:root.zzx-cyberchef-modified.zzx-layout-custom #banner{
   box-sizing:border-box!important;
   overflow:hidden!important;
 }
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #input,
-:root.zzx-cyberchef-modified[data-zzx-layout-mode="custom"] #output{
+
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper{
   min-width:0!important;
   min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
   box-sizing:border-box!important;
-  overflow:auto!important;
+  overflow:hidden!important;
 }
-:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) #banner{height:var(--zzx-banner-height)!important;line-height:var(--zzx-banner-height)!important}
-:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) #workspace-wrapper{top:var(--zzx-banner-height)!important}
-:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) .op-list li.operation{padding-top:var(--zzx-op-pad-y)!important;padding-bottom:var(--zzx-op-pad-y)!important}
-:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) body{font-size:calc(1rem * var(--zzx-ui-scale))}
-:root.zzx-cyberchef-modified .zzx-knob-selected-category{outline:1px solid var(--zzx-accent)!important;outline-offset:-1px}
-:root.zzx-cyberchef-modified .zzx-knob-selected-operation{box-shadow:inset 3px 0 0 var(--zzx-accent)!important}
 
-/* v19 structural engine: js/layouts.js rearranges #content-wrapper, the real
-   Split.js parent, and now keeps panels scrollable/useful after re-docking. */
 :root.zzx-cyberchef-modified.zzx-layout-custom #content-wrapper{
   min-width:0!important;
-  max-width:100%!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
   box-sizing:border-box!important;
+  overflow:hidden!important;
 }
+
 :root.zzx-cyberchef-modified.zzx-layout-custom #operations,
 :root.zzx-cyberchef-modified.zzx-layout-custom #recipe,
-:root.zzx-cyberchef-modified.zzx-layout-custom #IO{
+:root.zzx-cyberchef-modified.zzx-layout-custom #IO,
+:root.zzx-cyberchef-modified.zzx-layout-custom #input,
+:root.zzx-cyberchef-modified.zzx-layout-custom #output{
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  box-sizing:border-box!important;
   margin:0!important;
   float:none!important;
-  position:relative!important;
   left:auto!important;
   right:auto!important;
   top:auto!important;
   bottom:auto!important;
 }
+
 :root.zzx-cyberchef-modified.zzx-layout-custom #operations,
-:root.zzx-cyberchef-modified.zzx-layout-custom #recipe{
+:root.zzx-cyberchef-modified.zzx-layout-custom #recipe,
+:root.zzx-cyberchef-modified.zzx-layout-custom #input,
+:root.zzx-cyberchef-modified.zzx-layout-custom #output{
   overflow:auto!important;
+  overscroll-behavior:contain;
 }
+
 :root.zzx-cyberchef-modified.zzx-layout-custom #IO{
   overflow:hidden!important;
 }
-:root.zzx-cyberchef-modified.zzx-layout-custom #input,
-:root.zzx-cyberchef-modified.zzx-layout-custom #output{
-  margin:0!important;
-  overflow:auto!important;
+
+:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) .op-list li.operation{
+  padding-top:var(--zzx-op-pad-y)!important;
+  padding-bottom:var(--zzx-op-pad-y)!important;
 }
+
+:root.zzx-cyberchef-modified:not([data-zzx-layout="native"]) body{
+  font-size:calc(1rem * var(--zzx-ui-scale));
+}
+
+:root.zzx-cyberchef-modified .zzx-knob-selected-category{
+  outline:1px solid var(--zzx-accent)!important;
+  outline-offset:-1px;
+}
+
+:root.zzx-cyberchef-modified .zzx-knob-selected-operation{
+  box-shadow:inset 3px 0 0 var(--zzx-accent)!important;
+}
+
 :root.zzx-cyberchef-modified.zzx-sticky-titles .title,
 :root.zzx-cyberchef-modified.zzx-sticky-titles .category-title{
   position:sticky!important;
@@ -67,6 +87,7 @@
   z-index:9!important;
   backdrop-filter:blur(8px);
 }
+
 :root.zzx-cyberchef-modified.zzx-compact-banner #banner{
   overflow:hidden!important;
   padding-top:0!important;
