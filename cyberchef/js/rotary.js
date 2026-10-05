@@ -11,6 +11,7 @@
     const root = name => document.querySelector(`.cz-rotary[data-rotary="${name}"]`);
     const button = name => root(name)?.querySelector(".cz-knob") || null;
     const value = name => root(name)?.querySelector(".cz-rotary-value") || null;
+    const display = name => root(name)?.querySelector(".cz-rotary-display") || null;
     const stepping = new Map();
 
     function visual(name, index, count, label, pending = false) {
@@ -30,12 +31,16 @@
             card.dataset.pending = pending ? "1" : "0";
             card.style.setProperty("--cz-card-progress", `${fraction * 100}%`);
         }
+        const oled = display(name);
+        if (oled) oled.dataset.pending = pending ? "1" : "0";
         btn.setAttribute("aria-valuemin", "0");
         btn.setAttribute("aria-valuemax", String(Math.max(0, safe - 1)));
         btn.setAttribute("aria-valuenow", String(norm));
         btn.setAttribute("aria-valuetext", label || "Unavailable");
         const meter = card?.querySelector(".cz-rotary-meter");
-        if (meter) meter.textContent = `${String(norm + 1).padStart(2, "0")} / ${String(safe).padStart(2, "0")}`;
+        const meterText = `${String(norm + 1).padStart(2, "0")} / ${String(safe).padStart(2, "0")}`;
+        if (meter) meter.textContent = meterText;
+        if (btn) btn.title = `${label || "Unavailable"} · ${meterText}`;
     }
 
     function ensureMeters() {
@@ -44,7 +49,7 @@
             const meter = document.createElement("span");
             meter.className = "cz-rotary-meter";
             meter.textContent = "01 / 01";
-            card.appendChild(meter);
+            (card.querySelector(".cz-rotary-display") || card).appendChild(meter);
         });
     }
 
