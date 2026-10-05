@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-
+    <meta name="theme-color" content="#171a16">
     <title>CyberChefZZX | ZZX-Labs R&amp;D</title>
 
     <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
@@ -28,14 +28,15 @@
     <script src="./js/manifest.js" defer></script>
     <script src="./js/resize.js" defer></script>
     <script src="./js/operations.js" defer></script>
+    <script src="./js/macros.js" defer></script>
     <script src="./js/rotary.js" defer></script>
+    <script src="./js/downloads.js" defer></script>
     <script src="./js/page-modes.js" defer></script>
+    <script src="./js/history.js" defer></script>
     <script src="./js/modifications.js" defer></script>
     <script src="./js/bootstrap.js" defer></script>
 </head>
-
 <body data-cz-depth="." data-cyberchef-view="home">
-
 <header>
     <div id="zzx-header"></div>
     <br>
@@ -45,190 +46,443 @@
 </header>
 
 <main class="cz-shell">
-    <section class="cz-hero container">
-        <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
-        <h2>CyberChefZZX</h2>
+    <section class="cz-workbench-shell container" aria-labelledby="cz-title">
+        <div id="cz-viewbar-host" class="cz-viewbar-host"></div>
 
-        <p>
-            A locally hosted GCHQ CyberChef workspace with the original upstream
-            application preserved intact at <a href="./app/">/cyberchef/app/</a>.
-            This page embeds that exact local build and layers ZZX-Labs styling,
-            color systems, typography, layout presets, analyst controls, recipes,
-            Bitcoin utilities, OSINT workflows, malware triage, and DFIR tooling
-            on top of the original presentation without editing upstream files.
-        </p>
-
-        <p>
-            The native application loads first. In <strong>Modified</strong> mode,
-            the ZZX CSS shim is appended afterward and therefore wins the normal
-            CSS cascade. <strong>Native</strong> mode reloads the same locally hosted
-            application without the shim. Direct navigation to
-            <a href="./app/">/cyberchef/app/</a> is always unmodified upstream CyberChef.
-        </p>
-
-        <div class="cz-sourcebar">
-            <label for="cz-source">Embedded Runtime</label>
-            <select id="cz-source">
-                <option value="modified" selected>CyberChefZZX Modified</option>
-                <option value="native">Native Local CyberChef</option>
-            </select>
-
-            <button id="cz-load" type="button">Load</button>
-            <button id="cz-refresh" type="button">Refresh</button>
-
-            <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">
-                Open Native Local App
-            </a>
-
-            <a class="cz-link-button" href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener">
-                Open GCHQ CyberChef
-            </a>
-        </div>
-    </section>
-
-    <br>
-
-    <section id="cz-status" class="cz-status container" aria-live="polite">
-        Loading CyberChefZZX modified instance…
-    </section>
-
-    <br>
-
-    <section class="cz-grid container">
-        <article class="cz-card">
-            <span>Version</span>
-            <strong data-zzx-cyberchef-version>latest</strong>
-        </article>
-        <article class="cz-card">
-            <span>Embedded Mode</span>
-            <strong id="cz-mode-card">ZZX Modified</strong>
-        </article>
-        <article class="cz-card">
-            <span>Native Path</span>
-            <strong>/cyberchef/app/</strong>
-        </article>
-        <article class="cz-card">
-            <span>Shim</span>
-            <strong>/cyberchef/css/frame/shim.css</strong>
-        </article>
-    </section>
-
-    <br>
-
-    <section class="cz-panel container" id="cz-workspace-panel">
-        <header class="cz-panel-head">
-            <span class="cz-kicker">Enhanced Tool Engine</span>
-            <h2>CyberChefZZX Workspace</h2>
-            <p>
-                Upstream CyberChef remains the application. ZZX-Labs supplies only
-                post-load CSS and JS modules. The CSS shim is split into
-                independent theme, typography, layout, component, operation, and
-                scrollbar modules while the JS tree handles runtime bridging, presets,
-                rotary encoders, operation discovery, page modes, and status so the original release can continue to update independently.
-            </p>
-        </header>
-
-        <div id="cz-container" class="cz-container" data-cz-container>
-            <div class="cz-frame-toolbar">
-                <span id="cz-active-source">CyberChefZZX Modified</span>
-                <span id="cz-frame-state">Waiting</span>
+        <section class="cz-hero cz-workbench-section">
+            <div class="cz-eyebrow-row">
+                <p class="cz-kicker">ZZX-Labs / Browser-Side Cyber Toolkit</p>
+                <span class="cz-upstream-badge">Upstream preserved</span>
+            </div>
+            <div class="cz-hero-grid">
+                <div>
+                    <h1 id="cz-title">CyberChefZZX</h1>
+                    <p class="cz-lede">
+                        A locally hosted GCHQ CyberChef workspace with a strict trust boundary:
+                        <strong>/cyberchef/app/</strong> is the pristine upstream production application,
+                        while this page loads that exact local copy first and layers ZZX-Labs presentation,
+                        controls, themes, layouts, macro banks, recipes, and analyst ergonomics afterward.
+                    </p>
+                    <p>
+                        No upstream CyberChef HTML, JavaScript, CSS, workers, or assets are rewritten by the ZZX layer.
+                        Modified mode is a same-origin wrapper. Native mode and direct navigation to
+                        <a href="./app/">/cyberchef/app/</a> remain the clean baseline for comparison.
+                    </p>
+                </div>
+                <aside class="cz-trust-card" aria-label="CyberChef trust boundary">
+                    <span>Trust Boundary</span>
+                    <strong>UPSTREAM → SHIM → USER</strong>
+                    <ol>
+                        <li>Official CyberChef production bundle</li>
+                        <li>ZZX CSS/JS post-load modules</li>
+                        <li>User-selected themes, layouts, macros</li>
+                    </ol>
+                </aside>
             </div>
 
-            <div class="cz-control-deck" id="cz-control-deck" aria-label="CyberChefZZX rotary controls">
-                <div class="cz-rotary" data-rotary="theme">
-                    <span class="cz-rotary-label">Theme Preset</span>
-                    <button class="cz-knob" type="button" role="slider" aria-label="Theme preset" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
-                        <span class="cz-knob-pointer"></span>
-                    </button>
-                    <strong class="cz-rotary-value" id="cz-theme-value">Tactical</strong>
-                    <span class="cz-rotary-help">wheel / drag / arrows</span>
+            <div class="cz-sourcebar" aria-label="CyberChef runtime controls">
+                <div class="cz-source-field">
+                    <label for="cz-source">Embedded Runtime</label>
+                    <select id="cz-source">
+                        <option value="modified" selected>CyberChefZZX Modified</option>
+                        <option value="native">Native Local CyberChef</option>
+                    </select>
+                </div>
+                <button id="cz-load" type="button">Load</button>
+                <button id="cz-refresh" type="button">Refresh</button>
+                <a class="cz-link-button" href="./app/" target="_blank" rel="noopener">Open Native Local App</a>
+                <a class="cz-link-button" href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener">Official Live CyberChef</a>
+                <a class="cz-link-button cz-download-button" data-cz-official-download href="https://github.com/gchq/CyberChef/releases/latest" target="_blank" rel="noopener">Download Official Release</a>
+            </div>
+        </section>
+
+        <section id="cz-status" class="cz-status cz-workbench-section" aria-live="polite">
+            Loading CyberChefZZX modified instance…
+        </section>
+
+        <section class="cz-grid cz-workbench-section" aria-label="CyberChef runtime facts">
+            <article class="cz-card"><span>Version</span><strong data-zzx-cyberchef-version>latest</strong></article>
+            <article class="cz-card"><span>Embedded Mode</span><strong id="cz-mode-card">ZZX Modified</strong></article>
+            <article class="cz-card"><span>Native Path</span><strong>/cyberchef/app/</strong></article>
+            <article class="cz-card"><span>Override Stack</span><strong>64 Themes / 128 Layouts / 64 Macro Slots</strong></article>
+        </section>
+
+        <section class="cz-workspace-section cz-workbench-section" id="cz-workspace-panel">
+            <header class="cz-panel-head cz-workspace-head">
+                <div>
+                    <span class="cz-kicker">Enhanced Tool Engine</span>
+                    <h2>CyberChefZZX Workspace</h2>
+                    <p>
+                        The original application remains the engine. The control surface below operates entirely through
+                        post-load CSS variables, same-origin DOM discovery, and user-side state. Rotate with mouse wheel,
+                        drag vertically, or use arrow keys. Press Module/Function/Macro knobs to activate selections.
+                    </p>
+                </div>
+                <div class="cz-workspace-metrics" aria-label="Preset counts">
+                    <span><strong>64</strong> themes</span>
+                    <span><strong>128</strong> layouts</span>
+                    <span><strong>64</strong> macro slots</span>
+                    <span><strong>8</strong> encoders</span>
+                </div>
+            </header>
+
+            <div id="cz-container" class="cz-container" data-cz-container>
+                <div class="cz-frame-toolbar">
+                    <span id="cz-active-source">CyberChefZZX Modified</span>
+                    <span id="cz-frame-state">Waiting</span>
                 </div>
 
-                <div class="cz-rotary" data-rotary="layout">
-                    <span class="cz-rotary-label">Layout Preset</span>
-                    <button class="cz-knob" type="button" role="slider" aria-label="Layout preset" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
-                        <span class="cz-knob-pointer"></span>
-                    </button>
-                    <strong class="cz-rotary-value" id="cz-layout-value">Native</strong>
-                    <span class="cz-rotary-help">workspace geometry</span>
+                <div class="cz-control-deck" id="cz-control-deck" aria-label="CyberChefZZX rotary controls">
+                    <div class="cz-control-tier-label"><span>Primary Encoders</span><small>theme · layout · module · function</small></div>
+                    <div class="cz-encoder-grid cz-encoder-grid-primary">
+                        <div class="cz-rotary" data-rotary="theme">
+                            <span class="cz-rotary-index">01</span><span class="cz-rotary-label">Theme Preset</span>
+                            <button class="cz-knob" type="button" role="slider" aria-label="Theme preset" aria-valuemin="0" aria-valuemax="63" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
+                            <strong class="cz-rotary-value" id="cz-theme-value">Tactical / Standard</strong><span class="cz-rotary-help">64 visual systems</span>
+                        </div>
+                        <div class="cz-rotary" data-rotary="layout">
+                            <span class="cz-rotary-index">02</span><span class="cz-rotary-label">Layout Preset</span>
+                            <button class="cz-knob" type="button" role="slider" aria-label="Layout preset" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
+                            <strong class="cz-rotary-value" id="cz-layout-value">Native / Standard</strong><span class="cz-rotary-help">128 workspace geometries</span>
+                        </div>
+                        <div class="cz-rotary" data-rotary="module">
+                            <span class="cz-rotary-index">03</span><span class="cz-rotary-label">Module</span>
+                            <button class="cz-knob" type="button" role="slider" aria-label="CyberChef operation module" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
+                            <strong class="cz-rotary-value" id="cz-module-value">Loading…</strong><span class="cz-rotary-help">scroll operation categories</span>
+                        </div>
+                        <div class="cz-rotary" data-rotary="function">
+                            <span class="cz-rotary-index">04</span><span class="cz-rotary-label">Function</span>
+                            <button class="cz-knob" type="button" role="slider" aria-label="CyberChef function" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button>
+                            <strong class="cz-rotary-value" id="cz-function-value">Loading…</strong><span class="cz-rotary-help">press to add selected operation</span>
+                        </div>
+                    </div>
+
+                    <div class="cz-control-tier-label cz-control-tier-label-macros"><span>User Macro Banks</span><small>16 programmable slots per encoder</small></div>
+                    <div class="cz-encoder-grid cz-encoder-grid-macros">
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-a"><span class="cz-rotary-index">05</span><span class="cz-rotary-label">Macro A</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank A" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-a-value">Magic Inspect</strong><span class="cz-rotary-help">press to run preset</span></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-b"><span class="cz-rotary-index">06</span><span class="cz-rotary-label">Macro B</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank B" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-b-value">Base64 Decode</strong><span class="cz-rotary-help">press to run preset</span></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-c"><span class="cz-rotary-index">07</span><span class="cz-rotary-label">Macro C</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank C" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-c-value">SHA2-256</strong><span class="cz-rotary-help">press to run preset</span></div>
+                        <div class="cz-rotary cz-rotary-macro" data-rotary="macro-d"><span class="cz-rotary-index">08</span><span class="cz-rotary-label">Macro D</span><button class="cz-knob" type="button" role="slider" aria-label="Macro bank D" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0"><span class="cz-knob-pointer"></span><span class="cz-knob-cap"></span></button><strong class="cz-rotary-value" id="cz-macro-d-value">Extract URLs</strong><span class="cz-rotary-help">press to run preset</span></div>
+                    </div>
                 </div>
 
-                <div class="cz-rotary" data-rotary="module">
-                    <span class="cz-rotary-label">Module</span>
-                    <button class="cz-knob" type="button" role="slider" aria-label="CyberChef operation module" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
-                        <span class="cz-knob-pointer"></span>
-                    </button>
-                    <strong class="cz-rotary-value" id="cz-module-value">Loading…</strong>
-                    <span class="cz-rotary-help">category / module scroll</span>
-                </div>
-
-                <div class="cz-rotary" data-rotary="function">
-                    <span class="cz-rotary-label">Function</span>
-                    <button class="cz-knob" type="button" role="slider" aria-label="CyberChef function" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
-                        <span class="cz-knob-pointer"></span>
-                    </button>
-                    <strong class="cz-rotary-value" id="cz-function-value">Loading…</strong>
-                    <span class="cz-rotary-help">press knob to add selected function</span>
+                <div id="cz-runtime" class="cz-runtime" data-cz-runtime>
+                    <iframe id="cz-frame" class="cz-frame" title="CyberChefZZX embedded runtime" src="about:blank" loading="eager" allow="clipboard-read; clipboard-write"></iframe>
                 </div>
             </div>
+        </section>
 
-            <div id="cz-runtime" class="cz-runtime" data-cz-runtime>
-                <iframe
-                    id="cz-frame"
-                    class="cz-frame"
-                    title="CyberChefZZX embedded runtime"
-                    src="about:blank"
-                    loading="eager"
-                    allow="clipboard-read; clipboard-write"
-                ></iframe>
+        <section class="cz-panel cz-workbench-section">
+            <header class="cz-panel-head">
+                <span class="cz-kicker">Programmable Presets</span>
+                <h2>Macro Editor</h2>
+                <p>Each lower encoder owns a 16-slot bank. Select a slot with the knob, define a comma- or newline-separated sequence of CyberChef operation names, save it locally, and press the encoder to execute it.</p>
+            </header>
+            <div id="cz-macro-editor" class="cz-macro-editor" data-cz-macro-editor></div>
+        </section>
+
+        <section class="cz-panel cz-workbench-section">
+            <header class="cz-panel-head">
+                <span class="cz-kicker">ZZX Additions</span>
+                <h2>Recipes, Tooling, Themes, and Analyst Workflows</h2>
+                <p>All ZZX additions remain outside the pristine upstream distribution and can be removed without changing a byte of the native CyberChef runtime.</p>
+            </header>
+            <div id="cz-modifications" class="cz-modifications" data-cz-modifications><div class="cz-widget-loading">Loading ZZX CyberChef modifications…</div></div>
+        </section>
+
+        <section class="cz-panel cz-workbench-section cz-provenance-section">
+            <header class="cz-panel-head">
+                <span class="cz-kicker">Upstream Provenance</span>
+                <h2>GCHQ CyberChef: Project, History, and Trust</h2>
+                <p>CyberChef describes itself as “The Cyber Swiss Army Knife”: a client-side web application for manipulating, decoding, encoding, encrypting, compressing, parsing, hashing, and inspecting digital data in the browser.</p>
+            </header>
+
+            <div class="cz-reference-grid">
+                <a href="https://github.com/gchq/CyberChef" target="_blank" rel="noopener"><span>Source</span><strong>GCHQ / CyberChef</strong><small>Official GitHub repository</small></a>
+                <a href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener"><span>Live</span><strong>Official CyberChef</strong><small>GCHQ-hosted web application</small></a>
+                <a href="https://github.com/gchq/CyberChef/releases" target="_blank" rel="noopener"><span>Releases</span><strong>Release Archive</strong><small>Official binaries and version history</small></a>
+                <a href="https://github.com/gchq/CyberChef/blob/master/CHANGELOG.md" target="_blank" rel="noopener"><span>Record</span><strong>CHANGELOG</strong><small>Upstream release chronology</small></a>
+                <a href="https://github.com/gchq/CyberChef/blob/master/SECURITY.md" target="_blank" rel="noopener"><span>Security</span><strong>Security Policy</strong><small>Upstream disclosure guidance</small></a>
+                <a href="https://github.com/gchq/CyberChef/blob/master/LICENSE" target="_blank" rel="noopener"><span>License</span><strong>Apache License 2.0</strong><small>Crown Copyright</small></a>
             </div>
-        </div>
+
+            <div class="cz-history-summary">
+                <article><span>Origins</span><h3>Analyst innovation time</h3><p>The upstream README states that CyberChef was conceived, designed, built, and incrementally improved by an analyst during their 10% innovation time over several years.</p></article>
+                <article><span>Architecture</span><h3>Browser-side processing</h3><p>CyberChef is designed to process input and recipes locally in the browser. Its downloadable production build can be hosted on a web server or used in segregated environments.</p></article>
+                <article><span>Open Source</span><h3>Public contribution model</h3><p>The project is developed in public on GitHub. Contributors submit pull requests and, for first contributions, are prompted to sign the GCHQ Contributor Licence Agreement.</p></article>
+                <article><span>Current baseline</span><h3><span data-zzx-cyberchef-version>v11.5.0</span></h3><p>ZZX-Labs tracks the official GCHQ production release and preserves the upstream application as an independently verifiable native baseline.</p></article>
+            </div>
+
+            <div class="cz-major-timeline" aria-label="CyberChef major release history">
+                <article><time>2016-11-28</time><strong>4.0.0</strong><span>Earliest release recorded in the supplied upstream CHANGELOG.</span></article>
+                <article><time>2017</time><strong>5.x → 7.x</strong><span>Major releases 5.0.0, 6.0.0, and 7.0.0.</span></article>
+                <article><time>2018-08-05</time><strong>8.0.0</strong><span>Start of the 8.x major line recorded by upstream.</span></article>
+                <article><time>2019-07-09</time><strong>9.0.0</strong><span>Start of the long 9.x series.</span></article>
+                <article><time>2023-03-22</time><strong>10.0.0</strong><span>CyberChef enters the 10.x major line.</span></article>
+                <article><time>2026-04-28</time><strong>11.0.0</strong><span>Start of the 11.x major line.</span></article>
+                <article><time>2026-09-18</time><strong>11.5.0</strong><span>Release baseline supplied for this ZZX-Labs integration.</span></article>
+            </div>
+
+            <details class="cz-release-history">
+                <summary>Complete upstream release chronology from the supplied CHANGELOG</summary>
+                <div id="cz-release-history" class="cz-release-history-grid" data-cz-release-history></div>
+            </details>
+        </section>
+
+        <section class="cz-panel cz-workbench-section cz-license-section">
+            <header class="cz-panel-head"><span class="cz-kicker">Terms / License / Attribution</span><h2>Apache 2.0, Crown Copyright, and Upstream Credit</h2></header>
+            <div class="cz-legal-grid">
+                <article>
+                    <h3>Apache License 2.0</h3>
+                    <p>CyberChef is released under the Apache License, Version 2.0. The license permits use, reproduction, modification, and distribution subject to its conditions, including providing a copy of the license, marking modified files, and retaining applicable copyright, patent, trademark, and attribution notices.</p>
+                    <p>The license also contains the upstream “AS IS” warranty disclaimer and limitation-of-liability provisions. The authoritative terms are the upstream <a href="https://github.com/gchq/CyberChef/blob/master/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p>
+                </article>
+                <article>
+                    <h3>Crown Copyright</h3>
+                    <p>The upstream README states that CyberChef is covered by Crown Copyright. ZZX-Labs does not claim ownership of GCHQ CyberChef, its upstream source, its production bundle, or upstream project identity.</p>
+                    <p>The ZZX wrapper and post-load modules are clearly separated from the pristine upstream copy so users can distinguish original CyberChef from ZZX-Labs modifications.</p>
+                </article>
+                <article>
+                    <h3>Contributions and CLA</h3>
+                    <p>CyberChef welcomes public contributions. The upstream contributing guidance states that first-time contributors are prompted to sign the GCHQ Contributor Licence Agreement through the CLA assistant when submitting a pull request.</p>
+                    <p><a href="https://github.com/gchq/CyberChef/wiki/Contributing" target="_blank" rel="noopener">Contribution documentation</a> · <a href="https://cla-assistant.io/gchq/CyberChef" target="_blank" rel="noopener">GCHQ CLA</a></p>
+                </article>
+                <article>
+                    <h3>Security and trust</h3>
+                    <p>CyberChef’s own download/help text warns that unofficial builds could be modified to exfiltrate input or recipes and recommends the official open-source version when accessible. This page therefore exposes the exact native local baseline separately and links directly to GCHQ’s official source and releases.</p>
+                    <p><a href="https://github.com/gchq/CyberChef/blob/master/SECURITY.md" target="_blank" rel="noopener">Security policy</a> · <a href="https://github.com/gchq/CyberChef/issues/new/choose" target="_blank" rel="noopener">Report upstream issue</a></p>
+                </article>
+            </div>
+
+            <details class="cz-license-full">
+                <summary>Full Apache License 2.0 text (authoritative upstream LICENSE)</summary>
+                <pre>
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      &quot;License&quot; shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      &quot;Licensor&quot; shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      &quot;Legal Entity&quot; shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      &quot;control&quot; means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      &quot;You&quot; (or &quot;Your&quot;) shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      &quot;Source&quot; form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      &quot;Object&quot; form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      &quot;Work&quot; shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      &quot;Derivative Works&quot; shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      &quot;Contribution&quot; shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, &quot;submitted&quot;
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as &quot;Not a Contribution.&quot;
+
+      &quot;Contributor&quot; shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a &quot;NOTICE&quot; text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an &quot;AS IS&quot; BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets &quot;[]&quot;
+      replaced with your own identifying information. (Don&#x27;t include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same &quot;printed page&quot; as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.</pre>
+            </details>
+
+            <div class="cz-thanks">
+                <span>Thank you</span>
+                <h3>GCHQ, the original CyberChef creator, maintainers, contributors, reviewers, and community</h3>
+                <p>ZZX-Labs R&amp;D gratefully acknowledges the people who conceived CyberChef, built its operation library and browser interface, maintained its release pipeline, reviewed contributions, documented its behavior, reported defects, and continued improving the project in public. This integration depends on that work and is designed to preserve a clean, verifiable upstream baseline alongside our optional interface layer.</p>
+            </div>
+
+            <div class="cz-credit-grid">
+                <span>CyberChef <strong data-zzx-cyberchef-version>latest</strong></span>
+                <span>GCHQ</span>
+                <span>Apache-2.0</span>
+                <span>Crown Copyright</span>
+                <span>ZZX customization: <strong>0xdeadbeef of ZZX-Labs R&amp;D</strong></span>
+            </div>
+
+            <div class="cz-download-row">
+                <a class="cz-link-button cz-download-button" data-cz-official-download href="https://github.com/gchq/CyberChef/releases/latest" target="_blank" rel="noopener">Download CyberChef from GCHQ GitHub</a>
+                <a class="cz-link-button" href="https://github.com/gchq/CyberChef/releases" target="_blank" rel="noopener">Browse All Releases</a>
+                <a class="cz-link-button" href="https://github.com/gchq/CyberChef" target="_blank" rel="noopener">View Source</a>
+            </div>
+        </section>
     </section>
-
-    <br>
-
-    <section class="cz-panel container">
-        <header class="cz-panel-head">
-            <span class="cz-kicker">ZZX Additions</span>
-            <h2>Recipes, Tooling, Themes, and Analyst Workflows</h2>
-            <p>
-                Wrapper-side recipe launchers and analyst utilities operate on the
-                embedded local CyberChef instance. The native app remains separately
-                available and unchanged for direct comparison and clean-room use.
-            </p>
-        </header>
-
-        <div id="cz-modifications" class="cz-modifications" data-cz-modifications>
-            <div class="cz-widget-loading">Loading ZZX CyberChef modifications…</div>
-        </div>
-    </section>
-
-    <br>
-
-    <section class="cz-panel container">
-        <header class="cz-panel-head">
-            <span class="cz-kicker">Credits / License</span>
-            <h2>Attribution</h2>
-        </header>
-
-        <div class="cz-credit-grid">
-            <span>CyberChef <strong data-zzx-cyberchef-version>latest</strong></span>
-            <span>GCHQ</span>
-            <span>Crown Copyright 2016-2026</span>
-            <span>Apache-2.0</span>
-            <span>ZZX-Labs R&amp;D</span>
-            <span>0xdeadbeef</span>
-            <span>0xdeadbeef Consulting</span>
-        </div>
-    </section>
-
-    <br><br>
 </main>
 
-<footer>
-    <div id="cz-footer"></div>
-    <div id="zzx-footer"></div>
-</footer>
-
+<footer><div id="cz-footer"></div><div id="zzx-footer"></div></footer>
 </body>
 </html>
