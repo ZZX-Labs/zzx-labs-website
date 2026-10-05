@@ -316,21 +316,51 @@ def validate_custom_page(output_dir: Path) -> None:
     if layout_index.get("count") != 128 or len(layout_index.get("layouts", [])) != 128:
         raise RuntimeError("CyberChefZZX must expose exactly 128 JSON layouts.")
 
-    theme_files = list((output_dir / "themes").glob("*.theme.json"))
-    layout_files = list((output_dir / "layouts").glob("*.layout.json"))
-    if len(theme_files) != 64:
-        raise RuntimeError(f"CyberChefZZX requires 64 *.theme.json files; found {len(theme_files)}.")
-    if len(layout_files) != 128:
-        raise RuntimeError(f"CyberChefZZX requires 128 *.layout.json files; found {len(layout_files)}.")
+    theme_dir = output_dir / "themes"
+    layout_dir = output_dir / "layouts"
 
-    for item in theme_index["themes"]:
+    theme_seen: set[str] = set()
+    for position, item in enumerate(theme_index["themes"], start=1):
+        if not isinstance(item, dict):
+            raise RuntimeError(f"CyberChefZZX theme entry {position} is not an object.")
         rel = item.get("file", "")
-        if not rel or not (output_dir / "themes" / rel).is_file():
+        if not isinstance(rel, str) or not rel.endswith(".theme.json"):
+            raise RuntimeError(f"Invalid CyberChefZZX theme file at entry {position}: {rel!r}")
+        if rel in theme_seen:
+            raise RuntimeError(f"Duplicate CyberChefZZX theme file in index: {rel}")
+        theme_seen.add(rel)
+        path = theme_dir / rel
+        if not path.is_file() or path.stat().st_size == 0:
             raise RuntimeError(f"Missing CyberChefZZX theme file: {rel!r}")
-    for item in layout_index["layouts"]:
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid CyberChefZZX theme JSON {rel!r}: {exc}") from exc
+
+    layout_seen: set[str] = set()
+    for position, item in enumerate(layout_index["layouts"], start=1):
+        if not isinstance(item, dict):
+            raise RuntimeError(f"CyberChefZZX layout entry {position} is not an object.")
         rel = item.get("file", "")
-        if not rel or not (output_dir / "layouts" / rel).is_file():
+        if not isinstance(rel, str) or not rel.endswith(".layout.json"):
+            raise RuntimeError(f"Invalid CyberChefZZX layout file at entry {position}: {rel!r}")
+        if rel in layout_seen:
+            raise RuntimeError(f"Duplicate CyberChefZZX layout file in index: {rel}")
+        layout_seen.add(rel)
+        path = layout_dir / rel
+        if not path.is_file() or path.stat().st_size == 0:
             raise RuntimeError(f"Missing CyberChefZZX layout file: {rel!r}")
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid CyberChefZZX layout JSON {rel!r}: {exc}") from exc
+
+    extra_themes = sorted(path.name for path in theme_dir.glob("*.theme.json") if path.name not in theme_seen)
+    extra_layouts = sorted(path.name for path in layout_dir.glob("*.layout.json") if path.name not in layout_seen)
+    if extra_themes:
+        print(f"WARNING: ignoring {len(extra_themes)} unreferenced *.theme.json file(s).")
+    if extra_layouts:
+        print(f"WARNING: ignoring {len(extra_layouts)} unreferenced *.layout.json file(s).")
 
     config_js = (output_dir / "js/config.js").read_text(encoding="utf-8", errors="strict")
     for expected in ('./css/frame/shim.css', './themes/index.json', './layouts/index.json'):
