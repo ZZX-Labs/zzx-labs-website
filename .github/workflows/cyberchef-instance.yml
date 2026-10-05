@@ -92,6 +92,7 @@ jobs:
             cyberchef/css/page/modifications.css
             cyberchef/css/page/history.css
             cyberchef/css/page/responsive.css
+            cyberchef/css/page/mobile.css
           )
 
           FRAME_CSS=(
@@ -105,6 +106,7 @@ jobs:
             cyberchef/css/frame/components.css
             cyberchef/css/frame/operations.css
             cyberchef/css/frame/scrollbars.css
+            cyberchef/css/frame/mobile.css
           )
 
           JS_MODULES=(
@@ -132,6 +134,11 @@ jobs:
             test -s "${file}"
           done
 
+          test -s cyberchef/themes/index.json
+          test -s cyberchef/layouts/index.json
+          test "$(find cyberchef/themes -maxdepth 1 -type f -name '*.theme.json' | wc -l)" -eq 64
+          test "$(find cyberchef/layouts -maxdepth 1 -type f -name '*.layout.json' | wc -l)" -eq 128
+
           grep -q 'id="cz-frame"' cyberchef/index.html
           grep -q 'src="about:blank"' cyberchef/index.html
           grep -q './js/quota.js' cyberchef/index.html
@@ -141,6 +148,18 @@ jobs:
           grep -q 'data-rotary="macro-d"' cyberchef/index.html
           grep -q 'data-cz-official-download' cyberchef/index.html
           grep -q './css/frame/shim.css' cyberchef/js/config.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          themes = json.loads(Path('cyberchef/themes/index.json').read_text())
+          layouts = json.loads(Path('cyberchef/layouts/index.json').read_text())
+          assert themes['count'] == 64 and len(themes['themes']) == 64
+          assert layouts['count'] == 128 and len(layouts['layouts']) == 128
+          for item in themes['themes']:
+              assert (Path('cyberchef/themes') / item['file']).is_file(), item['file']
+          for item in layouts['layouts']:
+              assert (Path('cyberchef/layouts') / item['file']).is_file(), item['file']
+          PY
           grep -q '@import url("./tokens.css")' cyberchef/css/frame/shim.css
           grep -q '@import url("./scrollbars.css")' cyberchef/css/frame/shim.css
 
@@ -183,7 +202,7 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('cyberchef/runtime-manifest.json').read_text())
-          assert manifest['schema'] == 'zzx-cyberchef-runtime-v13'
+          assert manifest['schema'] == 'zzx-cyberchef-runtime-v16'
           assert manifest['native_frontend']['upstream_html_unchanged'] is True
           assert manifest['native_frontend']['index_sha256'] == manifest['native_frontend']['upstream_entry_sha256']
           upstream_entry = Path('cyberchef/app') / manifest['release']['entrypoint']
@@ -192,6 +211,11 @@ jobs:
           sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
           assert sha(Path('cyberchef/app/index.html')) == sha(upstream_entry)
           assert manifest['custom_frontend']['shim'] == '/cyberchef/css/frame/shim.css'
+          assert manifest['custom_frontend']['theme_count'] == 64
+          assert manifest['custom_frontend']['layout_count'] == 128
+          assert manifest['custom_frontend']['theme_index'] == '/cyberchef/themes/index.json'
+          assert manifest['custom_frontend']['layout_index'] == '/cyberchef/layouts/index.json'
+          assert manifest['custom_frontend']['mobile_stylesheet'] == '/cyberchef/css/page/mobile.css'
           assert manifest['custom_frontend']['css_layers'] == [
               '/cyberchef/css/frame/tokens.css',
               '/cyberchef/css/frame/fonts.css',
@@ -202,6 +226,7 @@ jobs:
               '/cyberchef/css/frame/components.css',
               '/cyberchef/css/frame/operations.css',
               '/cyberchef/css/frame/scrollbars.css',
+              '/cyberchef/css/frame/mobile.css',
           ]
           assert manifest['custom_frontend']['js_modules'] == [
               '/cyberchef/js/config.js',
