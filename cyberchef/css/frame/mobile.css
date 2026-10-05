@@ -1,16 +1,18 @@
 /* Modified-frame mobile presentation. /cyberchef/app/ remains untouched.
-   Important: do not zoom/transform the body. The layout engine owns geometry;
-   this layer only reduces typography/control density inside that geometry. */
+   Geometry belongs to js/layouts.js; this file only reduces density and keeps
+   each functional pane usable inside the embedded feature boundary. */
 @media (max-width:760px) {
-  :root.zzx-cyberchef-modified {
-    --zzx-mobile-scale: var(--zzx-mobile-zoom,.68);
-  }
+  :root.zzx-cyberchef-modified { --zzx-mobile-scale:.72; }
 
   :root.zzx-cyberchef-modified,
   :root.zzx-cyberchef-modified body,
   :root.zzx-cyberchef-modified #banner,
   :root.zzx-cyberchef-modified #workspace-wrapper,
-  :root.zzx-cyberchef-modified #content-wrapper {
+  :root.zzx-cyberchef-modified #content-wrapper,
+  :root.zzx-cyberchef-modified #operations,
+  :root.zzx-cyberchef-modified #recipe,
+  :root.zzx-cyberchef-modified #input,
+  :root.zzx-cyberchef-modified #output {
     min-width:0!important;
     max-width:100%!important;
     box-sizing:border-box!important;
@@ -23,57 +25,47 @@
     font-size:calc(13px * var(--zzx-mobile-scale))!important;
   }
 
-  :root.zzx-cyberchef-modified #workspace-wrapper,
-  :root.zzx-cyberchef-modified #content-wrapper {
-    width:100%!important;
+  :root.zzx-cyberchef-modified.zzx-four-pane-layout #IO {
+    display:contents!important;
+  }
+
+  :root.zzx-cyberchef-modified #operations,
+  :root.zzx-cyberchef-modified #recipe {
+    overflow:auto!important;
+    overscroll-behavior:contain;
+  }
+
+  :root.zzx-cyberchef-modified #input,
+  :root.zzx-cyberchef-modified #output {
     overflow:hidden!important;
   }
-
-  :root.zzx-cyberchef-modified #operations,
-  :root.zzx-cyberchef-modified #recipe,
-  :root.zzx-cyberchef-modified #IO,
-  :root.zzx-cyberchef-modified #input,
-  :root.zzx-cyberchef-modified #output {
-    min-width:0!important;
-    max-width:100%!important;
-    box-sizing:border-box!important;
-  }
-
-  :root.zzx-cyberchef-modified #operations,
-  :root.zzx-cyberchef-modified #recipe,
-  :root.zzx-cyberchef-modified #input,
-  :root.zzx-cyberchef-modified #output {
-    overflow:auto!important;
-  }
-
-  :root.zzx-cyberchef-modified #IO { overflow:hidden!important; }
 
   :root.zzx-cyberchef-modified textarea,
   :root.zzx-cyberchef-modified input,
   :root.zzx-cyberchef-modified select,
   :root.zzx-cyberchef-modified button,
   :root.zzx-cyberchef-modified .btn {
-    font-size:10px!important;
-    line-height:1.2!important;
+    font-size:9.5px!important;
+    line-height:1.15!important;
   }
 
   :root.zzx-cyberchef-modified .op-list li.operation {
-    font-size:9px!important;
+    font-size:8.8px!important;
     line-height:1.15!important;
   }
 
   :root.zzx-cyberchef-modified .title,
   :root.zzx-cyberchef-modified .category-title {
-    font-size:10px!important;
+    font-size:9.6px!important;
   }
 }
 
 @media (max-width:430px) {
-  :root.zzx-cyberchef-modified { --zzx-mobile-scale:.62; }
+  :root.zzx-cyberchef-modified { --zzx-mobile-scale:.66; }
   :root.zzx-cyberchef-modified textarea,
   :root.zzx-cyberchef-modified input,
   :root.zzx-cyberchef-modified select,
   :root.zzx-cyberchef-modified button,
-  :root.zzx-cyberchef-modified .btn { font-size:9px!important; }
-  :root.zzx-cyberchef-modified .op-list li.operation { font-size:8.5px!important; }
+  :root.zzx-cyberchef-modified .btn { font-size:8.8px!important; }
+  :root.zzx-cyberchef-modified .op-list li.operation { font-size:8.2px!important; }
 }
