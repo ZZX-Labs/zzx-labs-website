@@ -401,7 +401,7 @@ def build(requested_version: str, output_dir: Path, archive: Path | None = None)
             raise RuntimeError("Native app/index.html is not byte-identical to the official CyberChef release entrypoint.")
 
         manifest = {
-            "schema": "zzx-cyberchef-runtime-v16",
+            "schema": "zzx-cyberchef-runtime-v18",
             "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "repository_commit": os.environ.get("GITHUB_SHA", ""),
             "release": {
@@ -484,8 +484,17 @@ def main() -> int:
     parser.add_argument("--version", default="latest")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--archive", type=Path)
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the CyberChefZZX source tree and preset catalogs without downloading or installing upstream CyberChef.",
+    )
     args = parser.parse_args()
     try:
+        if args.validate_only:
+            validate_custom_page(args.output_dir.resolve())
+            print("CyberChefZZX source validation passed (validator schema v18).")
+            return 0
         build(args.version, args.output_dir, args.archive)
         return 0
     except Exception as exc:
