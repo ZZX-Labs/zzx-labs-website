@@ -47,13 +47,13 @@
             const btn=document.createElement("button");btn.type="button";btn.className="cz-param-knob";btn.setAttribute("aria-label",item.label);btn.innerHTML='<span class="cz-param-ticks"></span><span class="cz-param-pointer"></span><span class="cz-param-cap"></span>';
             const lab=document.createElement("span");lab.className="cz-param-label";lab.textContent=item.label;
             const val=document.createElement("strong");val.className="cz-param-value";val.textContent=item.value();
-            const update=()=>{val.textContent=item.value();const c=item.values?.length||1,idx=item.index||0;btn.style.setProperty("--cz-param-angle",`${angle(idx,c)}deg`);btn.setAttribute("aria-valuetext",val.textContent);};
+            const update=()=>{val.textContent=item.value();const c=item.values?.length||1,idx=item.index||0;const progress=c<=1?0:idx/(c-1);btn.style.setProperty("--cz-param-angle",`${angle(idx,c)}deg`);btn.style.setProperty("--cz-param-progress",`${progress*75}%`);btn.setAttribute("aria-valuetext",val.textContent);};
             const step=(d,mult=1)=>{if(item.type==="choice"||item.type==="boolean")item.set((item.index||0)+d);else if(item.type==="number")item.setDelta(d,mult);else item.focus?.();update();};
             let pid=null,lastY=0,acc=0,moved=false;
             btn.addEventListener("wheel",e=>{e.preventDefault();step(e.deltaY>0?1:-1,e.shiftKey?10:1);},{passive:false});
             btn.addEventListener("keydown",e=>{if(["ArrowUp","ArrowRight"].includes(e.key)){e.preventDefault();step(1,e.shiftKey?10:1);}else if(["ArrowDown","ArrowLeft"].includes(e.key)){e.preventDefault();step(-1,e.shiftKey?10:1);}else if(["Enter"," "].includes(e.key)){e.preventDefault();item.focus?.();}});
             btn.addEventListener("pointerdown",e=>{pid=e.pointerId;lastY=e.clientY;acc=0;moved=false;btn.setPointerCapture(pid);});
-            btn.addEventListener("pointermove",e=>{if(pid!==e.pointerId)return;acc+=lastY-e.clientY;lastY=e.clientY;if(Math.abs(acc)>=8){step(acc>0?1:-1,e.shiftKey?10:1);acc=0;moved=true;}});
+            btn.addEventListener("pointermove",e=>{if(pid!==e.pointerId)return;acc+=lastY-e.clientY;lastY=e.clientY;if(Math.abs(acc)>=6){step(acc>0?1:-1,e.shiftKey?10:1);acc=0;moved=true;}});
             btn.addEventListener("pointerup",e=>{if(pid!==e.pointerId)return;try{btn.releasePointerCapture(pid);}catch(_){}pid=null;if(!moved)item.focus?.();});
             cell.append(lab,btn,val);bank.appendChild(cell);update();
         });
