@@ -1,8 +1,791 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-05T09:30:18.893410Z",
+  "generated_at": "2026-10-06T00:38:55.055616Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "cf80493e2367786ce9946c522eb8313a52c90557",
+      "node_id": "C_kwDOABII59oAKGNmODA0OTNlMjM2Nzc4NmNlOTk0NmM1MjJlYjgzMTNhNTJjOTA1NTc",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-05T22:07:08Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-05T22:07:08Z"
+        },
+        "message": "Merge bitcoin/bitcoin#34729: Reduce log noise\n\n91f8b365e7e7887e59240651c2c76b1a64071233 validation: Upgrade log levels for possible block corruption warnings (Anthony Towns)\n788242d6d009e57cdf9f132bea1a6aee1c23c6f5 txindex: Downgrade log messages and include index name (Anthony Towns)\n93b9613b764a046148b426abf63d1a1f5058f019 kernel/coinstats: Downgrade ComputeUTXOStats log level (Anthony Towns)\n3c4336631e3d05705521cc5c1001b73bc5a6cd1d script: Lower level of oversized redeemScript log, push errors to callers (Anthony Towns)\n7902a8ee83fc1b81e29710b0b00b2316b42cacef netbase: Tidy up logging levels (Anthony Towns)\n4f42b76ca76b54de5b4794e2402aaa5ea2925862 netbase: Reduce levels of socks5 error logging (Anthony Towns)\nec627b3f3b82929bf517fd5d00d0ea54f4fcc187 util/log: Add LogWarnThenDebug() helper (Anthony Towns)\n\nPull request description:\n\n  This set of changes reduces some of the exaggerated logging that was introduced in #29236 when \"error()\" logging was upgraded from `LogPrintf` (aka `LogInfo`) to `LogError`. It also introduces `LogWarnThenDebug()` which duplicates the behaviour of #34549 which issues a warning the first time the log line is hit, but downgrades that to categorized debug messages afterwards. This function is used for failures that are likely caused by system configuration problems (so likely degrade the node's functionality and warrant admin attention) but are triggered by remote activity and thus could occur frequently.\n\nACKs for top commit:\n  achow101:\n    ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n  l0rinc:\n    lightweight re-ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n  sedited:\n    Re-ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n\nTree-SHA512: a90fc070f378322c336f7169aaf9545bca65c93078ea5b86a59585fb72d01196a7f3fd5d28a172d49c5d6c2abf61ba4b0d7dca4783965ae827631543cc3940d8",
+        "tree": {
+          "sha": "747f3aaa982595f60295fb67c6c90eeb162f13da",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/747f3aaa982595f60295fb67c6c90eeb162f13da"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/cf80493e2367786ce9946c522eb8313a52c90557",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmrEH4wACgkQF1ZXMuCO\nXkGBXBAAmcRrp6ElH6vjM2EYDgrfgK1iJDdEIoSaTWsFl6qKSXQiSyyOKu49WK3J\nOtjBY9/5eRxriRhDU3CyshrUssITENlXZttIloFkPWr1O400B2/omtcKd++3dchu\nCGiBkD7amJHfkO4IbV/obutmaYJR8ZULBo+9MO3LxgfvF54OwixVoSYGHhiMsLqM\nuGqvZzG1HnUtiT9HhFNxaz/WTtFjGlSQ9nSt000VAM5UMWPvxnvB/m5VcMFKYYNp\n6hwob15o6chVSr04WOUDo4wzm9IkbIl6hL2Vi9E09/5CNv1uEYmx89SvIz+h5cLt\nUoH6n1RAtzhWDF05Z7x7tt368nqTpxDiElNckb4SJyN/95MuMQKIgs8seWPVl2jC\nSiQCNRCZuyYNhnZMYqxKLYsURPxdpUd3dtZiEIZCd+vhIQ5lV8AhKztNCikJK4pB\n/3tJrG1JQ8SaPXtFT6vSWJVFFS8xoeELl6r55vn1Uh9QwU4DxjTOrNhzTwwVCC8W\naBVF1vsWRmfnHC0Pg8EilRX/WLI468lpMbEhmdynmbI/Gz783na9fTfK4oDaioeH\nNMkX70QvGo5R69eblsTqy7A/4lyrrBsJF/8yOqoBi9Jmsihfnoz/SxrZ4YFk+FQ3\nmGkq87gAYmbIdPjSyyQZy2aWpz21dY7c5wcdF3EpGS26DNCofqw=\n=f1oj\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIGOtoB9m9Z+ve2yI/YDeL/vOcsR5i8DBNpXde24TiavTCP/wEFbxpSIr44tI\ndbCJ9zjuFucI8CAD/LftBc7qpp92j6QFCHbneJIBKXgXEs4g+ol4f8nLBgjwIGYc\nFAKWyR7IH+pnQNmJy7j6nLmDf3E5QbmS7DQO5bC6CPAggGfwOj6nDzAO/He9uoIr\nm3QsITkRbW5dLoVtg92FnXQI8CB3Is8WfO/bo02b1ZZKH0A0ETt7/+RokvDmzqXb\nDrjAfwjxBGrEH5bwCHNNGGqpxcWiAIPf4w0u+QyOKShodHRwczovL2Zpbm5leS5j\nYWxlbmRhci5ldGVybml0eXdhbGwuY29t//AIaQ0m+ejhOK8I8BBVRy8ApaY4rT6Q\nVekgvtn/CPEgxIniM/5GuHAXGFGFKVuL11hQyMwu9lkLCoeKXnzZ/ygI8CC+id3C\nI2Ou36lqrWzebmwpiBwFHJZWhfbArLYM9zhdTAjxBGrEH5bwCCcRmU9KnUy7AIPf\n4w0u+QyOLi1odHRwczovL2FsaWNlLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1w\ncy5vcmf/8BCt1XwHDJTFSoVLidVIk2oTCPEgR3mo2zy0972a+HSNXJXQDbnfY9UD\nPY1xm8IiK9ScePkI8QRqxB+V8AhjPKMlospSSQCD3+MNLvkMjiMiaHR0cHM6Ly9i\ndGMuY2FsZW5kYXIuY2F0YWxsYXh5LmNvbfAI+Vm6Dm65xHYI8CD8kaTKFfm5SHPr\nRQlGCLsiWtIls/CKkhl2bcopHvTk2wjwIBMbFDm7tvkF6Fcn29Hko64c6rkAyK+B\n+NS955gbotOMCPAQaVtIF7O9dGMXIYleIOcOTQjxIMU/kh56ygV5x8J9SDshIG2g\nWA0851kkzbwigAaJP6rZCPAgPJq2piWxGRrqdeYL0ELNAuTQanzQYp1fxX687Mgg\nBwkI8CCkduwIrb6YPB2o22m4ZHrkbpZ+HDt+AGlQXZ8x+P7XhgjxBGrEH5bwCKgq\ng+3/AYx/AIPf4w0u+QyOLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRp\nbWVzdGFtcHMub3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 747f3aaa982595f60295fb67c6c90eeb162f13da\nparent 2c992472842fc8c8a7c91d9fb126e317481f94e5\nparent 91f8b365e7e7887e59240651c2c76b1a64071233\nauthor Ava Chow <github@achow101.com> 1791238028 -0700\ncommitter Ava Chow <github@achow101.com> 1791238028 -0700\n\nMerge bitcoin/bitcoin#34729: Reduce log noise\n\n91f8b365e7e7887e59240651c2c76b1a64071233 validation: Upgrade log levels for possible block corruption warnings (Anthony Towns)\n788242d6d009e57cdf9f132bea1a6aee1c23c6f5 txindex: Downgrade log messages and include index name (Anthony Towns)\n93b9613b764a046148b426abf63d1a1f5058f019 kernel/coinstats: Downgrade ComputeUTXOStats log level (Anthony Towns)\n3c4336631e3d05705521cc5c1001b73bc5a6cd1d script: Lower level of oversized redeemScript log, push errors to callers (Anthony Towns)\n7902a8ee83fc1b81e29710b0b00b2316b42cacef netbase: Tidy up logging levels (Anthony Towns)\n4f42b76ca76b54de5b4794e2402aaa5ea2925862 netbase: Reduce levels of socks5 error logging (Anthony Towns)\nec627b3f3b82929bf517fd5d00d0ea54f4fcc187 util/log: Add LogWarnThenDebug() helper (Anthony Towns)\n\nPull request description:\n\n  This set of changes reduces some of the exaggerated logging that was introduced in #29236 when \"error()\" logging was upgraded from `LogPrintf` (aka `LogInfo`) to `LogError`. It also introduces `LogWarnThenDebug()` which duplicates the behaviour of #34549 which issues a warning the first time the log line is hit, but downgrades that to categorized debug messages afterwards. This function is used for failures that are likely caused by system configuration problems (so likely degrade the node's functionality and warrant admin attention) but are triggered by remote activity and thus could occur frequently.\n\nACKs for top commit:\n  achow101:\n    ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n  l0rinc:\n    lightweight re-ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n  sedited:\n    Re-ACK 91f8b365e7e7887e59240651c2c76b1a64071233\n\nTree-SHA512: a90fc070f378322c336f7169aaf9545bca65c93078ea5b86a59585fb72d01196a7f3fd5d28a172d49c5d6c2abf61ba4b0d7dca4783965ae827631543cc3940d8\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cf80493e2367786ce9946c522eb8313a52c90557",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/cf80493e2367786ce9946c522eb8313a52c90557",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cf80493e2367786ce9946c522eb8313a52c90557/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "2c992472842fc8c8a7c91d9fb126e317481f94e5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2c992472842fc8c8a7c91d9fb126e317481f94e5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/2c992472842fc8c8a7c91d9fb126e317481f94e5"
+        },
+        {
+          "sha": "91f8b365e7e7887e59240651c2c76b1a64071233",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/91f8b365e7e7887e59240651c2c76b1a64071233",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/91f8b365e7e7887e59240651c2c76b1a64071233"
+        }
+      ]
+    },
+    {
+      "sha": "2c992472842fc8c8a7c91d9fb126e317481f94e5",
+      "node_id": "C_kwDOABII59oAKDJjOTkyNDcyODQyZmM4YzhhN2M5MWQ5ZmIxMjZlMzE3NDgxZjk0ZTU",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-05T21:55:27Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-05T21:55:27Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36303: http: Log bytes received from client, use to replace receive-throttle regression test\n\n493850c4c4734acce0f75d1efcffb3868d4235fc test: assert HTTP receive throttle from server-side log (Matthew Zipkin)\n767d86aaa780b81d0d3eede9ebb313cc100f4643 http: log received bytes per client read (Matthew Zipkin)\n\nPull request description:\n\n  Closes #36216\n\n  Improves and fixes the test introduced by #36123 to cover regressions in the server's receive throttle. The original test relied on client-side signals to assert server-side behavior which can easily be disrupted by a platform's TCP stack. Macos for example may suddenly re-open a TCP window size based on heuristics out of our control (`SB_AUTOSIZE`), despite the application not reading any data from the socket. Macos also may delay transmission of data between 5-60 seconds as the TCP window shrinks (`TCPTV_PERSMIN` / `TCPT_PERSIST` / \"silly window syndrome\" avoidance). All these behaviors were observed by running the current CI test on my fork hundreds of times, capturing TCP packets and processing them locally against the CI debug log.\n\n  The improved approach is similar to how we test the send-side throttle in #36174 using debug log messages. This way we test the thing we know we can control (bitcoind).\n\n  To introduce the regression patched by #36123 and fail the new test:\n\n  ```diff\n  diff --git a/src/httpserver.cpp b/src/httpserver.cpp\n  --- a/src/httpserver.cpp\n  +++ b/src/httpserver.cpp\n  @@ -1040,13 +1040,7 @@ HTTPServer::IOReadiness HTTPServer::GenerateWaitSockets() const\n           // before the next is taken and they stay separate critical sections.\n           // Holding m_sock_mutex while acquiring m_send_mutex would invert that\n           // order and risk a lock-order-inversion deadlock.\n  -        Sock::Event event{0};\n  -        if (http_client->ReadyToSend()) {\n  -            event = Sock::SendEvent;\n  -        } else if (http_client->GetRequest() != nullptr || http_client->ReceiveBufferEmpty()) {\n  -            // Mid-parse (need more bytes) or buffer empty.\n  -            event = Sock::RecvEvent;\n  -        }\n  +        Sock::Event event = (http_client->ReadyToSend() ? Sock::SendEvent : Sock::RecvEvent);\n\n           io_readiness.events_per_sock.emplace(sock, Sock::Events{event});\n           io_readiness.httpclients_per_sock.emplace(sock, http_client);\n  ```\n\n  For usual bitcoind activity, httpo debug logs will only grow by one extra line per request. Huge requests like those generated by the test may produce a hundred or so lines of \"Received data\" messages. These are optional debug lines in a worst-case scenario, but reviewers can discuss rate-limiting that log activity if we're afraid it's too much.\n\nACKs for top commit:\n  davidgumberg:\n    crtACK https://github.com/bitcoin/bitcoin/commit/493850c4c4734acce0f75d1efcffb3868d4235fc\n  achow101:\n    ACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n  winterrdog:\n    tACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n  ismaelsadeeq:\n     Code review ACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n\nTree-SHA512: 2c501b69c1b3cebb7c15e574edf8d24f50a4c49af48073123f0864ac38813d696bca3ccb5dd86cd98b47eac77c71bb8943a974a35e81b0df8f9690d2239f2922",
+        "tree": {
+          "sha": "f60f066666a212649a37a5ac5d3fa994be64f590",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f60f066666a212649a37a5ac5d3fa994be64f590"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/2c992472842fc8c8a7c91d9fb126e317481f94e5",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmrEHM8ACgkQF1ZXMuCO\nXkEshg//WO1Cq0Wol47rAuAw8zfqx+q0PJq3xhDKPd0pTDyrZF8PayGrDI7MLZ1m\n1HoOxVi6sE4/ncsh48wBZkEGkfDz0PM4LNqM/dMcsC//k8FLoQsGsmmTMejAej3J\nJY0PT4aYsbx5oaHcPtkNB6U2AETOsMjg3hkKXN1fHMDHCIoNucL2+GW462Fib3kp\ncjIxLGFpEErBGfvAjKgeRdIioEE8GJsZUvP2tcKjMVp03kSOL5QgeEXzWyNwb9i5\nwKA57HrZOg3cADxv/F6rlsqstRNK8wNQeJpHtkoCKxAHKPki2/X+gBuKqqpBncJU\njGFx7cc52/+I00tUXReHtKV/qT2EEzL4301Hg392VDqgD8R+Fx3MEXq0uxd7Vfl5\nbsRY7+0W5sXc9nYNYyAwjS9mriZiRP2T8WRfFK1dOaSAC4TXgUkFPpkTPNZzNKD6\nNitJZ1f3jlQR+eqslLUaHNVwd3fmBli0J/236zYYQPV/Wt59JbfOcHgcBJW54oAF\nj+3Z1hBsZnP9rHQt4l/PF3EvYYoyKCqaOEy7/j1HChDM8OFdN3B98Z1V4KmCA2bI\n3vmv4od8zh9Gkd5/aqZPgnfSZBMeSR0tcjcCgaHrL/a4i2X2q5Qlf+2WnJdtg8YN\nMjrZ8BxujATnQnxvxm6SB+6J/Jimf/P11T0PylC05fUOj8SknU8=\n=rNcw\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIKub2GS+Q9vCbfC6MTBkMTJ00kHcFauc0h+W8rQrrmncCP/wEAxzEVfwhK+W\nJIU+RSJ/f6YI8CArRdwWRX0ftdMjkeMKkDgxScIkE2pm5YD2JG63FpUpKgjxICH9\nAl1JgkyC57BWZ3YtEcHNPoi/jsrhdPK4Q07ETZtVCPAg1xh1WE7bPAe1VK67nd3P\nAcgXK5zZhlq3zZw+EgOA9OYI8QRqxBzb8AiDrGjwUeKeDACD3+MNLvkMjikoaHR0\ncHM6Ly9maW5uZXkuY2FsZW5kYXIuZXRlcm5pdHl3YWxsLmNvbf/wEG8PTtgv/b1G\nRK/SX9fQFasI8QRqxBzb8Aj8ClSXTwbt8gCD3+MNLvkMjiMiaHR0cHM6Ly9idGMu\nY2FsZW5kYXIuY2F0YWxsYXh5LmNvbf/wCJMTFBNCf3VvCPAQ4svafneKj4Z+TyFZ\npoJPxAjxIN7x4uCx6IGJvZSrhRGGPvLWawJyTg/gQDrs9oLvwmAMCPEEasQc2/AI\ntUtSKCs2dBcAg9/jDS75DI4sK2h0dHBzOi8vYm9iLmJ0Yy5jYWxlbmRhci5vcGVu\ndGltZXN0YW1wcy5vcmfwCKmctaVT2rAYCPAQcu1knLOFuC7DZekBz7eMsgjwIPg1\nZPkI1NrmhhUP6vR8duAH2S/C4RYTd0TO6GMEALgQCPAgsgQP9VsNC9j/JaG7Kkaw\njDHUBETdQmWX7WnLdUTZ8u8I8QRqxBzb8AgMdeW4NiarGQCD3+MNLvkMji4taHR0\ncHM6Ly9hbGljZS5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree f60f066666a212649a37a5ac5d3fa994be64f590\nparent 09e22fbbb0caafbd2167657c2a8d409ae435b2cc\nparent 493850c4c4734acce0f75d1efcffb3868d4235fc\nauthor Ava Chow <github@achow101.com> 1791237327 -0700\ncommitter Ava Chow <github@achow101.com> 1791237327 -0700\n\nMerge bitcoin/bitcoin#36303: http: Log bytes received from client, use to replace receive-throttle regression test\n\n493850c4c4734acce0f75d1efcffb3868d4235fc test: assert HTTP receive throttle from server-side log (Matthew Zipkin)\n767d86aaa780b81d0d3eede9ebb313cc100f4643 http: log received bytes per client read (Matthew Zipkin)\n\nPull request description:\n\n  Closes #36216\n\n  Improves and fixes the test introduced by #36123 to cover regressions in the server's receive throttle. The original test relied on client-side signals to assert server-side behavior which can easily be disrupted by a platform's TCP stack. Macos for example may suddenly re-open a TCP window size based on heuristics out of our control (`SB_AUTOSIZE`), despite the application not reading any data from the socket. Macos also may delay transmission of data between 5-60 seconds as the TCP window shrinks (`TCPTV_PERSMIN` / `TCPT_PERSIST` / \"silly window syndrome\" avoidance). All these behaviors were observed by running the current CI test on my fork hundreds of times, capturing TCP packets and processing them locally against the CI debug log.\n\n  The improved approach is similar to how we test the send-side throttle in #36174 using debug log messages. This way we test the thing we know we can control (bitcoind).\n\n  To introduce the regression patched by #36123 and fail the new test:\n\n  ```diff\n  diff --git a/src/httpserver.cpp b/src/httpserver.cpp\n  --- a/src/httpserver.cpp\n  +++ b/src/httpserver.cpp\n  @@ -1040,13 +1040,7 @@ HTTPServer::IOReadiness HTTPServer::GenerateWaitSockets() const\n           // before the next is taken and they stay separate critical sections.\n           // Holding m_sock_mutex while acquiring m_send_mutex would invert that\n           // order and risk a lock-order-inversion deadlock.\n  -        Sock::Event event{0};\n  -        if (http_client->ReadyToSend()) {\n  -            event = Sock::SendEvent;\n  -        } else if (http_client->GetRequest() != nullptr || http_client->ReceiveBufferEmpty()) {\n  -            // Mid-parse (need more bytes) or buffer empty.\n  -            event = Sock::RecvEvent;\n  -        }\n  +        Sock::Event event = (http_client->ReadyToSend() ? Sock::SendEvent : Sock::RecvEvent);\n\n           io_readiness.events_per_sock.emplace(sock, Sock::Events{event});\n           io_readiness.httpclients_per_sock.emplace(sock, http_client);\n  ```\n\n  For usual bitcoind activity, httpo debug logs will only grow by one extra line per request. Huge requests like those generated by the test may produce a hundred or so lines of \"Received data\" messages. These are optional debug lines in a worst-case scenario, but reviewers can discuss rate-limiting that log activity if we're afraid it's too much.\n\nACKs for top commit:\n  davidgumberg:\n    crtACK https://github.com/bitcoin/bitcoin/commit/493850c4c4734acce0f75d1efcffb3868d4235fc\n  achow101:\n    ACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n  winterrdog:\n    tACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n  ismaelsadeeq:\n     Code review ACK 493850c4c4734acce0f75d1efcffb3868d4235fc\n\nTree-SHA512: 2c501b69c1b3cebb7c15e574edf8d24f50a4c49af48073123f0864ac38813d696bca3ccb5dd86cd98b47eac77c71bb8943a974a35e81b0df8f9690d2239f2922\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2c992472842fc8c8a7c91d9fb126e317481f94e5",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/2c992472842fc8c8a7c91d9fb126e317481f94e5",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2c992472842fc8c8a7c91d9fb126e317481f94e5/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/09e22fbbb0caafbd2167657c2a8d409ae435b2cc"
+        },
+        {
+          "sha": "493850c4c4734acce0f75d1efcffb3868d4235fc",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/493850c4c4734acce0f75d1efcffb3868d4235fc",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/493850c4c4734acce0f75d1efcffb3868d4235fc"
+        }
+      ]
+    },
+    {
+      "sha": "09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+      "node_id": "C_kwDOABII59oAKDA5ZTIyZmJiYjBjYWFmYmQyMTY3NjU3YzJhOGQ0MDlhZTQzNWIyY2M",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:46:34Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:46:34Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35873: test: add a tx_valid vector for CVE-2024-38365\n\n6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f test: add a tx_valid vector for CVE-2024-38365 (JP)\n\nPull request description:\n\n  Suggested by darosior in #35835.\n\n  `FindAndDelete` only matches whole pushes at opcode boundaries, so a push that carries the signature inside its data is left in the scriptCode. btcd (<0.24.2) removed any push containing the signature, computed a different sighash, and would have rejected a transaction Core accepts: the chain split in [CVE-2024-38365](https://delvingbitcoin.org/t/cve-2024-38365-public-disclosure-btcd-findanddelete-bug/1184).\n\n  The rule is already covered from the failure side, in `script_FindAndDelete` and in the `tx_invalid.json` vectors where the signature sits under a non-standard pushdata prefix. What was missing is the positive direction: a transaction Core must accept because nothing is deleted.\n\n  This adds one vector to `tx_valid.json`, with `OP_CHECKSIGVERIFY <0xaaaa||sig>` as the P2SH redeemScript and the minimal 8-byte DER signature (r = s = 1). The pubkey is recovered from that signature and the sighash Core computes, so it verifies only if the `<0xaaaa||sig>` push survives into the scriptCode. `CONST_SCRIPTCODE` doesn't fire — `FindAndDelete` finds nothing — and the vector runs with every flag.\n\n  To check it actually discriminates, I patched `EvalChecksigPreTapscript` to drop any push whose data contains the signature, the way btcd did. The vector fails with that patch and passes without it.\n\n  Tested with:\n\n  ```\n  build/bin/test_bitcoin --run_test=transaction_tests\n  ```\n\nACKs for top commit:\n  fametrano:\n    ACK 6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f\n  sedited:\n    ACK 6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f\n\nTree-SHA512: a08412e00ed43570c3cf556da1d243a40b9684ce17eb6d3017267c3e5e82f9cde232e077944b0ec9476df70e767caf0fcd33be5473dfd53ed2241f7b24a33b1d",
+        "tree": {
+          "sha": "7653a26e2562d11c1019223499c268ae3d53b748",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7653a26e2562d11c1019223499c268ae3d53b748"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDnCoACgkQm3m0VpHb\nQXOLOg/9E9tUUSyJO6yp3Z4lQO9umHUnT3TuU/lnS6L92gjcftu7aM1DsoVKrkSI\nfx7GdfVWOG7kYp9mQJ62sik7PnXsAv+5nQZTvXc8NZUw1QjOcArurMuQbn/+8ZdK\nfr7xY0W6QSX6RbCIC534raugMqlalfVcSkm8tx6erlwgpSfQMJTInIH8l4FxvRIY\nAUzp/vWyoDwqOBTWnwwk+dKJ8Yza+zeYEQ27mw2bg/ge41jNtRXqnjkxxCJPJvov\nGsiAonwpu2iwmtl7nJ1f5j2zghaG8so84mwUiaHM7h6Sme4xoFvVeasnzA+CYCLP\nCKIkDy1ufNKJEFxZpilOE3dwqFIsKQa6fyjIR1zVUeAaHgv/SCnH+2XHMXZeMpFW\nPToLhQ4XMTs5fPHCWTWO62xIu4jhQwogfRbfP766BpqbT+AX9525ls699CdteJxH\nhCq7kCRh+6yI2E2z772iptRH6BrPx8ioq741ypSpyJZVd6H7sCTkX8w83ZRSw7Nj\ng8aB+kKHhjnU2VVBORfiJRMklNlUtBwuA0B9ex/qK43wlFLh8/OgQ7Prn2SgTRJx\n+vIYRBey9V78vKvGbCTmOXgxCZNmpyzUmPmZSN8cZRj12JWOjBtHitSG2S0I1C+l\nor+m/aiFaCqjJllqDlrDVdwfbkdbDMA6B+9smGz0kou1xN6QxW0=\n=MVpe\n-----END PGP SIGNATURE-----",
+          "payload": "tree 7653a26e2562d11c1019223499c268ae3d53b748\nparent b47ec7c6e14e816253ac00d635c5eff2e29aba1d\nparent 6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f\nauthor merge-script <seb.kung@gmail.com> 1791204394 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791204394 +0200\n\nMerge bitcoin/bitcoin#35873: test: add a tx_valid vector for CVE-2024-38365\n\n6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f test: add a tx_valid vector for CVE-2024-38365 (JP)\n\nPull request description:\n\n  Suggested by darosior in #35835.\n\n  `FindAndDelete` only matches whole pushes at opcode boundaries, so a push that carries the signature inside its data is left in the scriptCode. btcd (<0.24.2) removed any push containing the signature, computed a different sighash, and would have rejected a transaction Core accepts: the chain split in [CVE-2024-38365](https://delvingbitcoin.org/t/cve-2024-38365-public-disclosure-btcd-findanddelete-bug/1184).\n\n  The rule is already covered from the failure side, in `script_FindAndDelete` and in the `tx_invalid.json` vectors where the signature sits under a non-standard pushdata prefix. What was missing is the positive direction: a transaction Core must accept because nothing is deleted.\n\n  This adds one vector to `tx_valid.json`, with `OP_CHECKSIGVERIFY <0xaaaa||sig>` as the P2SH redeemScript and the minimal 8-byte DER signature (r = s = 1). The pubkey is recovered from that signature and the sighash Core computes, so it verifies only if the `<0xaaaa||sig>` push survives into the scriptCode. `CONST_SCRIPTCODE` doesn't fire — `FindAndDelete` finds nothing — and the vector runs with every flag.\n\n  To check it actually discriminates, I patched `EvalChecksigPreTapscript` to drop any push whose data contains the signature, the way btcd did. The vector fails with that patch and passes without it.\n\n  Tested with:\n\n  ```\n  build/bin/test_bitcoin --run_test=transaction_tests\n  ```\n\nACKs for top commit:\n  fametrano:\n    ACK 6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f\n  sedited:\n    ACK 6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f\n\nTree-SHA512: a08412e00ed43570c3cf556da1d243a40b9684ce17eb6d3017267c3e5e82f9cde232e077944b0ec9476df70e767caf0fcd33be5473dfd53ed2241f7b24a33b1d\n",
+          "verified_at": "2026-10-05T12:47:33Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/09e22fbbb0caafbd2167657c2a8d409ae435b2cc",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/09e22fbbb0caafbd2167657c2a8d409ae435b2cc/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b47ec7c6e14e816253ac00d635c5eff2e29aba1d"
+        },
+        {
+          "sha": "6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f"
+        }
+      ]
+    },
+    {
+      "sha": "b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+      "node_id": "C_kwDOABII59oAKGI0N2VjN2M2ZTE0ZTgxNjI1M2FjMDBkNjM1YzVlZmYyZTI5YWJhMWQ",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:38:22Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:38:22Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35835: test: add CONST_SCRIPTCODE failure-path vectors to script_tests.json\n\n829e44a1151fa432f293554f25832f19bde209ec test: add CONST_SCRIPTCODE failure-path vectors to script_tests.json (JP)\n\nPull request description:\n\n  Follow-up to #35664.\n\n  Going through which script error codes `script_tests.json` covers, I found that neither error gated behind `SCRIPT_VERIFY_CONST_SCRIPTCODE` is asserted anywhere. `SCRIPT_ERR_SIG_FINDANDDELETE` is not asserted by any test; `SCRIPT_ERR_OP_CODESEPARATOR` appears only as a mempool reject string in `invalid_txs.py`, never at the script level. `tx_invalid.json` does have a `CONST_SCRIPTCODE` section, but those vectors can only say a transaction is invalid, not which error made it fail; `script_tests.json` is the harness that pins error codes, and it has no vector using the flag.\n\n  This adds six vectors. Four fail with the flag set:\n\n  - `OP_CODESEPARATOR` in an executed pre-segwit script.\n  - `OP_CODESEPARATOR` in an unexecuted `IF` branch. The check in `EvalScript` runs ahead of the `fExec` guard, so the opcode is rejected even though it never executes — the rule with no error-level coverage before.\n  - A signature push that also appears in the scriptPubKey, against `CHECKSIG`.\n  - The same against `CHECKMULTISIG`, which calls `FindAndDelete` in a separate loop.\n\n  The other two are controls with the flag off, one per error. Both checks run before signature verification, so the vectors can use a dummy signature.\n\n  To confirm the expected errors are the ones that fire, I added the vectors expecting `OK` first and let the harness report the actual error for each.\n\n  Tested with:\n\n  ```\n  build/bin/test_bitcoin --run_test=script_tests/script_json_test\n  ```\n\nACKs for top commit:\n  fametrano:\n    ACK 829e44a1151fa432f293554f25832f19bde209ec\n  sedited:\n    ACK 829e44a1151fa432f293554f25832f19bde209ec\n\nTree-SHA512: b8d52028b5c7e0ec555b4df3749740337b6921b0357b5c9b156daf2a74203a5b95e3bcfa225ebd5a26e0b4cd90290732e4440c0d2b2bfe6f629f51cd319c4415",
+        "tree": {
+          "sha": "a0fd89d5840616292f16c2b429d86b3c9242de99",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/a0fd89d5840616292f16c2b429d86b3c9242de99"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDmj4ACgkQm3m0VpHb\nQXNqNQ//VNGlH13wODuAXo5JRYupSPWoDKO7t4TObCq03w7gYGnevaYyJYeFbigd\nlCN50BbN9YquFryaLbp5EZiHIMLD0Tu1945JVLdiF7a8i9SkA5cm4mhH9OcKDe85\nrLjBtZxjWprTb6LcuPi9XsvaOOLgrDZR0UfmQ1rLZiOYFNxh4I9c5skOy8NdH17/\nk6S61jmwVQcEp7l20ISIOV5eBnBynu45yHgdPQV8HQ4vFnn8SbwIKUcVzGpE4xT7\nru5yTgJL/KhZ7QZFpih1sm1IVv0peQSf8t0XEP2bfjrHZ9ylh/YOc8lSmXydKpUv\nGNDJTH/YcqOcntcz8XcTpBd4Pb2IvJ5+5eec6U4/x3BXZwbo5GO/JwP83WLbHuG1\nUD66fq83D1qD+Fef64QkVrgbLzUt/fMeBO1t5WezlmwvC1oq2ZdFM+6iqcsqtTnT\nt47EsmhVrbrU4O+cvAYwYDBfAVDGGEgwB5Zyo0x3pOaxQp2EcWYsfzv/614EmfrL\nZhtX4PLh466Myp4aX4h7qmx2AaeWJhdKvlWb0fSqyuji9/be7e21MuxWzRYLoFsQ\nUBE61v0iq946ZYCw1eZdlN6V7xH42X8jxQ3B3cScReRpjHLJvjIOOTOxpOWrNu6J\n99jLyYiNhKkwXRL+3Bp8CP5RQVVaSAumA1aX//3o4YF1MunttWc=\n=2kv9\n-----END PGP SIGNATURE-----",
+          "payload": "tree a0fd89d5840616292f16c2b429d86b3c9242de99\nparent 889e7c5af8416c5411bf4765bb8948cb8c647a05\nparent 829e44a1151fa432f293554f25832f19bde209ec\nauthor merge-script <seb.kung@gmail.com> 1791203902 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791203902 +0200\n\nMerge bitcoin/bitcoin#35835: test: add CONST_SCRIPTCODE failure-path vectors to script_tests.json\n\n829e44a1151fa432f293554f25832f19bde209ec test: add CONST_SCRIPTCODE failure-path vectors to script_tests.json (JP)\n\nPull request description:\n\n  Follow-up to #35664.\n\n  Going through which script error codes `script_tests.json` covers, I found that neither error gated behind `SCRIPT_VERIFY_CONST_SCRIPTCODE` is asserted anywhere. `SCRIPT_ERR_SIG_FINDANDDELETE` is not asserted by any test; `SCRIPT_ERR_OP_CODESEPARATOR` appears only as a mempool reject string in `invalid_txs.py`, never at the script level. `tx_invalid.json` does have a `CONST_SCRIPTCODE` section, but those vectors can only say a transaction is invalid, not which error made it fail; `script_tests.json` is the harness that pins error codes, and it has no vector using the flag.\n\n  This adds six vectors. Four fail with the flag set:\n\n  - `OP_CODESEPARATOR` in an executed pre-segwit script.\n  - `OP_CODESEPARATOR` in an unexecuted `IF` branch. The check in `EvalScript` runs ahead of the `fExec` guard, so the opcode is rejected even though it never executes — the rule with no error-level coverage before.\n  - A signature push that also appears in the scriptPubKey, against `CHECKSIG`.\n  - The same against `CHECKMULTISIG`, which calls `FindAndDelete` in a separate loop.\n\n  The other two are controls with the flag off, one per error. Both checks run before signature verification, so the vectors can use a dummy signature.\n\n  To confirm the expected errors are the ones that fire, I added the vectors expecting `OK` first and let the harness report the actual error for each.\n\n  Tested with:\n\n  ```\n  build/bin/test_bitcoin --run_test=script_tests/script_json_test\n  ```\n\nACKs for top commit:\n  fametrano:\n    ACK 829e44a1151fa432f293554f25832f19bde209ec\n  sedited:\n    ACK 829e44a1151fa432f293554f25832f19bde209ec\n\nTree-SHA512: b8d52028b5c7e0ec555b4df3749740337b6921b0357b5c9b156daf2a74203a5b95e3bcfa225ebd5a26e0b4cd90290732e4440c0d2b2bfe6f629f51cd319c4415\n",
+          "verified_at": "2026-10-05T12:38:38Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b47ec7c6e14e816253ac00d635c5eff2e29aba1d",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b47ec7c6e14e816253ac00d635c5eff2e29aba1d/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "889e7c5af8416c5411bf4765bb8948cb8c647a05",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/889e7c5af8416c5411bf4765bb8948cb8c647a05",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/889e7c5af8416c5411bf4765bb8948cb8c647a05"
+        },
+        {
+          "sha": "829e44a1151fa432f293554f25832f19bde209ec",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/829e44a1151fa432f293554f25832f19bde209ec",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/829e44a1151fa432f293554f25832f19bde209ec"
+        }
+      ]
+    },
+    {
+      "sha": "889e7c5af8416c5411bf4765bb8948cb8c647a05",
+      "node_id": "C_kwDOABII59oAKDg4OWU3YzVhZjg0MTZjNTQxMWJmNDc2NWJiODk0OGNiOGM2NDdhMDU",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:24:14Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:24:14Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36329: psbt: add new test vectors\n\n6fa2f3974cbb69fb2086a8f89d300deec4486662 test: add BIP174 invalid value size vector (Sjors Provoost)\n029bc15f2cb575ad4e19d99338cd133a4140e66f test: add BIP174 sighash combiner vector (Sjors Provoost)\n\nPull request description:\n\n  Add the two new test vectors from:\n\n  - https://github.com/bitcoin/bips/pull/2275\n  - https://github.com/bitcoin/bips/pull/1971\n\n  https://github.com/bitcoin/bips/pull/2275 additionally requires _existing_ `Combine` vectors to run in both orders, so we do that here too.\n\nACKs for top commit:\n  brunoerg:\n    reACK 6fa2f3974cbb69fb2086a8f89d300deec4486662\n  aaron-leeb:\n    reACK [6fa2f39](https://github.com/bitcoin/bitcoin/pull/36329/commits/6fa2f3974cbb69fb2086a8f89d300deec4486662)\n  sedited:\n    ACK 6fa2f3974cbb69fb2086a8f89d300deec4486662\n\nTree-SHA512: 5a07026cadbe0551728ac30e9b20212f94e322a2ab31a31a84c86320fc95d2ada82a12e7c2a50c7cd7c12ad202036fdc45b6ad4fc820a8d6f2cd71c87476a6f5",
+        "tree": {
+          "sha": "86f77c21b378817653701042d137f1d6d8ab4efe",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/86f77c21b378817653701042d137f1d6d8ab4efe"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/889e7c5af8416c5411bf4765bb8948cb8c647a05",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDlu4ACgkQm3m0VpHb\nQXP2cQ/+PZTIoZudd9Hy1y66BiSLrBSGmsa5W46EgXCuipGLLbz1naYF8yi5wjRB\nN2P6TJ2bLuznZjNNHtC64+ixGP87Km/0AXeaB3ugq3GVNVnOmf4lbyAatOx68DRZ\ndoLrZgIMGbMQ68VWIwz1jdhBEDxqvpe9ple7fOGxiV1bJOhRRZWPwjMIK/Ty6nhk\nkWAUq+EjbghQuDJKVohEL/y1Bs0btAb+rJ1dD6GAxycFR+Ux3h1SpnaoUpx2hUr0\n84kTF64f+E3adSfnUfFgh4v9auUS3wUSXKoSIQr/qRH8tEk4LbtzD4M990dsfYke\n5vOnt0NbV94cr9+MzCHjtsT4S6yzav9sXnmTm0ArDadrE5mkJRUC3fuc2wTCpS2q\nsHwCmOvXeeIsZKHTdXgWdykjWDpDiWGJCwVoBhf/TcGi39Xv+3CuMevWXzLtSC0x\nxLGoci6woiLZYAOOkMA/0b93Lpo9PYXFwNJgqVqV4MYgUYPYGAF5MrcMrq2Qkc6D\nWo/p7en2zc0OxYoiuuCDly3gfgkryGTOTe2XLTcNgUoV4EZHBqAonF23zEttzTyT\nkKWFVuXMmJTsblb8UibeURbdFBXOSbqYa0ZbNYWA2iFNMuXhQQ18b+v39SpFQ9n6\nYEyZh8BKYx6LO4jQNOe2G0Y6xovQ/2IzxRO67DPFcYBalmcFcDU=\n=miwr\n-----END PGP SIGNATURE-----",
+          "payload": "tree 86f77c21b378817653701042d137f1d6d8ab4efe\nparent 0036d5f1fa09080b2b3cb1c1e33c542be9f75c26\nparent 6fa2f3974cbb69fb2086a8f89d300deec4486662\nauthor merge-script <seb.kung@gmail.com> 1791203054 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791203054 +0200\n\nMerge bitcoin/bitcoin#36329: psbt: add new test vectors\n\n6fa2f3974cbb69fb2086a8f89d300deec4486662 test: add BIP174 invalid value size vector (Sjors Provoost)\n029bc15f2cb575ad4e19d99338cd133a4140e66f test: add BIP174 sighash combiner vector (Sjors Provoost)\n\nPull request description:\n\n  Add the two new test vectors from:\n\n  - https://github.com/bitcoin/bips/pull/2275\n  - https://github.com/bitcoin/bips/pull/1971\n\n  https://github.com/bitcoin/bips/pull/2275 additionally requires _existing_ `Combine` vectors to run in both orders, so we do that here too.\n\nACKs for top commit:\n  brunoerg:\n    reACK 6fa2f3974cbb69fb2086a8f89d300deec4486662\n  aaron-leeb:\n    reACK [6fa2f39](https://github.com/bitcoin/bitcoin/pull/36329/commits/6fa2f3974cbb69fb2086a8f89d300deec4486662)\n  sedited:\n    ACK 6fa2f3974cbb69fb2086a8f89d300deec4486662\n\nTree-SHA512: 5a07026cadbe0551728ac30e9b20212f94e322a2ab31a31a84c86320fc95d2ada82a12e7c2a50c7cd7c12ad202036fdc45b6ad4fc820a8d6f2cd71c87476a6f5\n",
+          "verified_at": "2026-10-05T12:24:43Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/889e7c5af8416c5411bf4765bb8948cb8c647a05",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/889e7c5af8416c5411bf4765bb8948cb8c647a05",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/889e7c5af8416c5411bf4765bb8948cb8c647a05/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26"
+        },
+        {
+          "sha": "6fa2f3974cbb69fb2086a8f89d300deec4486662",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6fa2f3974cbb69fb2086a8f89d300deec4486662",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/6fa2f3974cbb69fb2086a8f89d300deec4486662"
+        }
+      ]
+    },
+    {
+      "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+      "node_id": "C_kwDOABII59oAKDAwMzZkNWYxZmEwOTA4MGIyYjNjYjFjMWUzM2M1NDJiZTlmNzVjMjY",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:01:43Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T12:01:43Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36262: test: cover orphan reconsideration interruptibility\n\n16bff77a5aaf7a9740b859f74b8898cee6de5588 test: cover orphan reconsideration interruptibility (ViniciusCestarii)\n\nPull request description:\n\n  Add test checking that ProcessOrphanTx reconsiders at most one orphan per ProcessMessages(). This test prevents regression of [CVE-2024-52914](https://bitcoincore.org/en/2024/07/03/disclose-orphan-dos/) which currently no existing test checks.\n\n  The test kills 2 mutants found with https://github.com/ViniciusCestarii/mutant-harness:\n\n  1. Remove `return true` after an orphan is accepted\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3494,7 +3494,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n           if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {\n               LogDebug(BCLog::TXPACKAGES, \"   accepted orphan tx %s (wtxid=%s)\\n\", orphanHash.ToString(), orphan_wtxid.ToString());\n               ProcessValidTx(peer.m_id, porphanTx, result.m_replaced_transactions);\n  -            return true;\n           } else if (state.GetResult() != TxValidationResult::TX_MISSING_INPUTS) {\n  ```\n\n  2. Remove `return true` after an orphan is rejected for a reason other than `TX_MISSING_INPUTS`\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3508,7 +3508,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n            state.GetResult() != TxValidationResult::TX_RESULT_UNSET)) {\n                   ProcessInvalidTx(peer.m_id, porphanTx, state, /*first_time_failure=*/false);\n               }\n  -            return true;\n           }\n       }\n  ```\n\nACKs for top commit:\n  instagibbs:\n    reACK https://github.com/bitcoin/bitcoin/pull/36262/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588\n  fametrano:\n    tACK 16bff77a5aaf7a9740b859f74b8898cee6de5588\n\nTree-SHA512: 3d00bf7aa023c47d335b0f4c9d720c914611962272b895d91c8a542739f3b9c0d35c1dba5becdfd7167122c3f3f2be87b366d296732fa2765538467e6c0af6d7",
+        "tree": {
+          "sha": "8b188965030ffc7e682de8a46babade077979f52",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8b188965030ffc7e682de8a46babade077979f52"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDkacACgkQm3m0VpHb\nQXMMBRAAtJ3K4fgYYwva8QGD3Z1HvmcWmHnW5KPmk6Uon0Fh51Xhk7s0oK92lWV2\n93DbSgb7M/rvMpZ+vZaydUnIpNMQjlgv/RQLKnYpqAkcrUoYbk3OE8lfKEfErvJI\nJ2d4XsoxfwLq6mQZSLVb2nhQoOLEYJW8aigqssUJk9KTdFca1JbCA4Ejra0ElUw7\n8t4IpgcCLf8YbkwR8sHHhlKtWQFpgZW2rqVdSdkr6bPK/Uqo9M3qlo+XZIFU1Rq0\n4+QzxiKaXHOhJezJR+BzMTDhVFCl4uk7ZmaAPVOsE1O4UUO57XiMvjJ1ojHyuOB/\naACV61bRHh7J26k2QbL6PW7iR/TIpcr3vn18zcKA0X4yFL40JuTSjCmhujrWM19o\nKujEbxSSnKtl1aJm+U5yJqrcmDSjzMUWglY6MD5Hahz7jdGX9Wd0ML/JiOJKMo7E\nqzW+BxEdhEJPzIoeiO35/TOdmDB84/eNTRb0vbDcwHSH+6NJ6pqnzeZyeJINos8Q\nL6wJjZuvcUBgvSrDERc2TWqDveW+UlAqd+JLbTHQFj4iUEaCvw5KEVCVYLH5Qjxn\n+FZDGaYMyokN4Ip7Q+vFhv0eBZ9l79fT8lB9GeOZZ3SqD+3gw5lJpelbPJoNkRhR\nS+js+eKPu9/1EI6f2vYKCTPfxIUWABJ23VToSeN5ofyJzTYXqss=\n=xKfW\n-----END PGP SIGNATURE-----",
+          "payload": "tree 8b188965030ffc7e682de8a46babade077979f52\nparent 36e9e52f169c4c241c8dbfbc19fdf32633101ce6\nparent 16bff77a5aaf7a9740b859f74b8898cee6de5588\nauthor merge-script <seb.kung@gmail.com> 1791201703 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791201703 +0200\n\nMerge bitcoin/bitcoin#36262: test: cover orphan reconsideration interruptibility\n\n16bff77a5aaf7a9740b859f74b8898cee6de5588 test: cover orphan reconsideration interruptibility (ViniciusCestarii)\n\nPull request description:\n\n  Add test checking that ProcessOrphanTx reconsiders at most one orphan per ProcessMessages(). This test prevents regression of [CVE-2024-52914](https://bitcoincore.org/en/2024/07/03/disclose-orphan-dos/) which currently no existing test checks.\n\n  The test kills 2 mutants found with https://github.com/ViniciusCestarii/mutant-harness:\n\n  1. Remove `return true` after an orphan is accepted\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3494,7 +3494,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n           if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {\n               LogDebug(BCLog::TXPACKAGES, \"   accepted orphan tx %s (wtxid=%s)\\n\", orphanHash.ToString(), orphan_wtxid.ToString());\n               ProcessValidTx(peer.m_id, porphanTx, result.m_replaced_transactions);\n  -            return true;\n           } else if (state.GetResult() != TxValidationResult::TX_MISSING_INPUTS) {\n  ```\n\n  2. Remove `return true` after an orphan is rejected for a reason other than `TX_MISSING_INPUTS`\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3508,7 +3508,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n            state.GetResult() != TxValidationResult::TX_RESULT_UNSET)) {\n                   ProcessInvalidTx(peer.m_id, porphanTx, state, /*first_time_failure=*/false);\n               }\n  -            return true;\n           }\n       }\n  ```\n\nACKs for top commit:\n  instagibbs:\n    reACK https://github.com/bitcoin/bitcoin/pull/36262/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588\n  fametrano:\n    tACK 16bff77a5aaf7a9740b859f74b8898cee6de5588\n\nTree-SHA512: 3d00bf7aa023c47d335b0f4c9d720c914611962272b895d91c8a542739f3b9c0d35c1dba5becdfd7167122c3f3f2be87b366d296732fa2765538467e6c0af6d7\n",
+          "verified_at": "2026-10-05T12:02:15Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/36e9e52f169c4c241c8dbfbc19fdf32633101ce6"
+        },
+        {
+          "sha": "16bff77a5aaf7a9740b859f74b8898cee6de5588",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/16bff77a5aaf7a9740b859f74b8898cee6de5588"
+        }
+      ]
+    },
+    {
+      "sha": "36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+      "node_id": "C_kwDOABII59oAKDM2ZTllNTJmMTY5YzRjMjQxYzhkYmZiYzE5ZmRmMzI2MzMxMDFjZTY",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T11:31:12Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T11:31:12Z"
+        },
+        "message": "Merge bitcoin/bitcoin#34907: wallet, test: make wallet_fast_rescan robust\n\nf217da5c59f43b43abca96de66b95c24ae99eed7 wallet, test: wallet_fast_rescan follow-ups (rkrux)\n\nPull request description:\n\n  This patch addresses my own review comments from the review of #34667 and adds some more changes that I find helpful. It was observed in the review of the earlier PR that there is a tendency for the test code to cause the topups not being done that defeats the purpose of the test. Combine that with the earlier issue where the block filter was not being updated ever since this test was written, I think it's helpful that some robustness is added in the test.\n\n  Exact details are in the commit message.\n\nACKs for top commit:\n  Bicaru20:\n    lgtm ACK f217da5c59\n  polespinasa:\n    lgtm ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n  sedited:\n    ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n\nTree-SHA512: 781aeee4607a6750f370d4370b28da47f01428eb894ce59ac7de930396864a7c3708d1d1c05efb607fae8e5c2888a2503573140c37eed5c285c79d3e5155a3af",
+        "tree": {
+          "sha": "edbe9aeabdc046c4bc54bd13cab8e16279348ae0",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/edbe9aeabdc046c4bc54bd13cab8e16279348ae0"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDioAACgkQm3m0VpHb\nQXNZyw/+Ipp9gwYB9tYBQna7J9WQ4WzcT8oxb1MgiAe90Jz7CJi6EXhyBIj0RQwf\nz1YF3/hdvfv0+gc/V6EsQ/qPjK2waddKOU+eOykwF5dZRcw6OEoBXnX1/dITYA50\notaHHV8p/6d9icexsgzyQ3kNImz9C2j1pHl5aISa/K07brlQNuDBUjvGiEsNSOjq\nG8F8ywAfs7jdUcz3bS4gblNcWQhkihhThCEz5e0x/zURuit5GYCCkA6WbZfbEQsY\nFAeNEqTLih6df5xrls8Ii0A8rmaaOCtrJdC6/B7NG/9MlLz2PeCACQLE1HwUl5/z\nnlYaffai2abIeRFFlPgvwmIFDdsiVntEQ+hIr+JdhVzVtqtYjln9yarSCFUCUFcs\nue1oiyfPlfZlRmN+4pwEyHSr13PtPo43T0racWA9Z0SIk93sq6CL47YFVWx8Ja1D\nM3EtAQW5eCDoh4sl3ScdF/ugJigBCPuqusmcrCduzqhAwGKjVV2gfe2h+aNIF6p8\n2QTagJUFeeJoEpoqQnVutVjtaKcECIriESMHX+lJvBCszExvBzDJxx3EcgOsxZBs\n7/T/vwk5Ac+rtxwWKz8L2vBBj3cJ3ZhpR6XCwWuq6Dj79QClKTSXsplyRGZquk4J\nHUmrGHBOKAlCIAAzxUQcX2yFEEPdy3bxiopcV7Ukc4uFL9MM8gQ=\n=Gmrk\n-----END PGP SIGNATURE-----",
+          "payload": "tree edbe9aeabdc046c4bc54bd13cab8e16279348ae0\nparent 8c49a9abe9196e35000849df76445037216b6d75\nparent f217da5c59f43b43abca96de66b95c24ae99eed7\nauthor merge-script <seb.kung@gmail.com> 1791199872 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791199872 +0200\n\nMerge bitcoin/bitcoin#34907: wallet, test: make wallet_fast_rescan robust\n\nf217da5c59f43b43abca96de66b95c24ae99eed7 wallet, test: wallet_fast_rescan follow-ups (rkrux)\n\nPull request description:\n\n  This patch addresses my own review comments from the review of #34667 and adds some more changes that I find helpful. It was observed in the review of the earlier PR that there is a tendency for the test code to cause the topups not being done that defeats the purpose of the test. Combine that with the earlier issue where the block filter was not being updated ever since this test was written, I think it's helpful that some robustness is added in the test.\n\n  Exact details are in the commit message.\n\nACKs for top commit:\n  Bicaru20:\n    lgtm ACK f217da5c59\n  polespinasa:\n    lgtm ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n  sedited:\n    ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n\nTree-SHA512: 781aeee4607a6750f370d4370b28da47f01428eb894ce59ac7de930396864a7c3708d1d1c05efb607fae8e5c2888a2503573140c37eed5c285c79d3e5155a3af\n",
+          "verified_at": "2026-10-05T11:31:36Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "8c49a9abe9196e35000849df76445037216b6d75",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8c49a9abe9196e35000849df76445037216b6d75",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/8c49a9abe9196e35000849df76445037216b6d75"
+        },
+        {
+          "sha": "f217da5c59f43b43abca96de66b95c24ae99eed7",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f217da5c59f43b43abca96de66b95c24ae99eed7",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f217da5c59f43b43abca96de66b95c24ae99eed7"
+        }
+      ]
+    },
+    {
+      "sha": "8c49a9abe9196e35000849df76445037216b6d75",
+      "node_id": "C_kwDOABII59oAKDhjNDlhOWFiZTkxOTZlMzUwMDA4NDlkZjc2NDQ1MDM3MjE2YjZkNzU",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T10:37:15Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T10:37:15Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36151: makeseeds: fix off-by-one in field count check\n\nc786052865fd173fd8bc7396e1303f7840c5b0da makeseeds: fix off-by-one in field count check (aman21-droid)\n\nPull request description:\n\n  Fixes #36146.\n\n  `parseline()` checks that a line has at least 11 whitespace-separated fields:\n\n  ```python\n  if len(sline) < 11:\n      # line too short to be valid, skip it.\n      return None\n  ```\n\n  but it later reads `sline[11]` (the user agent), which needs 12. A line with exactly 11 fields got past the check and then raised `IndexError`, aborting the whole run instead of skipping that line. 11 is the highest index the function uses, so the check now requires 12 fields.\n\n  This isn't only theoretical: README.md builds seeds_main.txt by appending one crawler's output onto another's, so the file mixes two independently maintained formats, and a truncated download leaves a short last line too. Skipping the line is what the check was already trying to do.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK c786052865fd173fd8bc7396e1303f7840c5b0da\n  l0rinc:\n    ACK c786052865fd173fd8bc7396e1303f7840c5b0da\n\nTree-SHA512: 3c3aeb8876b7e0eccf8f03faafe0e0bb71d1b11924feaf22b2bb6bf1a36e25bedd622de257060de873c42f12fba8df42d96b2a831a2e8d395220fed70f4bba34",
+        "tree": {
+          "sha": "65cc733ce9e9a0a49787ce2ce67ae8bfaa8c2b5f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/65cc733ce9e9a0a49787ce2ce67ae8bfaa8c2b5f"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/8c49a9abe9196e35000849df76445037216b6d75",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDfdsACgkQm3m0VpHb\nQXNB2BAAhvOFBgEgl/ToKeDM+gL9EN6F38cCF0THW52NqY5BHgQuGURseomQE9cj\n8Ns9Ox04wyyQwZ+tuWbtDJKWeYFc5G8hoVZsFhIsFI2tCkFDwu33XtvMaElHVjx6\n0HBahW5TVlwlA5vLouyQ+hYVEgNzscrODhrf3wMleB95gLdBfwA/CUts0eJtZ2eu\nNy+iY7r8mxV73Eal7AMl7sZwvgGPHyCGgf2KnVAYaW81MWtdhdCdF9Snz0dUbQWh\n0a9RfQKuF48pFDAPL349BooGGmkIwi5oF5KqY6X4F0z8qmbvT5RQjGYVtwrArC0G\njJpF6fV+3RL7ZBsg6KOfiRxsMORveNG9wNRU0mBpO+EGdU9Xf14vkSztWdDmvef8\nVgFTOIS6UUSo1I6TBULhYPrkgWHGuPukjTTMmv9TbFEcIZWrmKE4ITd2esaJWUnU\n7skT2/Z36GWcg3mBX6wr/AtRxiwxgF8MOBNa8XNPE2dzXvHFpLgRkt0lNk6sU+yY\nmA0Os85LQA0LmFC5gvs1l3ETPY1GVVxFzZm8aeuPpLSiEBD9UUnFeor4yL6az1JP\nGCcVSKaQrUbFRn2tmMlNKLRYhvqWU8pZ2zsYxSD1mfjryVuWFftwnjW8HkesXh6I\n7zNrFvHrbgrnO8jVT34zEA8EwZMOd60d662pjEqR5zD9f/+7gEw=\n=3JwU\n-----END PGP SIGNATURE-----",
+          "payload": "tree 65cc733ce9e9a0a49787ce2ce67ae8bfaa8c2b5f\nparent b42ea675334ce86ddc24df7aa06942c8b290aaa6\nparent c786052865fd173fd8bc7396e1303f7840c5b0da\nauthor merge-script <seb.kung@gmail.com> 1791196635 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791196635 +0200\n\nMerge bitcoin/bitcoin#36151: makeseeds: fix off-by-one in field count check\n\nc786052865fd173fd8bc7396e1303f7840c5b0da makeseeds: fix off-by-one in field count check (aman21-droid)\n\nPull request description:\n\n  Fixes #36146.\n\n  `parseline()` checks that a line has at least 11 whitespace-separated fields:\n\n  ```python\n  if len(sline) < 11:\n      # line too short to be valid, skip it.\n      return None\n  ```\n\n  but it later reads `sline[11]` (the user agent), which needs 12. A line with exactly 11 fields got past the check and then raised `IndexError`, aborting the whole run instead of skipping that line. 11 is the highest index the function uses, so the check now requires 12 fields.\n\n  This isn't only theoretical: README.md builds seeds_main.txt by appending one crawler's output onto another's, so the file mixes two independently maintained formats, and a truncated download leaves a short last line too. Skipping the line is what the check was already trying to do.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK c786052865fd173fd8bc7396e1303f7840c5b0da\n  l0rinc:\n    ACK c786052865fd173fd8bc7396e1303f7840c5b0da\n\nTree-SHA512: 3c3aeb8876b7e0eccf8f03faafe0e0bb71d1b11924feaf22b2bb6bf1a36e25bedd622de257060de873c42f12fba8df42d96b2a831a2e8d395220fed70f4bba34\n",
+          "verified_at": "2026-10-05T10:38:04Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8c49a9abe9196e35000849df76445037216b6d75",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/8c49a9abe9196e35000849df76445037216b6d75",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8c49a9abe9196e35000849df76445037216b6d75/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b42ea675334ce86ddc24df7aa06942c8b290aaa6"
+        },
+        {
+          "sha": "c786052865fd173fd8bc7396e1303f7840c5b0da",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c786052865fd173fd8bc7396e1303f7840c5b0da",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c786052865fd173fd8bc7396e1303f7840c5b0da"
+        }
+      ]
+    },
+    {
+      "sha": "b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+      "node_id": "C_kwDOABII59oAKGI0MmVhNjc1MzM0Y2U4NmRkYzI0ZGY3YWEwNjk0MmM4YjI5MGFhYTY",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T10:21:14Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-05T10:21:14Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36349: rpc: avoid copying unbroadcast transaction IDs just to count them\n\n052cf121ab0a5373d1753564d90075f1997f4610 rpc: avoid copying unbroadcast txids to count them (Musa Haruna)\n\nPull request description:\n\n  Follow-up to [#35923](https://github.com/bitcoin/bitcoin/pull/35923/#issuecomment-5799823742).\n\n  `getmempoolinfo` currently calls `GetUnbroadcastTxs().size()` to report `unbroadcastcount`. The getter returns the set by value, so every call copies its entries under the mempool lock and immediately discards the copy after reading its size.\n\n  **Fix:** Add `GetUnbroadcastTxCount()` and use it in the RPC to read the size under the same lock without allocating a temporary set. This is a separate accessor because broadcast retry and persistence still need the transaction IDs returned by the existing `GetUnbroadcastTxs()`.\n\n  I also searched for similar cases nearby: the ancestor/descendant count helpers and the cluster-count path build vectors just to read their sizes, while the mining RPC uses `GetDust(...).empty()` to check whether any dust outputs exist. These could potentially use count-only or boolean helpers, but would require separate changes to the graph and policy code, so I left them out of this PR.\n\n  Added a temporary [bench_bitcoin](https://github.com/bitcoin/bitcoin/compare/master...musaHaruna:bitcoin:bench-unbroadcast-count) benchmark on my branch, comparing both getters.\n\n  Results below are medians from five runs on an Apple M5, using Apple clang 17/libc++ with `-O2`:\n\n  | Unbroadcast IDs | `GetUnbroadcastTxs().size()` (ns/query) | `GetUnbroadcastTxCount()`(ns/query) |\n  |---:|---:|---:|\n  | 0 | 25.22 | 22.60 |\n  | 1 | 58.99 | 22.52 |\n  | 10 | 420.82 | 22.79 |\n  | 100 | 4,788.22 | 22.45 |\n  | 1,000 | 57,904.17 | 22.60 |\n  | 10,000 | 908,399.04 | 22.62 |\n\n  The copy cost grew with the set size, while the count accessor stayed approximately constant.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 052cf121ab0a5373d1753564d90075f1997f4610\n  l0rinc:\n    ACK 052cf121ab0a5373d1753564d90075f1997f4610\n  davidgumberg:\n    crACK https://github.com/bitcoin/bitcoin/commit/052cf121ab0a5373d1753564d90075f1997f4610\n  sedited:\n    ACK 052cf121ab0a5373d1753564d90075f1997f4610\n\nTree-SHA512: 7c2467ed813109e71f785bb43f6d44f5797f9470b95152962cca83ea4c309628f2236cf7a487faeb4ca8ecb1db59f393376ac3bc2afef7b0348eefb12305c49e",
+        "tree": {
+          "sha": "8d2639f1a474766b5acc2eccc0182ad3ce904dec",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8d2639f1a474766b5acc2eccc0182ad3ce904dec"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDehoACgkQm3m0VpHb\nQXPJehAAqEQQQUiVnKfdpwMxCIITA4hmTr4VWXFKNK7uZxf5zKoxQdorD+Tq52xR\nTmC2gfa1c6edvIo5D+RZvxSrWJOudww/06fnRmaWxEU0tcK3OLBQwGBNjqvSzJ0b\nrauiXSOJ7z1EQ71tVmHW7VwJk5bq4EQ/uj7zyfsjiiWbGDd4U+Yq0ZILCPpvgr3Z\nwaGERB58YU+Xhcfu+3rDKhG3D6kobz33cRgK1GrrOTncEPTIbt4gI2kMuYOlVOwp\npd/7omDEXaGYkZODyPbP+ZgdG9EEX7CYDbxAkzEnsR+0d/phu+47Y6QumVsaW60V\nfIYBd5mY7ZLjocLai0MZMGCdxgE+b9o5uvbnkSHP1G/1Ty4CiEE2uynNAvmO2hA8\n8EYWQim1NzZyoOZTUhr60akOeeHlgOqGRF9CCj3LNpplUhUA11ckWajW60s22ClP\nYeQ/DLqrRZcjf2UU2gOvdqNfnP9kyN9vXKygz82ik5P/mHJ5dTljinnS9dmPPPf2\nsmZlpXY1HdmLHZF3Jm4ukABV14zvWvVfBQovNs9v2TEqokrby/NVMDIfY71XPkqJ\nfEX1P7rl9CCmmC4TT7JYN0X7PFxI7ZaB5z9XVWH3MlmzU95vy+61qrRnCj/3+wqT\nDs+RBIVHBbvMMnQQrIRkLi+xO371GpZ3J6AFAdkhWLRWnyRfnpk=\n=pVvF\n-----END PGP SIGNATURE-----",
+          "payload": "tree 8d2639f1a474766b5acc2eccc0182ad3ce904dec\nparent 714261b508c237ce26b09b0e25f23262385b0152\nparent 052cf121ab0a5373d1753564d90075f1997f4610\nauthor merge-script <seb.kung@gmail.com> 1791195674 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791195674 +0200\n\nMerge bitcoin/bitcoin#36349: rpc: avoid copying unbroadcast transaction IDs just to count them\n\n052cf121ab0a5373d1753564d90075f1997f4610 rpc: avoid copying unbroadcast txids to count them (Musa Haruna)\n\nPull request description:\n\n  Follow-up to [#35923](https://github.com/bitcoin/bitcoin/pull/35923/#issuecomment-5799823742).\n\n  `getmempoolinfo` currently calls `GetUnbroadcastTxs().size()` to report `unbroadcastcount`. The getter returns the set by value, so every call copies its entries under the mempool lock and immediately discards the copy after reading its size.\n\n  **Fix:** Add `GetUnbroadcastTxCount()` and use it in the RPC to read the size under the same lock without allocating a temporary set. This is a separate accessor because broadcast retry and persistence still need the transaction IDs returned by the existing `GetUnbroadcastTxs()`.\n\n  I also searched for similar cases nearby: the ancestor/descendant count helpers and the cluster-count path build vectors just to read their sizes, while the mining RPC uses `GetDust(...).empty()` to check whether any dust outputs exist. These could potentially use count-only or boolean helpers, but would require separate changes to the graph and policy code, so I left them out of this PR.\n\n  Added a temporary [bench_bitcoin](https://github.com/bitcoin/bitcoin/compare/master...musaHaruna:bitcoin:bench-unbroadcast-count) benchmark on my branch, comparing both getters.\n\n  Results below are medians from five runs on an Apple M5, using Apple clang 17/libc++ with `-O2`:\n\n  | Unbroadcast IDs | `GetUnbroadcastTxs().size()` (ns/query) | `GetUnbroadcastTxCount()`(ns/query) |\n  |---:|---:|---:|\n  | 0 | 25.22 | 22.60 |\n  | 1 | 58.99 | 22.52 |\n  | 10 | 420.82 | 22.79 |\n  | 100 | 4,788.22 | 22.45 |\n  | 1,000 | 57,904.17 | 22.60 |\n  | 10,000 | 908,399.04 | 22.62 |\n\n  The copy cost grew with the set size, while the count accessor stayed approximately constant.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 052cf121ab0a5373d1753564d90075f1997f4610\n  l0rinc:\n    ACK 052cf121ab0a5373d1753564d90075f1997f4610\n  davidgumberg:\n    crACK https://github.com/bitcoin/bitcoin/commit/052cf121ab0a5373d1753564d90075f1997f4610\n  sedited:\n    ACK 052cf121ab0a5373d1753564d90075f1997f4610\n\nTree-SHA512: 7c2467ed813109e71f785bb43f6d44f5797f9470b95152962cca83ea4c309628f2236cf7a487faeb4ca8ecb1db59f393376ac3bc2afef7b0348eefb12305c49e\n",
+          "verified_at": "2026-10-05T10:22:42Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b42ea675334ce86ddc24df7aa06942c8b290aaa6",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b42ea675334ce86ddc24df7aa06942c8b290aaa6/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "714261b508c237ce26b09b0e25f23262385b0152",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/714261b508c237ce26b09b0e25f23262385b0152",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/714261b508c237ce26b09b0e25f23262385b0152"
+        },
+        {
+          "sha": "052cf121ab0a5373d1753564d90075f1997f4610",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/052cf121ab0a5373d1753564d90075f1997f4610",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/052cf121ab0a5373d1753564d90075f1997f4610"
+        }
+      ]
+    },
     {
       "sha": "714261b508c237ce26b09b0e25f23262385b0152",
       "node_id": "C_kwDOABII59oAKDcxNDI2MWI1MDhjMjM3Y2UyNmIwOWIwZTI1ZjIzMjYyMzg1YjAxNTI",
@@ -526,6 +1309,88 @@
       ]
     },
     {
+      "sha": "052cf121ab0a5373d1753564d90075f1997f4610",
+      "node_id": "C_kwDOABII59oAKDA1MmNmMTIxYWIwYTUzNzNkMTc1MzU2NGQ5MDA3NWYxOTk3ZjQ2MTA",
+      "commit": {
+        "author": {
+          "name": "Musa Haruna",
+          "email": "hmusa3962@gmail.com",
+          "date": "2026-09-26T14:26:10Z"
+        },
+        "committer": {
+          "name": "Musa Haruna",
+          "email": "hmusa3962@gmail.com",
+          "date": "2026-10-04T05:14:46Z"
+        },
+        "message": "rpc: avoid copying unbroadcast txids to count them",
+        "tree": {
+          "sha": "cefa12aefb1445820b6643afc335c950729df8f2",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/cefa12aefb1445820b6643afc335c950729df8f2"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/052cf121ab0a5373d1753564d90075f1997f4610",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/052cf121ab0a5373d1753564d90075f1997f4610",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/052cf121ab0a5373d1753564d90075f1997f4610",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/052cf121ab0a5373d1753564d90075f1997f4610/comments",
+      "author": {
+        "login": "musaHaruna",
+        "id": 124810379,
+        "node_id": "U_kgDOB3B0iw",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124810379?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/musaHaruna",
+        "html_url": "https://github.com/musaHaruna",
+        "followers_url": "https://api.github.com/users/musaHaruna/followers",
+        "following_url": "https://api.github.com/users/musaHaruna/following{/other_user}",
+        "gists_url": "https://api.github.com/users/musaHaruna/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/musaHaruna/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/musaHaruna/subscriptions",
+        "organizations_url": "https://api.github.com/users/musaHaruna/orgs",
+        "repos_url": "https://api.github.com/users/musaHaruna/repos",
+        "events_url": "https://api.github.com/users/musaHaruna/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/musaHaruna/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "musaHaruna",
+        "id": 124810379,
+        "node_id": "U_kgDOB3B0iw",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124810379?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/musaHaruna",
+        "html_url": "https://github.com/musaHaruna",
+        "followers_url": "https://api.github.com/users/musaHaruna/followers",
+        "following_url": "https://api.github.com/users/musaHaruna/following{/other_user}",
+        "gists_url": "https://api.github.com/users/musaHaruna/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/musaHaruna/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/musaHaruna/subscriptions",
+        "organizations_url": "https://api.github.com/users/musaHaruna/orgs",
+        "repos_url": "https://api.github.com/users/musaHaruna/repos",
+        "events_url": "https://api.github.com/users/musaHaruna/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/musaHaruna/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ed7dd7cf4e1561a97edf72eba29a67b14e28c717",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ed7dd7cf4e1561a97edf72eba29a67b14e28c717"
+        }
+      ]
+    },
+    {
       "sha": "66776840beb558f7e84451c2c55457f0e06242f0",
       "node_id": "C_kwDOABII59oAKDY2Nzc2ODQwYmViNTU4ZjdlODQ0NTFjMmM1NTQ1N2YwZTA2MjQyZjA",
       "commit": {
@@ -865,846 +1730,6 @@
           "sha": "1805716354b49ecb96e49b949a61e2c72ad2c1a3",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1805716354b49ecb96e49b949a61e2c72ad2c1a3",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/1805716354b49ecb96e49b949a61e2c72ad2c1a3"
-        }
-      ]
-    },
-    {
-      "sha": "802eb7daa9a8c6ae98411e8501e86e1b850936db",
-      "node_id": "C_kwDOABII59oAKDgwMmViN2RhYTlhOGM2YWU5ODQxMWU4NTAxZTg2ZTFiODUwOTM2ZGI",
-      "commit": {
-        "author": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-10-02T22:22:54Z"
-        },
-        "committer": {
-          "name": "Ava Chow",
-          "email": "github@achow101.com",
-          "date": "2026-10-02T22:22:54Z"
-        },
-        "message": "Merge bitcoin/bitcoin#34213: net: preserve anchors when network is disabled\n\nddf033054ff66129e9307c7c4661ad20e08727fe test: cover anchor handling across network toggles with mocktime (Bruno Garcia)\nb0bff47d443279da7b77d782b739f3a7697ee796 net: log that anchors will be tried for connections only if network is active (brunoerg)\n4b6b85428586fd2ae36386096b4a9beb467cfd8f test: disabling network activity should not affect anchors (brunoerg)\n04d3d474c48da3fa24e13ee3fcc623da649a62e2 net: preserve anchors on shutdown when network is inactive (Bruno Garcia)\n41771236b4d9903eb9bfb92c7d5073f0e031f177 net: store anchors in SetNetworkActive (brunoerg)\ne5f3ea3bf6f666ae9302f4823b2c96251537faa3 net: guard m_anchors with mutex (brunoerg)\n\nPull request description:\n\n  ### Problem\n\n  When a node is shut down while network activity is disabled (e.g. via -networkactive=0 or `setnetworkactive` false), `anchors.dat` is overwritten with an empty list. This happens because `StopNodes()` collects anchors via `GetCurrentBlockRelayOnlyConns()`, which returns nothing when there are no active connections. The node then loses its anchors and cannot reconnect to them on the next startup.\n\n  ### Fix\n\n  -  Guard `m_anchors` with a mutex, since it is now accessed outside the connection-opening thread.\n  -  In `SetNetworkActive(false)`, save the current block-relay-only connections into `m_anchors` before the connections are closed, so the anchor list is preserved after the network is deactivated. Stored anchors are kept if there are no such\n    connections.\n  - In `ThreadOpenConnections()`, only consume anchors while the network is active; otherwise they would be popped and dropped by the connection attempt.\n  - In `StopNodes()`, if the network is inactive and `m_anchors` is non-empty, use those stored anchors as the source for `anchors.dat` instead of the (empty) live connection list.\n\n  Also, log that \"X anchors will be tried for connections\" only if the network is active.\n\nACKs for top commit:\n  achow101:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  willcl-ark:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  naiyoma:\n    tACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  w0xlt:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n\nTree-SHA512: fad22221f0625562fefcf730dd624da993833a16bde4a8327d2045f0a593f1663ad1236c5a0a45e168bd0b21e2e4288d674489a9bdb753c6a9e62448cecb3e22",
-        "tree": {
-          "sha": "8d1014173a6df9ea24a65776a5cfbd92c804c0b1",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8d1014173a6df9ea24a65776a5cfbd92c804c0b1"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/802eb7daa9a8c6ae98411e8501e86e1b850936db",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unknown_key",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmrALr4ACgkQF1ZXMuCO\nXkFjkhAAsSQcgJDZ0lKuTNGXLtlMITf3Ft4yKmfv0PwqVq+GWnQq1qW2d23aumF6\n4lPu6VcnHleBrZtHeO0rkEtzxYUNHf2g1dZaS0zVucsMh2b5UBb5fpVoh+Cd/hO8\nSoQhrmmBJH90LhqJH/bDuw3XM/SP4R7vKw5xFFWS1StnsEu9a3Y1nDGRMV/F3F2i\nkH1S2SuYM+q4E1XrnfIAfUdwz1W4evdgq5LFKHg2IkbEzKa3EGavdsaxn/8K14a8\nuKU3rAjFsn6nFqAZHtXN9lTNdp4sORug9+FCHXaj2Uctg8H4xdIkfJNEUVzIqK3/\n6UnMu+IyUtNVmFuib26fswNF3r/ic8DEwBnIjhdG43kixKSxW13c78Rkg2KDE68G\nPwLok8wZryh04EpikkmZLqsUcBXfXHo7yzVT1F+fuP4EKVd3VFPMoTVsxupNqk5m\nPBa1HGnrdifbRaFvGTaLphsOwSvmwoAsnDOOyKFicayw8tAvp3hcSo8WRQtet6Pn\nAyse5efZMpOY5w/ThVLmWQkypQHIXWLmM5TIVadyq/aH8DcpDSaOHq2ZOyCwoOWm\nCAmuEpyDYyasO4BCFLJmxsIEuFnoet1PKuA++EhgZDmKGNtu8TtKZljglzU3RKVt\nfMAPmfEBHR+NU6VvxuAGYpkjkC4NyuAsFhpKWGeLk2TKeinotgA=\n=YjH1\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIENTRfK+lWLsOsj3LgO1WXEI64fQ548crNKg/KSC7WORCP/wCEwadlHFQ+8A\nCPEgpvb+uqResHMw4HDLZbjR+xR6iD+strSmAiQPnkLuUP8I8BC9MXndYDRFktt+\nIIImw85ECPEgVMdDPdk8VqHOTP7IDQDwfzFETez7fENgXY/Qrc48ERMI8SCXORaK\neYPWmE1TWjoevxUJhCkUWHjZYsxDDAz4iegRrAjxBGrALsXwCDC6dAPMmlhOAIPf\n4w0u+QyOLi1odHRwczovL2FsaWNlLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1w\ncy5vcmf/8AhN8OwlieStXgjwEDIszx6cTtnOFlPCW2mhqPcI8SD21JO3BlI6KSh/\nmiYEvVfqw/TubO+sBgEO0tjFWgLvLAjxBGrALsXwCGhbTAiZAyHJAIPf4w0u+QyO\nLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3Jn//AQ\neX9M8kOr9AmOhdEZocRoYgjxBGrALsXwCK8p/Grdqqt1AIPf4w0u+QyOIyJodHRw\nczovL2J0Yy5jYWxlbmRhci5jYXRhbGxheHkuY29t8BCHxzMePQQfL/v/G9b9+I3L\nCPAgvi6+fdP44Kv7pzJB7fI2RMBW20yDS6M+8Q5tccHKMBUI8CD9cu6zu0BhoRAW\nphsIOrzsxMk5rWh2LPcf3DrtSKK5EQjxBGrALsfwCNLx3lGwwv3mAIPf4w0u+QyO\nKShodHRwczovL2Zpbm5leS5jYWxlbmRhci5ldGVybml0eXdhbGwuY29t\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
-          "payload": "tree 8d1014173a6df9ea24a65776a5cfbd92c804c0b1\nparent 65896ac58ea63e29ad19d41b492e37f8722ac715\nparent ddf033054ff66129e9307c7c4661ad20e08727fe\nauthor Ava Chow <github@achow101.com> 1790979774 -0700\ncommitter Ava Chow <github@achow101.com> 1790979774 -0700\n\nMerge bitcoin/bitcoin#34213: net: preserve anchors when network is disabled\n\nddf033054ff66129e9307c7c4661ad20e08727fe test: cover anchor handling across network toggles with mocktime (Bruno Garcia)\nb0bff47d443279da7b77d782b739f3a7697ee796 net: log that anchors will be tried for connections only if network is active (brunoerg)\n4b6b85428586fd2ae36386096b4a9beb467cfd8f test: disabling network activity should not affect anchors (brunoerg)\n04d3d474c48da3fa24e13ee3fcc623da649a62e2 net: preserve anchors on shutdown when network is inactive (Bruno Garcia)\n41771236b4d9903eb9bfb92c7d5073f0e031f177 net: store anchors in SetNetworkActive (brunoerg)\ne5f3ea3bf6f666ae9302f4823b2c96251537faa3 net: guard m_anchors with mutex (brunoerg)\n\nPull request description:\n\n  ### Problem\n\n  When a node is shut down while network activity is disabled (e.g. via -networkactive=0 or `setnetworkactive` false), `anchors.dat` is overwritten with an empty list. This happens because `StopNodes()` collects anchors via `GetCurrentBlockRelayOnlyConns()`, which returns nothing when there are no active connections. The node then loses its anchors and cannot reconnect to them on the next startup.\n\n  ### Fix\n\n  -  Guard `m_anchors` with a mutex, since it is now accessed outside the connection-opening thread.\n  -  In `SetNetworkActive(false)`, save the current block-relay-only connections into `m_anchors` before the connections are closed, so the anchor list is preserved after the network is deactivated. Stored anchors are kept if there are no such\n    connections.\n  - In `ThreadOpenConnections()`, only consume anchors while the network is active; otherwise they would be popped and dropped by the connection attempt.\n  - In `StopNodes()`, if the network is inactive and `m_anchors` is non-empty, use those stored anchors as the source for `anchors.dat` instead of the (empty) live connection list.\n\n  Also, log that \"X anchors will be tried for connections\" only if the network is active.\n\nACKs for top commit:\n  achow101:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  willcl-ark:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  naiyoma:\n    tACK ddf033054ff66129e9307c7c4661ad20e08727fe\n  w0xlt:\n    ACK ddf033054ff66129e9307c7c4661ad20e08727fe\n\nTree-SHA512: fad22221f0625562fefcf730dd624da993833a16bde4a8327d2045f0a593f1663ad1236c5a0a45e168bd0b21e2e4288d674489a9bdb753c6a9e62448cecb3e22\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/802eb7daa9a8c6ae98411e8501e86e1b850936db",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/802eb7daa9a8c6ae98411e8501e86e1b850936db",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/802eb7daa9a8c6ae98411e8501e86e1b850936db/comments",
-      "author": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "achow101",
-        "id": 3782274,
-        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/achow101",
-        "html_url": "https://github.com/achow101",
-        "followers_url": "https://api.github.com/users/achow101/followers",
-        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
-        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
-        "organizations_url": "https://api.github.com/users/achow101/orgs",
-        "repos_url": "https://api.github.com/users/achow101/repos",
-        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/achow101/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "65896ac58ea63e29ad19d41b492e37f8722ac715",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65896ac58ea63e29ad19d41b492e37f8722ac715",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/65896ac58ea63e29ad19d41b492e37f8722ac715"
-        },
-        {
-          "sha": "ddf033054ff66129e9307c7c4661ad20e08727fe",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ddf033054ff66129e9307c7c4661ad20e08727fe",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/ddf033054ff66129e9307c7c4661ad20e08727fe"
-        }
-      ]
-    },
-    {
-      "sha": "15d092639957242d443a680d380f8df1def2bd4e",
-      "node_id": "C_kwDOABII59oAKDE1ZDA5MjYzOTk1NzI0MmQ0NDNhNjgwZDM4MGY4ZGYxZGVmMmJkNGU",
-      "commit": {
-        "author": {
-          "name": "ViniciusCestarii",
-          "email": "viniciuscestari01@gmail.com",
-          "date": "2026-10-02T13:22:06Z"
-        },
-        "committer": {
-          "name": "ViniciusCestarii",
-          "email": "viniciuscestari01@gmail.com",
-          "date": "2026-10-02T19:14:26Z"
-        },
-        "message": "rpc: clarify preciousblock help text",
-        "tree": {
-          "sha": "a0b64a2c3f97a53e9a7118ee57cc9fdb4a9ade2b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/a0b64a2c3f97a53e9a7118ee57cc9fdb4a9ade2b"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/15d092639957242d443a680d380f8df1def2bd4e",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgY7NROixtPE3hjThUiBvdMFhx+5\nJyj1M7a6RXrjRGqmMAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQC1VfKhlXZwKUxCz+LaN4sA/I4XpxlpFh7mulNi/AlM3YyUwSrEyZa6IAasyzT98hU\nq8Lry8bFxSoNT3WoMHfgA=\n-----END SSH SIGNATURE-----",
-          "payload": "tree a0b64a2c3f97a53e9a7118ee57cc9fdb4a9ade2b\nparent 69142eacd1374925cc9e4ea736c21fcec16307d0\nauthor ViniciusCestarii <viniciuscestari01@gmail.com> 1790947326 -0300\ncommitter ViniciusCestarii <viniciuscestari01@gmail.com> 1790968466 -0300\n\nrpc: clarify preciousblock help text\n",
-          "verified_at": "2026-10-02T19:14:46Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/15d092639957242d443a680d380f8df1def2bd4e",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/15d092639957242d443a680d380f8df1def2bd4e",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/15d092639957242d443a680d380f8df1def2bd4e/comments",
-      "author": {
-        "login": "ViniciusCestarii",
-        "id": 124843824,
-        "node_id": "U_kgDOB3D3MA",
-        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/ViniciusCestarii",
-        "html_url": "https://github.com/ViniciusCestarii",
-        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
-        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
-        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
-        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
-        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "ViniciusCestarii",
-        "id": 124843824,
-        "node_id": "U_kgDOB3D3MA",
-        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/ViniciusCestarii",
-        "html_url": "https://github.com/ViniciusCestarii",
-        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
-        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
-        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
-        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
-        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "69142eacd1374925cc9e4ea736c21fcec16307d0",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/69142eacd1374925cc9e4ea736c21fcec16307d0"
-        }
-      ]
-    },
-    {
-      "sha": "65896ac58ea63e29ad19d41b492e37f8722ac715",
-      "node_id": "C_kwDOABII59oAKDY1ODk2YWM1OGVhNjNlMjlhZDE5ZDQxYjQ5MmUzN2Y4NzIyYWM3MTU",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T16:14:32Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T16:14:32Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36411: ci: drop `-Wno-error=maybe-uninitialized` from win64 cxx flags\n\n963f557a721b279a643db2982893c8aa667416c6 ci: drop -Wno-error=maybe-uninitialized from win64 flags (fanquake)\n\nPull request description:\n\n  I cannot see any `maybe-uninitialized` warnings in CI logs, and this passes locally on aarch64.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 963f557a721b279a643db2982893c8aa667416c6\n  hebasto:\n    ACK 963f557a721b279a643db2982893c8aa667416c6 for our current CI job.\n\nTree-SHA512: befff995b9dc0656eb60dd23a10dc7af27cfc9ba14b30bc90bf4892f40b5a686d8e694543b2210f76828f717cecf93d7b0154d503e124805d89d1b0914775ca2",
-        "tree": {
-          "sha": "c04bd1d7f5fcbe75fd8a116c02d3c7da3a6f3f02",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c04bd1d7f5fcbe75fd8a116c02d3c7da3a6f3f02"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/65896ac58ea63e29ad19d41b492e37f8722ac715",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmq/2GgbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB2PAP/Rhucw6vlLGdgGC1rxKI\nNX+kXBqg+JU7GE712gOblwHqhYpQ5VLd+kIXt9yN439yhRufKqVIkojq9EqLmwvB\nBNDwJtT/SZddO1N0xT8pOevuJdj6RVUtmoou7+Jy/975eJvXMFcxwsK+jSi+BcGj\n3r0IitmqiiapSqHfA9v20cgEFGAgK1z1USmUKxulp9TrrsPzzXnOAwH+uZKz1FYB\nzdbxUu0YekKX4oHwiE3TwXlglnaXOif12FAKLvhN8qCfp6xTb1k8mR1kIXFFQFFV\nEtzOA6+MZ67aWfcv5RxAyClYPoz2V75S/U2//WwP3wnPxCUjtD+0b2YM3BbJ9dLN\nDoliPGrhdzMa/RJNp/uXxXUy1J51E7JPmdh82u1PXuRhF9JGHa6mVbnqC9YBcnsm\nIa4+I5ewDstRJkNTAxTEnVioFN7bcp0GwcvPyLHKAQk/MbdHGRx3cB08pR2oi1Dl\n1MKO9MrJ9QYX+9h2V4w53cmothkat+i8zu/KNQ0ybxACikVLrZrJIAYOGTcv+VjU\nMQMSpwyQh++P1VSOtEhxSHtlGbY7S/5t86/A/BWaSFrnU7c7HUCP+bnOmeCL5OXb\ngF7feKUBhA1DvJK8mckPnwMZ3T81Ev5ZW5LpGIMOFDErlcjH6BIikNCsppENzj2/\nJTPeXuVCMr9F8251TQYJZPNm\n=tQU5\n-----END PGP SIGNATURE-----",
-          "payload": "tree c04bd1d7f5fcbe75fd8a116c02d3c7da3a6f3f02\nparent 69142eacd1374925cc9e4ea736c21fcec16307d0\nparent 963f557a721b279a643db2982893c8aa667416c6\nauthor merge-script <fanquake@gmail.com> 1790957672 +0100\ncommitter merge-script <fanquake@gmail.com> 1790957672 +0100\n\nMerge bitcoin/bitcoin#36411: ci: drop `-Wno-error=maybe-uninitialized` from win64 cxx flags\n\n963f557a721b279a643db2982893c8aa667416c6 ci: drop -Wno-error=maybe-uninitialized from win64 flags (fanquake)\n\nPull request description:\n\n  I cannot see any `maybe-uninitialized` warnings in CI logs, and this passes locally on aarch64.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 963f557a721b279a643db2982893c8aa667416c6\n  hebasto:\n    ACK 963f557a721b279a643db2982893c8aa667416c6 for our current CI job.\n\nTree-SHA512: befff995b9dc0656eb60dd23a10dc7af27cfc9ba14b30bc90bf4892f40b5a686d8e694543b2210f76828f717cecf93d7b0154d503e124805d89d1b0914775ca2\n",
-          "verified_at": "2026-10-02T16:14:37Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65896ac58ea63e29ad19d41b492e37f8722ac715",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/65896ac58ea63e29ad19d41b492e37f8722ac715",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/65896ac58ea63e29ad19d41b492e37f8722ac715/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "69142eacd1374925cc9e4ea736c21fcec16307d0",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/69142eacd1374925cc9e4ea736c21fcec16307d0"
-        },
-        {
-          "sha": "963f557a721b279a643db2982893c8aa667416c6",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/963f557a721b279a643db2982893c8aa667416c6",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/963f557a721b279a643db2982893c8aa667416c6"
-        }
-      ]
-    },
-    {
-      "sha": "d83647e7c48a11dc54ad697342a4b7e3bce9061b",
-      "node_id": "C_kwDOABII59oAKGQ4MzY0N2U3YzQ4YTExZGM1NGFkNjk3MzQyYTRiN2UzYmNlOTA2MWI",
-      "commit": {
-        "author": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-08-20T13:26:08Z"
-        },
-        "committer": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-10-02T14:04:15Z"
-        },
-        "message": "p2p: Don't apply ping timeout while downloading blocks\n\nIf the peer is also running bitcoin core, they will prioritize\nserving the blocks over answering pings. If this is slow due to\nour own download speed, we could timeout the peer even though\nthey did nothing wrong.\n\nTherefore suspend the check while downloading blocks.\nIf the peer is slow, we have other mechanisms (socket timeout,\nblock request timeout logic)\nto disconnect them, so the ping timeout wasn't necessary anyway.\n\nOnce the last new block is received, give the peer a grace period to send\nus the pong.\n\nUpdate the functional test added earlier accordingly: the peer is no\nlonger disconnected while it is serving blocks, and only times out once\nthe grace period after the last block has passed.",
-        "tree": {
-          "sha": "39f32febcab9205f1f57428a200daa893362bd81",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/39f32febcab9205f1f57428a200daa893362bd81"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d83647e7c48a11dc54ad697342a4b7e3bce9061b",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d83647e7c48a11dc54ad697342a4b7e3bce9061b",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/d83647e7c48a11dc54ad697342a4b7e3bce9061b",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d83647e7c48a11dc54ad697342a4b7e3bce9061b/comments",
-      "author": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/2b43c62d8ef53edfadf8f097731f48a01b9570cd"
-        }
-      ]
-    },
-    {
-      "sha": "69142eacd1374925cc9e4ea736c21fcec16307d0",
-      "node_id": "C_kwDOABII59oAKDY5MTQyZWFjZDEzNzQ5MjVjYzllNGVhNzM2YzIxZmNlYzE2MzA3ZDA",
-      "commit": {
-        "author": {
-          "name": "Hennadii Stepanov",
-          "email": "32963518+hebasto@users.noreply.github.com",
-          "date": "2026-10-02T13:10:25Z"
-        },
-        "committer": {
-          "name": "Hennadii Stepanov",
-          "email": "32963518+hebasto@users.noreply.github.com",
-          "date": "2026-10-02T13:10:25Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36383: util: remove unused exception parameter in `Popen::execute_process`\n\ncde2f2ec641acfb7ab11e5d37182b5fcafb65a94 build: enable -Wunused-exception-parameter (fanquake)\n1b00dff743da029a25b13e31e79552befc4c3f30 util: remove unused exception parameter in Popen::execute_process (fanquake)\n\nPull request description:\n\n  ```bash\n  [451/1129] Building CXX object src/CMakeFiles/bitcoin_common.dir/common/run_command.cpp.o\n  In file included from ../src/common/run_command.cpp:10:\n  ../src/util/subprocess.h:1219:30: warning: unused exception parameter 'exp' [-Wunused-exception-parameter]\n   1219 |     } catch (std::exception& exp) {\n        |                              ^~~\n  1 warning generated.\n  ```\n\n  Related to #36167.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94\n  musaHaruna:\n    ACK [cde2f2e](github.com/bitcoin/bitcoin/pull/36383/changes/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94)\n  willcl-ark:\n    ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94\n  hebasto:\n    ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94.\n\nTree-SHA512: 85bd84770bf7c8da1837f1940971e6572d80856ec31d0459e3032c0eb94e0c0d7ee1aaea8c51028652577b3f90ba20ffbf9ada7e92eb2f8173b8df74a14c82db",
-        "tree": {
-          "sha": "b303c5293593ba9bcc3872fefad33fdb74c04d8c",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b303c5293593ba9bcc3872fefad33fdb74c04d8c"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmq/rUEACgkQQQEIES5+\nqB/6AxAAkJU91l3vV8fvvpKlaco8KvAL45sJG1zKc2Pp376A8CvSwtlFZGu6Japv\na+cCyw5Z75KMUQOzvs0O3MAEl/3+AQcKruZysp8NCgkd3+0Mo99QTwK8ionPQ359\n71Wb7uOY9Eysy937EYJSFqEnWgvywiJ3pM2N7JAHRYLxOpKivUKNXci3qhX4B/sf\n52zom+xUfjs0fsUNxb92PtoLuY4r39cN2i7PBceZC58781KnCGi3890kdrf/B9Kg\nJV6smhhqzdRVNRjl4RYhQ2O6LpNLuAa7NDuiKS0/wFsqxWLxtPr/1HQS6+FZQEOy\n+t16l0Z/g4tniucITXAi74lhTmVXNJuHyPHAPJwS4iEycvOSzzPcPCqAQmn7ayQc\nqPBTu46vOcON2ZGeDQ4UTkP95jWvlAmw0brUgtqOeWJrwsLrhmKJOYCGZe+KroYY\nsd+TY6PLBlA59QRRRrKpbynS3D3HL8d2V1LkNaQxVzdIV9uy0jbvDlXJVTZLUJEQ\n3mJ7a65U4Dg26Eox/dQzYTjG83uItQ1aLuklOty0O2zBZ4vOQfriRkmkExW8PREi\nUkgSNwgIO6d/LBeToYTxUd6hZVL94iqR3U+D0ilTF6abR9XzjXBlMENxyDoDnNP7\nz8AqEjwtqPubKHz1IqjmeS6CFzK909pt88BWxCDxV8kSwAMVIoo=\n=4h0N\n-----END PGP SIGNATURE-----",
-          "payload": "tree b303c5293593ba9bcc3872fefad33fdb74c04d8c\nparent a829aeaac1aff6cb786aab7d2514b49eb233334b\nparent cde2f2ec641acfb7ab11e5d37182b5fcafb65a94\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790946625 +0100\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790946625 +0100\n\nMerge bitcoin/bitcoin#36383: util: remove unused exception parameter in `Popen::execute_process`\n\ncde2f2ec641acfb7ab11e5d37182b5fcafb65a94 build: enable -Wunused-exception-parameter (fanquake)\n1b00dff743da029a25b13e31e79552befc4c3f30 util: remove unused exception parameter in Popen::execute_process (fanquake)\n\nPull request description:\n\n  ```bash\n  [451/1129] Building CXX object src/CMakeFiles/bitcoin_common.dir/common/run_command.cpp.o\n  In file included from ../src/common/run_command.cpp:10:\n  ../src/util/subprocess.h:1219:30: warning: unused exception parameter 'exp' [-Wunused-exception-parameter]\n   1219 |     } catch (std::exception& exp) {\n        |                              ^~~\n  1 warning generated.\n  ```\n\n  Related to #36167.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94\n  musaHaruna:\n    ACK [cde2f2e](github.com/bitcoin/bitcoin/pull/36383/changes/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94)\n  willcl-ark:\n    ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94\n  hebasto:\n    ACK cde2f2ec641acfb7ab11e5d37182b5fcafb65a94.\n\nTree-SHA512: 85bd84770bf7c8da1837f1940971e6572d80856ec31d0459e3032c0eb94e0c0d7ee1aaea8c51028652577b3f90ba20ffbf9ada7e92eb2f8173b8df74a14c82db\n",
-          "verified_at": "2026-10-02T13:11:04Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/69142eacd1374925cc9e4ea736c21fcec16307d0",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0/comments",
-      "author": {
-        "login": "hebasto",
-        "id": 32963518,
-        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
-        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hebasto",
-        "html_url": "https://github.com/hebasto",
-        "followers_url": "https://api.github.com/users/hebasto/followers",
-        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
-        "organizations_url": "https://api.github.com/users/hebasto/orgs",
-        "repos_url": "https://api.github.com/users/hebasto/repos",
-        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hebasto/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "hebasto",
-        "id": 32963518,
-        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
-        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hebasto",
-        "html_url": "https://github.com/hebasto",
-        "followers_url": "https://api.github.com/users/hebasto/followers",
-        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
-        "organizations_url": "https://api.github.com/users/hebasto/orgs",
-        "repos_url": "https://api.github.com/users/hebasto/repos",
-        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hebasto/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "a829aeaac1aff6cb786aab7d2514b49eb233334b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a829aeaac1aff6cb786aab7d2514b49eb233334b",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/a829aeaac1aff6cb786aab7d2514b49eb233334b"
-        },
-        {
-          "sha": "cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94"
-        }
-      ]
-    },
-    {
-      "sha": "2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-      "node_id": "C_kwDOABII59oAKDJiNDNjNjJkOGVmNTNlZGZhZGY4ZjA5NzczMWY0OGEwMWI5NTcwY2Q",
-      "commit": {
-        "author": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-08-24T16:47:02Z"
-        },
-        "committer": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-10-02T12:59:13Z"
-        },
-        "message": "p2p: move ping timeout check into SendMessages\n\nThe check is relocated from MaybeSendPing to the timeout\nsection of SendMessages, right after the block download timeout.\n\nThis is in preparation for the following commit, which makes the ping timeout depend\non whether the peer is currently serving us blocks.\nThat requires CNodeState, which is guarded by cs_main and therefore not reachable from MaybeSendPing.\n\nMoving it makes sense anyway, since timeout decisions don't really\nbelong in a function called MaybeSendPing.",
-        "tree": {
-          "sha": "1b2ad3a876fff2391c041633ca24f92a921684dc",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1b2ad3a876fff2391c041633ca24f92a921684dc"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/2b43c62d8ef53edfadf8f097731f48a01b9570cd",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2b43c62d8ef53edfadf8f097731f48a01b9570cd/comments",
-      "author": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82"
-        }
-      ]
-    },
-    {
-      "sha": "8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-      "node_id": "C_kwDOABII59oAKDhiNWJiZmUxZmNhMWY0MTAwZjg1OGViZmQxODdkY2Y3NGQ5ZDNjODI",
-      "commit": {
-        "author": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-08-20T12:43:27Z"
-        },
-        "committer": {
-          "name": "Martin Zumsande",
-          "email": "mzumsande@gmail.com",
-          "date": "2026-10-02T12:59:13Z"
-        },
-        "message": "test: add functional test for pings during IBD\n\nWhen the node has outstanding block requests, it will first\nserve all of those before answering pings. If this happens\nslowly because the requestor of the blocks has a slow connection,\nthey would disconnect our node due to a ping timeout, even though\nit did nothing wrong.\n\nThe second subtest documents the current behavior from the other side:\nwe disconnect a peer that is busy serving us the blocks we requested\nfrom it, just because it didn't answer our ping in time. A later commit\nchanges this.",
-        "tree": {
-          "sha": "1e8dd2960ee9d9e7bc6ad3ca1f74feaaafa63aa7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1e8dd2960ee9d9e7bc6ad3ca1f74feaaafa63aa7"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8b5bbfe1fca1f4100f858ebfd187dcf74d9d3c82/comments",
-      "author": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "mzumsande",
-        "id": 48763452,
-        "node_id": "MDQ6VXNlcjQ4NzYzNDUy",
-        "avatar_url": "https://avatars.githubusercontent.com/u/48763452?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mzumsande",
-        "html_url": "https://github.com/mzumsande",
-        "followers_url": "https://api.github.com/users/mzumsande/followers",
-        "following_url": "https://api.github.com/users/mzumsande/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mzumsande/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mzumsande/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mzumsande/subscriptions",
-        "organizations_url": "https://api.github.com/users/mzumsande/orgs",
-        "repos_url": "https://api.github.com/users/mzumsande/repos",
-        "events_url": "https://api.github.com/users/mzumsande/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mzumsande/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "11090c8bb359f894ef7d97b65aff52fe8191aec1",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/11090c8bb359f894ef7d97b65aff52fe8191aec1",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/11090c8bb359f894ef7d97b65aff52fe8191aec1"
-        }
-      ]
-    },
-    {
-      "sha": "a829aeaac1aff6cb786aab7d2514b49eb233334b",
-      "node_id": "C_kwDOABII59oAKGE4MjlhZWFhYzFhZmY2Y2I3ODZhYWI3ZDI1MTRiNDllYjIzMzMzNGI",
-      "commit": {
-        "author": {
-          "name": "Hennadii Stepanov",
-          "email": "32963518+hebasto@users.noreply.github.com",
-          "date": "2026-10-02T10:50:22Z"
-        },
-        "committer": {
-          "name": "Hennadii Stepanov",
-          "email": "32963518+hebasto@users.noreply.github.com",
-          "date": "2026-10-02T10:50:22Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36412: ci: drop `-U_FORTIFY_SOURCE` from TSAN job\n\nc57ef546c3915e110c3b3cd3aee317e7cb48ee82 ci: use LLVM libc++ 23.1.2 (fanquake)\nf2a0e7392c6e9029f87783dd83d49c116ba4c0bd ci: drop -U_FORTIFY_SOURCE from TSAN job (fanquake)\n\nPull request description:\n\n  #30586 was fixed upstream by Marco in https://github.com/llvm/llvm-project/pull/206228 (shipped in `23.1.0`).\n  Also bump libc++ to `23.1.2`.\n\n  Followup to #36052.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK c57ef546c3915e110c3b3cd3aee317e7cb48ee82\n  hebasto:\n    ACK c57ef546c3915e110c3b3cd3aee317e7cb48ee82.\n\nTree-SHA512: 95e0e9c333a01e9fc9829eef8cbf646b1ffa46e06f9d6ae15e424e8ee78868112eefb86bea4f39c0d03386436f9de1f9867cb81a88fe2b53aab023b890bbf445",
-        "tree": {
-          "sha": "eacd585a697a37955e2be84ed5355316772e62e7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/eacd585a697a37955e2be84ed5355316772e62e7"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/a829aeaac1aff6cb786aab7d2514b49eb233334b",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmq/jG4ACgkQQQEIES5+\nqB/UkA/+JfMjMnE1XSbcUYBorMqoWvwMNA0YkNFgXLwz7M49mhuJmtE5bigwkpfW\nIbPZNcrNP4vfoj/6Oq7/LOoxm1C56TB3+PpSYxVdOxjsgFqg4viQueveLsRukgMe\nSZtaazt+GaRHgxIAv/AqrwG6vxmlsZLGVJLo3tEWlKqVJXv84tixNPGCkchyghm8\nl2R9Ez4GVTto9JjSHQmWPiM2OyH0lRNpiQyXtewa8NaJy0/i+KoqPgzYUrb2VDxq\nW32gn5QWRtVQV5kv4pqe2GQk37HgRz6WoClzE1g+JoTnHpQeiZyag6KHO4KkHyuh\nYWmDeeBZN+193vSiyqbQdeTj7eMJVbiF+hOQjwd6EMscDFQDzt8jTYhAYr9XuLL4\nrLjJ1/AWKgme6V3ExaIAyt9+jldgLApXQyJFXKytkQBtVdzFmW/6JPS327EXEWQm\nEKWJ/AFpEkX85511o0NP0pqwUFiJ/ix7qYpHECZ/dEP5Mn9tTw9VOxJCsgbnRI6g\nobOdhrUcIp7N1/QbkK0c3w6dlD+xFFkWOJmWtvf7G1kx/KdpdpwLPt5INGnM2tcg\n7PxCB6jrdxnay2A7L9cstBfTzPcBqk4GiFaiiWs8li6MrDVkeY+Vt5eUOR3gaiLx\nEuEuqX5MpucfXJ+ijh/wtGb6w/NnDnjHoeBADqbmhYrghxxEaU8=\n=sHka\n-----END PGP SIGNATURE-----",
-          "payload": "tree eacd585a697a37955e2be84ed5355316772e62e7\nparent 9f0595279521df019013ebc7b14e6b594bb4520d\nparent c57ef546c3915e110c3b3cd3aee317e7cb48ee82\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790938222 +0100\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1790938222 +0100\n\nMerge bitcoin/bitcoin#36412: ci: drop `-U_FORTIFY_SOURCE` from TSAN job\n\nc57ef546c3915e110c3b3cd3aee317e7cb48ee82 ci: use LLVM libc++ 23.1.2 (fanquake)\nf2a0e7392c6e9029f87783dd83d49c116ba4c0bd ci: drop -U_FORTIFY_SOURCE from TSAN job (fanquake)\n\nPull request description:\n\n  #30586 was fixed upstream by Marco in https://github.com/llvm/llvm-project/pull/206228 (shipped in `23.1.0`).\n  Also bump libc++ to `23.1.2`.\n\n  Followup to #36052.\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK c57ef546c3915e110c3b3cd3aee317e7cb48ee82\n  hebasto:\n    ACK c57ef546c3915e110c3b3cd3aee317e7cb48ee82.\n\nTree-SHA512: 95e0e9c333a01e9fc9829eef8cbf646b1ffa46e06f9d6ae15e424e8ee78868112eefb86bea4f39c0d03386436f9de1f9867cb81a88fe2b53aab023b890bbf445\n",
-          "verified_at": "2026-10-02T10:50:49Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a829aeaac1aff6cb786aab7d2514b49eb233334b",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/a829aeaac1aff6cb786aab7d2514b49eb233334b",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a829aeaac1aff6cb786aab7d2514b49eb233334b/comments",
-      "author": {
-        "login": "hebasto",
-        "id": 32963518,
-        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
-        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hebasto",
-        "html_url": "https://github.com/hebasto",
-        "followers_url": "https://api.github.com/users/hebasto/followers",
-        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
-        "organizations_url": "https://api.github.com/users/hebasto/orgs",
-        "repos_url": "https://api.github.com/users/hebasto/repos",
-        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hebasto/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "hebasto",
-        "id": 32963518,
-        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
-        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/hebasto",
-        "html_url": "https://github.com/hebasto",
-        "followers_url": "https://api.github.com/users/hebasto/followers",
-        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
-        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
-        "organizations_url": "https://api.github.com/users/hebasto/orgs",
-        "repos_url": "https://api.github.com/users/hebasto/repos",
-        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/hebasto/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "9f0595279521df019013ebc7b14e6b594bb4520d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9f0595279521df019013ebc7b14e6b594bb4520d",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/9f0595279521df019013ebc7b14e6b594bb4520d"
-        },
-        {
-          "sha": "c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/c57ef546c3915e110c3b3cd3aee317e7cb48ee82"
-        }
-      ]
-    },
-    {
-      "sha": "c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-      "node_id": "C_kwDOABII59oAKGM1N2VmNTQ2YzM5MTVlMTEwYzNiM2NkM2FlZTMxN2U3Y2I0OGVlODI",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T09:44:53Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T09:44:53Z"
-        },
-        "message": "ci: use LLVM libc++ 23.1.2",
-        "tree": {
-          "sha": "eacd585a697a37955e2be84ed5355316772e62e7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/eacd585a697a37955e2be84ed5355316772e62e7"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmq/fR8bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB87AQAIaWNU5Wp10vhJsIKJ4H\nG46FYxZYXaLjFErHcROMXfIflll8VzwjgBmaas4wz7qfrbmBwouXY6BEeS2YEJjv\nOMtzNFYECf0F4E8JpWw4/Q/M1HerEGpsIDG81yfszvxZ5Es4uGlAPhSh4dm8euR7\nsWMmebq3m3xsRXa1/dNpHdSqQbP/giTvmeOVJowgbjr8bWCQf20ummDJCwyVB+/B\nmxDIpu7apCFf9DJlZVikGVZ+iGknaIUai3/kMsASfJLyPbz6SfbUsjOrOEkl8YHp\n/AwmyMjqe38H9OMpmAICGVrH/VJcGLFTETMq1kIf6iDnC+mxgfrH42OuClDzJ3n/\nLF12yADGLOv54wJGdFWoUXLBGhV3Zv6wXz2uUeYLbWBqtLPM/3yrTlsR5mEB8y4I\nWPCwJuLcxiGLcvO6j9jeIq6S/vfurvm/w12ET1S272hUgJtEbPSM20Mad32LS+4J\n+OzprqaGUEFV/1dSmcSOFzACqDtZZUCprqDGPBCnTDMnYR/cIUU3qGUa4PsamVmJ\nkWSx8fwKLSj1I23NnJEWV5oHlRwDQqrPwKPhwIzryFvAmL618EOllO6n/XJ5JtAY\neULM5WHRobmsia0qrANh7D5KxRpPJauQe8wwrU18zfI5xVF4pmqdBisPKl7flWTK\ndMBp/LOpCTIbiC406GxAoldW\n=4qiu\n-----END PGP SIGNATURE-----",
-          "payload": "tree eacd585a697a37955e2be84ed5355316772e62e7\nparent f2a0e7392c6e9029f87783dd83d49c116ba4c0bd\nauthor fanquake <fanquake@gmail.com> 1790934293 +0100\ncommitter fanquake <fanquake@gmail.com> 1790934293 +0100\n\nci: use LLVM libc++ 23.1.2\n",
-          "verified_at": "2026-10-02T09:45:23Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/c57ef546c3915e110c3b3cd3aee317e7cb48ee82",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c57ef546c3915e110c3b3cd3aee317e7cb48ee82/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd"
-        }
-      ]
-    },
-    {
-      "sha": "f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-      "node_id": "C_kwDOABII59oAKGYyYTBlNzM5MmM2ZTkwMjlmODc3ODNkZDgzZDQ5YzExNmJhNGMwYmQ",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T09:44:08Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-02T09:44:08Z"
-        },
-        "message": "ci: drop -U_FORTIFY_SOURCE from TSAN job\n\nThe issue was fixed upstream in\nhttps://github.com/llvm/llvm-project/pull/206228.",
-        "tree": {
-          "sha": "57e205933f3f393c3e3d6c59677739c5f130e635",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/57e205933f3f393c3e3d6c59677739c5f130e635"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmq/fQAbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBAXAP+gMqUwSFhAC5f8fZo5ab\nzJWnhsR9Dzag4/+/A7YnxCanC//vSgcMK65RuOJlmN7AHc10K8B43XvCFAhgMEQH\n5//LXwvpGNqnGUh7FmVj7svyL/19XFOk1LtF3EIrT2eqznzLBV91FttGzrV8znt2\nnAqvHX3qP2x3f9bFSQz0Xh+qUtLneIwDcLV2xAlLZtdhaQ1W60gg9KxGOIq3ivc7\n2Hr4H00ixMcVXQqHQt1NM8/LkdTQB+ICdNqXo8L0KIG46eRi8R507rOO9wQd5+rq\ngTBmLm08vER4aniQszxedtjyweg+RJhSFAbNTT7/vPWw/t13320NEyQqbxmUn0Vo\nW+R6BvbVVxopdYKmYjilE0TuSbxCS4wKs6RrXTJ6TPsuXpdtGUKlcn/PKc+rvhGt\nmN0pl7mgrg1JBLBML/ktkDFX9ILjGKzUHRCecPbX/qKXOC379LzMjhoPUoxOknLN\nWMZ8PwxPDIWxJe4jJTVrlphLgO02xf/4DIkTuqCblyxnrJYl5hGAIvrv5ktNkOA8\nmLgLAbUcGrjCQY7qB0uNBzOBuflBK68sBOds7b4F+VRubyk3NgwICjHA6pCsXNUm\nm4led2C8n2ClnNESyN9lulbS8seNfn+pWjSFxbmzlQ6HXD9rfHbquWMcZR9lomda\nDsYP/mCprtLqpGnlA1dP79HM\n=HnwW\n-----END PGP SIGNATURE-----",
-          "payload": "tree 57e205933f3f393c3e3d6c59677739c5f130e635\nparent 9f0595279521df019013ebc7b14e6b594bb4520d\nauthor fanquake <fanquake@gmail.com> 1790934248 +0100\ncommitter fanquake <fanquake@gmail.com> 1790934248 +0100\n\nci: drop -U_FORTIFY_SOURCE from TSAN job\n\nThe issue was fixed upstream in\nhttps://github.com/llvm/llvm-project/pull/206228.\n",
-          "verified_at": "2026-10-02T09:45:23Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f2a0e7392c6e9029f87783dd83d49c116ba4c0bd/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "9f0595279521df019013ebc7b14e6b594bb4520d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9f0595279521df019013ebc7b14e6b594bb4520d",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/9f0595279521df019013ebc7b14e6b594bb4520d"
         }
       ]
     }
