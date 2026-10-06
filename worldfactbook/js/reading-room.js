@@ -4,12 +4,12 @@
   const WFB = window.WFB;
   if (!WFB) return;
 
-  const CHAPTERS = ["introduction", "geography", "people and society", "environment",
+  const CHAPTERS = ["edition frontispiece", "introduction", "national symbols", "geography", "people and society", "environment",
     "government", "economy", "energy", "communications", "transportation",
     "military and security", "space", "terrorism", "transnational issues",
-    "raw", "images charts and diagrams", "india imports exports and trade balance"];
+    "visual archive", "images charts and diagrams", "raw", "india imports exports and trade balance"];
   function chapterRank(section) {
-    const title = section.querySelector(":scope > h4")?.textContent?.toLowerCase()
+    const title = (section.dataset.category || section.querySelector("h4")?.textContent || "").toLowerCase()
       .replace(/[^a-z0-9]+/g, " ").trim() || "";
     const index = CHAPTERS.indexOf(title);
     return index < 0 ? CHAPTERS.length : index;
@@ -35,7 +35,7 @@
     let scheduled = false;
     let previousSections = [];
     let previousCode = null;
-    let expandedEvidence = false;
+    let expandedEvidence = true;
     let evidenceNotice = null;
     let previousUnreviewed = null;
     let previousExpanded = null;
@@ -67,13 +67,13 @@
         node.textContent.includes("Provisional legacy transcription"));
       const unreviewed = Boolean(notice);
       if (notice !== evidenceNotice) {
-        expandedEvidence = false;
+        expandedEvidence = true;
         evidenceNotice = notice || null;
       }
       profile.classList.toggle("wfb-reading-unreviewed", unreviewed);
       profile.classList.toggle("is-open", unreviewed && expandedEvidence);
       const fieldCount = profile.querySelectorAll(".wfb-country-field").length;
-      const excerptCount = profile.querySelectorAll(".wfb-country-section > pre").length;
+      const excerptCount = profile.querySelectorAll(".wfb-country-section > pre, .wfb-feed-excerpt").length;
       chapters.textContent = sections.length ? String(sections.length) : "—";
       if (chapterLabel) chapterLabel.textContent = unreviewed ? "Candidate sections" : "Sections";
       countLabel.textContent = unreviewed ? "Unreviewed fragments" : "Fields";
@@ -125,9 +125,9 @@
         return;
       }
       visible.forEach((section, index) => {
-        const heading = section.querySelector(":scope > h4");
+        const heading = section.querySelector("h4");
         if (!heading) return;
-        section.id = `wfb-record-section-${index + 1}`;
+        if (!section.id) section.id = `wfb-record-section-${index + 1}`;
         section.style.setProperty("--wfb-reading-number", `"${String(index + 1).padStart(2, "0")}"`);
         const button = document.createElement("button");
         button.type = "button";
