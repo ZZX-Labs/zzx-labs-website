@@ -310,7 +310,7 @@ def recover(store: Path, first_year: int, final_year: int, max_captures: int, wa
             query = store / "cdx" / str(year) / f"{key}.json"
             try:
                 rows = read(query)
-                if rows is None:
+                if rows is None or datetime.now(timezone.utc).timestamp() - query.stat().st_mtime >= 86400:
                     rows = cdx_rows(year, original)
                     dump(query, rows)
             except Exception as exc:
