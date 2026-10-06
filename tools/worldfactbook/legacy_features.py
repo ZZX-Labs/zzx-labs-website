@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import gzip
 import html
 from html.parser import HTMLParser
 import json
@@ -76,13 +77,15 @@ def request_json(url: str, *, timeout: int = 60) -> object:
     return json.loads(request_bytes(url, timeout=timeout).decode("utf-8", "replace"))
 
 
-def cdx(pattern: str, start_year: int, end_year: int, limit: int) -> list[dict]:
-    params = urllib.parse.urlencode([
+def cdx(pattern: str, start_year: int, end_year: int, limit: int, mimetype="text/html") -> list[dict]:
+    parameters = [
         ("url", pattern), ("from", str(start_year)), ("to", str(end_year)),
-        ("output", "json"), ("filter", "statuscode:200"), ("filter", "mimetype:text/html"),
+        ("output", "json"), ("filter", "statuscode:200"), 
         ("collapse", "digest"), ("fl", "timestamp,original,digest,statuscode,mimetype"),
         ("limit", str(max(1, limit))),
-    ])
+    ]
+    if mimetype:parameters.append(("filter", "mimetype:"+mimetype))
+    params=urllib.parse.urlencode(parameters)
     rows = request_json("https://web.archive.org/cdx/search/cdx?" + params, timeout=90)
     if not isinstance(rows, list) or len(rows) < 2:
         return []
@@ -145,6 +148,7 @@ def labeled_block(text: str, label: str, max_chars: int = 1400) -> str:
         collected: list[str] = []
         for candidate in lines[i + 1:i + 16]:
             if len(candidate) < 3: continue
+            if re.match(r"^(?:Fact of the Day Archive|Image of the Day Archive|World Leaders|Countries|Contact CIA|Privacy|Site Map|Search|Explore CIA|References|About The World Factbook)\b",candidate,re.I): break
             if re.match(r"^(?:Image|Fact) of the Day\b", candidate, re.I) and collected: break
             if re.match(r"^[A-Z][A-Z /&-]{4,}$", candidate) and collected: break
             collected.append(candidate)
@@ -173,7 +177,7 @@ def extract_homepage_record(rec: dict, raw: bytes) -> tuple[dict | None, dict | 
             image = row; break
     ts = str(rec.get("timestamp") or "")
     source = str(rec.get("original") or "")
-    common = {"captured_at": ts, "date": rec.get("date"), "source_url": source, "snapshot_url": rec.get("snapshot_url"), "digest": rec.get("digest", "")}
+    common = {"capture_date": rec.get("date"), "date_basis": "capture date; publication date unverified", "source_sha256": hashlib.sha256(raw).hexdigest(), "captured_at": ts, "date": rec.get("date"), "source_url": source, "snapshot_url": rec.get("snapshot_url"), "digest": rec.get("digest", "")}
     fact_row = ({**common, "fact": fact} if fact else None)
     image_row = None
     if image_caption or image:
@@ -200,14 +204,30 @@ def extract_leader_blocks(text: str, names: list[str], rec: dict) -> list[dict]:
         country = normalized.get(key)
         if not country: continue
         block: list[str] = []
-        for x in lines[i + 1:i + 36]:
+        for x in lines[i + 1:i + 300]:
             xkey = re.sub(r"\s+", " ", x.strip()).lower().rstrip(":")
             if xkey in normalized and block: break
             block.append(x)
         body = "\n".join(block).strip()
         if len(body) < 8: continue
-        out.append({"country": country, "captured_at": rec.get("timestamp"), "date": rec.get("date"), "text": body[:8000], "source_url": rec.get("original"), "snapshot_url": rec.get("snapshot_url"), "digest": rec.get("digest", "")})
+        out.append({"country": country, "captured_at": rec.get("timestamp"), "date": rec.get("date"), "text": body[:24000], "source_sha256": rec.get("source_sha256", ""), "date_basis": "capture observation", "source_url": rec.get("original"), "snapshot_url": rec.get("snapshot_url"), "digest": rec.get("digest", "")})
     return out
+
+
+def extract_leader_pdf(raw, rec, world, first_year, last_year):
+    """A printed directory month is evidence; a Wayback timestamp is not a term date."""
+    import fitz
+    import import_leader_rar as importer
+    with fitz.open(stream=raw,filetype='pdf') as doc:
+        match=re.search(r"DI\s+CS\s+(\d{4})-(\d{1,2})",doc[0].get_text(),re.I)
+    if not match:raise ValueError('Monthly leader PDF has no explicit cover date')
+    year,month=map(int,match.groups())
+    if not first_year<=year<=last_year or not 1<=month<=12:return []
+    rows,report=importer.parse_pdf(raw,str(rec['original']),year,month,importer.names_from_site(world))
+    if report['countries']<80 or report['positions']<500:raise ValueError('Leader PDF extraction coverage requires review')
+    return [{**row,'office':row['position'],'source_url':rec['original'],'snapshot_url':rec['snapshot_url'],
+             'captured_at':rec['timestamp'],'date_basis':'monthly source observation'}
+            for terms in rows.values() for row in terms]
 
 
 def write_json(path: Path, obj: object) -> None:
@@ -237,6 +257,7 @@ def main() -> int:
     ap.add_argument("--max-leader-captures", type=int, default=4000)
     ap.add_argument("--max-feature-pages", type=int, default=2500)
     ap.add_argument("--sleep", type=float, default=0.08)
+    ap.add_argument("--evidence-root", type=Path)
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
     if args.self_test: self_test(); return 0
@@ -264,6 +285,18 @@ def main() -> int:
     leaders.extend(existing("leaders/index.json", "records"))
     features.extend(existing("legacy-features/index.json", "records"))
 
+    def capture(rec):
+        raw = request_bytes(str(rec["snapshot_url"]), timeout=75)
+        sha = hashlib.sha256(raw).hexdigest(); rec["source_sha256"] = sha
+        if args.evidence_root:
+            target = args.evidence_root/str(rec["timestamp"])/sha
+            target.parent.mkdir(parents=True, exist_ok=True)
+            suffix=".html.gz" if str(rec.get("mimetype", "text/html"))=="text/html" else ".original.gz"
+            path=target.with_suffix(suffix);payload=gzip.compress(raw,compresslevel=6,mtime=0)
+            if not path.exists() or path.read_bytes()!=payload:path.write_bytes(payload)
+            write_json(target.with_suffix(".json"), {**rec, "sha256":sha, "bytes":len(raw)})
+        return raw
+
     # Homepages are the best evidence for the daily rotating features.
     homepage_rows: list[dict] = []
     per_pattern = max(1, args.max_homepage_captures // len(HOMEPAGE_PATTERNS))
@@ -273,10 +306,18 @@ def main() -> int:
     homepage_rows = list({(r.get("timestamp"), r.get("original"), r.get("digest")): r for r in homepage_rows}.values())
     for rec in sorted(homepage_rows, key=lambda r: str(r.get("timestamp"))):
         try:
-            raw = request_bytes(str(rec["snapshot_url"]), timeout=75)
+            raw = capture(rec)
             fact, image = extract_homepage_record(rec, raw)
             if fact: facts.append(fact)
-            if image: images.append(image)
+            if image:
+                if args.evidence_root and image.get('image_url'):
+                    try:
+                        binary=request_bytes(image['image_url'],timeout=75)
+                        sha=hashlib.sha256(binary).hexdigest();target=args.evidence_root/'images'/sha
+                        target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(binary)
+                        image['image_sha256']=sha;image['original_bytes']=len(binary)
+                    except Exception as exc:failures.append({'feature':'daily-image','snapshot_url':image.get('image_url'),'error':str(exc)})
+                images.append(image)
         except Exception as exc:
             failures.append({"feature": "homepage", "snapshot_url": rec.get("snapshot_url"), "error": str(exc)})
         time.sleep(args.sleep)
@@ -284,12 +325,15 @@ def main() -> int:
     leader_rows: list[dict] = []
     per_pattern = max(1, args.max_leader_captures // len(LEADER_PATTERNS))
     for pattern in LEADER_PATTERNS:
-        try: leader_rows.extend(cdx(pattern, args.start_year, args.end_year, per_pattern))
+        try: leader_rows.extend(cdx(pattern, args.start_year, args.end_year, per_pattern, mimetype=None))
         except Exception as exc: failures.append({"feature": "leaders", "pattern": pattern, "error": str(exc)})
     leader_rows = list({(r.get("timestamp"), r.get("original"), r.get("digest")): r for r in leader_rows}.values())
     for rec in sorted(leader_rows, key=lambda r: str(r.get("timestamp"))):
         try:
-            text, _, _ = parse_page(request_bytes(str(rec["snapshot_url"]), timeout=75))
+            raw=capture(rec)
+            if raw.startswith(b'%PDF-'):
+                leaders.extend(extract_leader_pdf(raw,rec,repo/'worldfactbook',args.start_year,args.end_year));continue
+            text, _, _ = parse_page(raw)
             blocks = extract_leader_blocks(text, names, rec)
             if blocks:
                 leaders.extend(blocks)
@@ -302,15 +346,17 @@ def main() -> int:
     per_pattern = max(1, args.max_feature_pages // len(LEGACY_PAGE_PATTERNS))
     for feature_type, pattern in LEGACY_PAGE_PATTERNS:
         try:
-            rows = cdx(pattern, args.start_year, args.end_year, per_pattern)
+            rows = cdx(pattern, args.start_year, args.end_year, per_pattern,
+                       mimetype=None if feature_type in ("maps","flags","graphics") else "text/html")
             for r in rows:
-                features.append({"feature_type": feature_type, "captured_at": r.get("timestamp"), "date": r.get("date"), "source_url": r.get("original"), "snapshot_url": r.get("snapshot_url"), "digest": r.get("digest", "")})
+                capture(r)
+                features.append({"source_sha256":r.get("source_sha256"), "feature_type": feature_type, "captured_at": r.get("timestamp"), "date": r.get("date"), "source_url": r.get("original"), "snapshot_url": r.get("snapshot_url"), "digest": r.get("digest", "")})
         except Exception as exc:
             failures.append({"feature": feature_type, "pattern": pattern, "error": str(exc)})
 
     facts = list({(r.get("date"), hashlib.sha256(str(r.get("fact", "")).encode()).hexdigest()): r for r in facts}.values())
     images = list({(r.get("date"), r.get("image_url"), r.get("caption")): r for r in images}.values())
-    leaders = list({(r.get("captured_at"), r.get("country"), hashlib.sha256(str(r.get("text", "")).encode()).hexdigest()): r for r in leaders}.values())
+    leaders = list({(r.get("captured_at"), r.get("country"), r.get("month"), r.get("position"), r.get("person"), r.get("source_sha256"), hashlib.sha256(str(r.get("text", "")).encode()).hexdigest()): r for r in leaders}.values())
     features = list({(r.get("feature_type"), r.get("captured_at"), r.get("source_url")): r for r in features}.values())
 
     generated = now_iso()
