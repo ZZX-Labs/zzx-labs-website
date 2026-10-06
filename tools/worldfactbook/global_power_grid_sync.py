@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 from pathlib import Path
 import sys
 from typing import Iterable
@@ -44,14 +45,15 @@ def score_record(row: dict[str, object]) -> tuple[float, int]:
     base = archive.score_record(row)
     basis = str((row.get('quality') or {}).get('country_basis') or '')
     local = 1 if basis in {'crawler-entity-code', 'crawler-book-section', 'manual-verified'} else 0
-    return (base, local)
+    verified = 1 if (row.get("quality") or {}).get("status") == "verified" else 0
+    return (verified, base, local)
 
 
 def merge_records(existing: Iterable[dict[str, object]], new: Iterable[dict[str, object]]) -> list[dict[str, object]]:
     by_key: dict[tuple[str, int], dict[str, object]] = {}
     for row in [*existing, *new]:
         quality = row.get('quality') or {}
-        if str(quality.get('status') or '').lower() != 'verified':
+        if str(quality.get('status') or '').lower() not in {'verified', 'source-extracted; attribution review pending'}:
             continue
         try:
             key = (str(row['country']).upper(), int(row.get('edition_year') or row['year']))
@@ -94,7 +96,7 @@ def record_for_country(country: archive.Country, year: int, chunks: list[dict[st
     record['source'] = 'ZZX World Factbook normalized corpus'
     record['source_provider'] = source['provider']
     record['quality'] = {
-        'status': 'verified',
+        'status': 'source-extracted; attribution review pending',
         'parser_version': PARSER_VERSION,
         'country_basis': 'crawler-entity-code',
         'field_basis': 'explicit-electricity-label',
@@ -113,7 +115,7 @@ def records_from_raw_book(resolver: archive.Resolver, year: int, raw_chunks: lis
     for row in records:
         row['source'] = 'ZZX World Factbook normalized corpus'
         row['quality'] = {
-            'status': 'verified',
+            'status': 'source-extracted; attribution review pending',
             'parser_version': PARSER_VERSION,
             'country_basis': 'crawler-book-section',
             'field_basis': 'explicit-electricity-label',
@@ -126,7 +128,7 @@ def extract_edition(edition_dir: Path, resolver: archive.Resolver) -> tuple[list
     meta = load_json(index_path, {})
     year = int(meta.get('edition_year') or edition_dir.name)
     status = str(meta.get('status') or 'missing')
-    if status != 'available':
+    if status not in {'available', 'partial', 'complete'}:
         return [], {
             'year': year,
             'status': status,
@@ -146,6 +148,13 @@ def extract_edition(edition_dir: Path, resolver: archive.Resolver) -> tuple[list
         for chunk in payload.get('chunks') or []:
             if not isinstance(chunk, dict):
                 continue
+            if int(chunk.get('edition_year') or year) != year: continue
+            matching = [source for source in meta.get('sources', []) if source.get('sha256') == chunk.get('source_sha256')]
+            if meta.get('sources') and not matching: continue
+            if matching:
+                title = str(matching[0].get('source_title') or '')
+                years = re.findall(r'(?<!\d)((?:19|20)\d{2})(?!\d)', title)
+                if years and str(year) not in years: continue
             code = str(chunk.get('entity_code') or '').upper()
             name = str(chunk.get('entity_name') or '')
             if not code and name:
@@ -258,7 +267,7 @@ def sync(args: argparse.Namespace) -> dict[str, object]:
         'generated_at': utcnow(),
         'scan_start_year': args.start_year,
         'scan_end_year': args.end_year,
-        'quality_policy': 'Only explicit electricity fields with strong country attribution are published.',
+        'quality_policy': 'Explicit electricity labels are parsed; source attribution review status is retained on each record.',
         'record_count': len(records),
         'country_count': len({row['country'] for row in records}),
         'earliest_edition': min(years) if years else None,
