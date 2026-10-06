@@ -62,6 +62,7 @@
     const section = el("section", "wfb-country-section wfb-feed-chapter");
     const id = `wfb-chapter-${number}`;
     section.id = id;
+    section.dataset.category = category;
     const header = el("div", "wfb-feed-chapter-head");
     header.append(el("span", "wfb-feed-chapter-number", String(number).padStart(2,"0")));
     const heading = el("div", "");heading.append(el("p", "wfb-feed-deck", labels[category] || "Edition source records"));
@@ -98,7 +99,11 @@
     const figure=el("figure", `wfb-feed-figure ${edition ? "wfb-feed-edition-image" : ""} wfb-visual-${kind.replace(/[^a-z-]/g,"")}`);
     const rights=String(item.rights || "").trim().toLowerCase();
     if (["public domain","public-domain","redistribution cleared"].includes(rights) && localPath(item.path)) {
-      const img=el("img");img.src=new URL(item.path,root).href;
+      const img=el("img"), local = new URL(item.path,root).href;
+      window.ZZXWorldFactbook.archiveAssetURL(item.path).then(url => {
+        img.onerror = () => { img.onerror = null; if (img.src !== local) img.src = local; };
+        img.src = url;
+      }).catch(() => { img.src = local; });
       img.loading="lazy";img.decoding="async";img.alt=item.alt || item.label || item.caption || "Archival image";
       figure.append(img);
     } else figure.append(el("p", "wfb-media-withheld", "Image awaiting source and rights review"));
@@ -161,7 +166,7 @@
         const row = el("div", "wfb-country-field wfb-feed-field");
         row.append(el("dt", "", item.label || "Unlabeled source field"));
         const body=el("dd", "");value(body,item.content);
-        reference(body,source,item.locator || "", "Page / section");
+        reference(body,item.source_url || source,item.locator || "", "Page / section");
         row.append(body);list.append(row);
         if(bySlot[j+1].length) {section.append(list);place(j+1);list=el("dl", "wfb-feed-fields");}
       }
@@ -234,6 +239,9 @@
   }
   function leaders(panel, terms, year) {
     if (!terms?.length) return 0;
+    const pending=terms.some(row=>row.month&&row.source_name&&!(Number(row.parser_version)>=2));
+    terms=terms.filter(row=>!row.month||!row.source_name||Number(row.parser_version)>=2);
+    if(pending&&!terms.length){panel.append(el("p","wfb-country-notice","Monthly leadership source assignments await verification."));return 0;}
     const section=el("section","wfb-country-section wfb-feed-leaders");
     section.append(el("p","wfb-feed-deck",`Supplemental leadership register · ${year}`),
       el("h4","","Heads of state & public offices"),
