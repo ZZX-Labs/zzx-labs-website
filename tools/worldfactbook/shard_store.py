@@ -83,8 +83,8 @@ def write_shards(rows: list[dict], root: Path, *, max_compressed_bytes: int = 24
                 path = root / rel
                 path.parent.mkdir(parents=True, exist_ok=True)
                 payload = SCHEMA_SQL + "".join(row_sql(r) for r in batch)
-                with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as fh:
-                    fh.write(payload)
+                compressed=gzip.compress(payload.encode("utf-8"),compresslevel=9,mtime=0)
+                if not path.exists() or path.read_bytes()!=compressed:path.write_bytes(compressed)
                 size = path.stat().st_size
                 if size <= max_compressed_bytes or len(batch) <= 1:
                     break
