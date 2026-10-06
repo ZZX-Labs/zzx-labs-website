@@ -30,7 +30,7 @@ def api_request(method: str, endpoint: str, token: str, payload: dict | None = N
     request = Request(API_ROOT + endpoint, data=body, method=method, headers={
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer " + token,
-        "X-GitHub-Api-Version": "2022-11-28",
+        "X-GitHub-Api-Version": "2026-03-10",
         "User-Agent": "ZZX-WorldFactbook-Daily-Recovery",
         **({"Content-Type": "application/json"} if body is not None else {}),
     })
@@ -47,6 +47,10 @@ def api_request(method: str, endpoint: str, token: str, payload: dict | None = N
         raise RepositoryError(f"GitHub API is unavailable: {exc.reason if isinstance(exc, URLError) else exc}") from exc
 
 
+def valid_branch(branch: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*(?:/[A-Za-z0-9][A-Za-z0-9_.-]*)*", branch)) and ".." not in branch and not branch.endswith((".", ".lock"))
+
+
 def check_private(repository: str, status: int, data: dict) -> str:
     if status != 200:
         raise RepositoryError(f"Repository lookup returned HTTP {status}: {data.get('message', 'no detail')}")
@@ -61,42 +65,9 @@ def check_private(repository: str, status: int, data: dict) -> str:
             "and authorize the token for this organization (including SSO or approval when required)"
         )
     branch = str(data.get("default_branch") or "")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+", branch):
+    if not valid_branch(branch):
         raise RepositoryError("The private repository needs an initialized default branch")
     return branch
-
-
-def verify_contents(repository: str, branch: str, token: str, request=api_request) -> None:
-    """Probe effective Contents read/write, which repository metadata cannot prove.
-
-    The write probe writes a Git tree object with one unchanged entry. It does
-    not update a branch, commit, or file.
-    """
-    owner, name = repository.split("/", 1)
-    root = f"/repos/{quote(owner)}/{quote(name)}/git/trees"
-    status, tree = request("GET", f"{root}/{quote(branch, safe='')}", token)
-    if (status != 200 or not isinstance(tree, dict) or not isinstance(tree.get("sha"), str)
-            or not isinstance(tree.get("tree"), list)):
-        detail = tree.get("message", "no detail") if isinstance(tree, dict) else "no detail"
-        raise RepositoryError(
-            f"Private repository metadata is accessible but Git contents are not (HTTP {status}: {detail}). "
-            "Give WORLDFACTBOOK_PRIVATE_DATA_TOKEN access to this repository with Contents read/write; "
-            "check organization approval or SSO if applicable"
-        )
-    first = tree["tree"][0] if tree["tree"] else None
-    if first is None:
-        unchanged = [{"path": ".worldfactbook-permission-check", "mode": "100644",
-                      "type": "blob", "content": ""}]
-    else:
-        unchanged = [{key: first[key] for key in ("path", "mode", "type", "sha")}]
-    status, result = request("POST", root, token, {"base_tree": tree["sha"], "tree": unchanged})
-    if status != 201 or not isinstance(result, dict) or not result.get("sha"):
-        detail = result.get("message", "no detail") if isinstance(result, dict) else "no detail"
-        raise RepositoryError(
-            f"Private repository Contents write check failed (HTTP {status}: {detail}). "
-            "Grant Contents read/write to WORLDFACTBOOK_PRIVATE_DATA_TOKEN and confirm that its owner "
-            "can write to the selected repository"
-        )
 
 
 def ensure(repository: str, token: str, request=api_request, pause=time.sleep) -> dict:
@@ -108,9 +79,7 @@ def ensure(repository: str, token: str, request=api_request, pause=time.sleep) -
     path = f"/repos/{quote(owner)}/{quote(name)}"
     status, data = request("GET", path, token)
     if status == 200:
-        branch = check_private(repository, status, data)
-        verify_contents(repository, branch, token, request)
-        return {"repository": repository, "default_branch": branch, "created": False}
+        return {"repository": repository, "default_branch": check_private(repository, status, data), "created": False}
     if status != 404:
         raise RepositoryError(f"Private repository check returned HTTP {status}: {data.get('message', 'no detail')}")
 
@@ -119,7 +88,7 @@ def ensure(repository: str, token: str, request=api_request, pause=time.sleep) -
         raise RepositoryError(f"Cannot identify repository owner (HTTP {owner_status})")
     endpoint = f"/orgs/{quote(owner)}/repos" if owner_data.get("type") == "Organization" else "/user/repos"
     create_status, created = request("POST", endpoint, token, {
-        "name": name, "description": "Private World Factbook daily recovery checkpoints and source evidence",
+        "name": name, "description": "Private World Factbook yearly sources, media, leaders and daily recovery evidence",
         "private": True, "auto_init": True, "has_issues": False,
         "has_projects": False, "has_wiki": False,
     })
@@ -131,9 +100,7 @@ def ensure(repository: str, token: str, request=api_request, pause=time.sleep) -
     for attempt in range(5):
         status, data = request("GET", path, token)
         if status == 200 and data.get("default_branch"):
-            branch = check_private(repository, status, data)
-            verify_contents(repository, branch, token, request)
-            return {"repository": repository, "default_branch": branch, "created": True}
+            return {"repository": repository, "default_branch": check_private(repository, status, data), "created": True}
         if attempt < 4:
             pause(2)
     raise RepositoryError("The new private repository did not initialize its default branch")
