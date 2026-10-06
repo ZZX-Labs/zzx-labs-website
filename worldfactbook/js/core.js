@@ -8,25 +8,19 @@
     await WFB.partials?.init?.();
     WFB.navigation?.init?.();
 
-    try {
-      await WFB.archive?.init?.();
-      WFB.timeline?.init?.();
-      WFB.readingRoom?.init?.();
-      await WFB.dailyArchive?.init?.();
-      await WFB.globe?.init?.();
-      WFB.status?.init?.();
-      WFB.search?.init?.();
-      WFB.provenance?.init?.();
-
-      WFB.hybrid?.init?.();
-      WFB.dispatch("wfb:ready", { archive: WFB.state.archive });
-    } catch (error) {
-      console.error("[ZZX-WorldFactbook] initialization failed:", error);
-      const label = WFB.$("[data-wfb-live-label]");
-      const dot = WFB.$("[data-wfb-live-dot]");
-      if (label) label.textContent = "Archive API unavailable";
-      dot?.classList.add("is-error");
+    for (const name of ["archive", "timeline", "readingRoom", "globe", "dailyArchive",
+      "status", "search", "provenance", "hybrid"]) {
+      try { await WFB[name]?.init?.(); }
+      catch (error) { console.error(`[ZZX-WorldFactbook] ${name} initialization failed:`, error); }
     }
+    WFB.dispatch("wfb:ready", { archive: WFB.state.archive });
+    let refreshing=false;
+    setInterval(async()=>{
+      if(document.hidden||refreshing)return;
+      refreshing=true;window.ZZXWorldFactbook.clearCache();
+      try {await Promise.allSettled([WFB.globe?.refresh?.(),WFB.dailyArchive?.refresh?.()]);}
+      finally {refreshing=false;}
+    },15*60*1000);
   }
 
   window.WFBCore = Object.freeze({ init });
