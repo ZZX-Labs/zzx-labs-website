@@ -4,15 +4,17 @@ root=Path(__file__).resolve().parents[1]
 sync_path=root/"tools/worldfactbook/factbook_archive_sync.py"
 spec=importlib.util.spec_from_file_location("wf_sync",sync_path)
 m=importlib.util.module_from_spec(spec);sys.modules["wf_sync"]=m;spec.loader.exec_module(m)
-registry=json.loads((root/"__partials/widgets/global-power-grid/data/countries.json").read_text(encoding="utf-8"))
+registry_path=root/"__partials/widgets/global-power-grid/data/countries.json"
+if not registry_path.exists():registry_path=root/"tools/worldfactbook/data/factbook-countries.json"
+registry=json.loads(registry_path.read_text(encoding="utf-8"))
 resolver=m.Resolver(registry)
 text=m.html_to_text((root/"tests/fixtures/us.html").read_bytes())
-record,page=m.parse_country_page(resolver,2018,text,{
+record,page=m.parse_page(resolver,2018,"geos/us.html",text,{
     "provider":"fixture","identifier":"fixture-2018",
     "item_url":"https://example.invalid/item",
     "container_url":"https://example.invalid/us.html",
     "source_url":"https://example.invalid/us.html"
-},"geos/us.html")
+})
 assert record["country"]=="US"
 assert record["edition_year"]==2018
 assert record["observation_year"]==2017
