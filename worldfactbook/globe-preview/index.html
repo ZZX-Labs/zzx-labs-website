@@ -16,16 +16,18 @@
     .wfb-globe-layout{border-radius:0 0 8px 8px;overflow:hidden}
   </style>
   <link rel="stylesheet" href="../css/globe.css">
-  <script>window.WFB={};window.ZZXWorldFactbook={root:new URL("../",location.href)};</script>
+  <script>window.WFB={};</script>
+  <script src="../worldfactbook.js" defer></script>
   <script src="../js/globe-config.js" defer></script>
   <script src="../js/globe-renderer.js" defer></script>
   <script src="../js/country-feed.js" defer></script>
+  <script src="../js/water-boundaries.js" defer></script>
   <script src="../js/globe.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",()=>window.WFB.globe.init());</script>
 </head>
 <body><main>
   <h1>World Factbook · globe preview</h1>
-  <p>Standalone view of the same globe, layer catalog, controls, and provisional country readout as the main page.</p>
+  <p>Standalone view of the same globe, layer catalog, controls, and source edition readout as the main page.</p>
     <div class="wfb-globe-studio" data-wfb-globe-studio data-theme="theme-1">
     <div class="wfb-globe-controls">
       <label class="wfb-year-control"><span>Edition year: <output data-wfb-globe-year>2004</output></span>
@@ -60,9 +62,10 @@
           <button class="wfb-body-switch" type="button" role="switch" aria-checked="true" data-wfb-toggle="sun">Sun visible</button>
           <button class="wfb-body-switch" type="button" role="switch" aria-checked="true" data-wfb-toggle="moon">Moon visible</button>
         </div>
-        <small class="wfb-orbit-note">Sidereal rotation at full Earth axis; adjustable Sun and Moon speeds; illustrative lunar path. Hiding the Sun marker retains daylight shading.</small>
+        <small class="wfb-orbit-note">In 3D, Sun and Moon paths share pause, reverse and rate controls; body speeds are adjustable. Paths are illustrative. Hiding the Sun marker retains daylight shading.</small>
         <span data-wfb-globe-renderer role="status">Renderer: loading</span>
         <span data-wfb-boundary-status role="status">Boundaries: loading</span>
+        <span data-wfb-water-status role="status">Water: loading source geometry</span>
       </div>
     </div>
     <div class="wfb-globe-layout">
@@ -70,7 +73,7 @@
         <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a region or a place marker"></canvas>
         <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
         <div class="wfb-globe-callout" data-wfb-globe-callout hidden></div>
-        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click a place · select an edition</p>
+        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click land or water · rivers at 400%+ · select an edition</p>
         <p class="wfb-globe-attribution" data-wfb-globe-attribution>Reference geography: Natural Earth</p>
       </div>
       <article class="wfb-country-panel" aria-live="polite">
