@@ -125,6 +125,10 @@ def recover_capture(rec: dict,output: Path) -> dict:
     citation=f"wfb-{year}-{country}-flag-{stamp}-{source_sha[:12]}"
     directory=output/str(year)/country;directory.mkdir(parents=True,exist_ok=True)
     filename=citation+".png";target=directory/filename
+    # Preserve source HTML and original image bytes alongside the derived PNG.
+    (directory/(citation+".html")).write_bytes(page)
+    original_filename=Path(urllib.parse.urlparse(asset_original).path).name
+    (directory/(citation+".original"+Path(original_filename).suffix)).write_bytes(raw)
     metadata=PngImagePlugin.PngInfo()
     for key,value in {
         "Title":f"Flag · {country} · World Factbook {year}",
