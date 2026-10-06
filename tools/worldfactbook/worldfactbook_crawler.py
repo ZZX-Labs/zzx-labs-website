@@ -108,18 +108,26 @@ def download(
     max_bytes: int,
     timeout: int = 180,
     attempts: int = 4,
+    refresh: bool = False,
 ) -> Path:
     """Download one archival object with retries and atomic replacement."""
-    if path.is_file() and path.stat().st_size > 0:
+    if path.is_file() and path.stat().st_size > 0 and not refresh:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".part")
+    metadata = path.with_suffix(path.suffix + ".headers.json")
+    try: validators = json.loads(metadata.read_text())
+    except (FileNotFoundError, ValueError): validators = {}
+    conditional = {}
+    if refresh and path.is_file():
+        if validators.get("etag"): conditional["If-None-Match"] = validators["etag"]
+        if validators.get("last_modified"): conditional["If-Modified-Since"] = validators["last_modified"]
     last: Exception | None = None
     for attempt in range(1, max(1, attempts) + 1):
         total = 0
         try:
             tmp.unlink(missing_ok=True)
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            req = urllib.request.Request(url, headers={"User-Agent": UA, **conditional})
             with urllib.request.urlopen(req, timeout=timeout) as r, tmp.open("wb") as fh:
                 while True:
                     block = r.read(1024 * 1024)
@@ -132,8 +140,12 @@ def download(
             if total <= 0:
                 raise RuntimeError(f"download returned zero bytes: {url}")
             tmp.replace(path)
+            metadata.write_text(json.dumps({"etag": r.headers.get("ETag", ""),
+                "last_modified": r.headers.get("Last-Modified", ""), "source_url": url})+"\n")
             return path
         except urllib.error.HTTPError as exc:
+            if exc.code == 304 and path.is_file():
+                tmp.unlink(missing_ok=True); return path
             last = exc
             tmp.unlink(missing_ok=True)
             if exc.code not in {408, 425, 429, 500, 502, 503, 504} or attempt >= attempts:
@@ -726,6 +738,16 @@ def write_portal(
     return index
 
 
+def source_identity(row):
+    return (int(row.get('edition_year') or 0), row.get('source_provider') or row.get('provider'),
+            row.get('source_identifier') or row.get('identifier'), row.get('source_url') or row.get('url'))
+
+
+def retain_unrefreshed_chunks(current, previous):
+    refreshed = {source_identity(row) for row in current}
+    return current+[row for row in previous if source_identity(row) not in refreshed]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo-root", default=".")
@@ -927,10 +949,10 @@ def main() -> int:
                     if not src.is_file():
                         raise RuntimeError(f"manual source missing: {src}")
                     local.parent.mkdir(parents=True, exist_ok=True)
-                    if not local.is_file() or local.stat().st_size != src.stat().st_size:
+                    if not local.is_file() or hashlib.sha256(local.read_bytes()).digest() != hashlib.sha256(src.read_bytes()).digest():
                         shutil.copy2(src, local)
                 else:
-                    download(c.url, local, max_bytes)
+                    download(c.url, local, max_bytes, refresh=args.mode == "refresh")
                 source_sha = hashlib.sha256(local.read_bytes()).hexdigest()
                 source_context = SourceContext(
                     edition_year=year,
@@ -1085,12 +1107,14 @@ def main() -> int:
                 continue
             try:
                 m = json.loads(idx.read_text(encoding="utf-8"))
-                if year in invalid_existing_years or any(int(r.get("edition_year") or 0) == year for r in all_rows):
+                if year in invalid_existing_years:
                     continue
+                previous_chunks=[]
                 for cat in m.get("categories") or []:
                     p = portal / cat["path"]
                     payload = json.loads(p.read_text(encoding="utf-8"))
-                    all_rows.extend(payload.get("chunks") or [])
+                    previous_chunks.extend(payload.get("chunks") or [])
+                all_rows = retain_unrefreshed_chunks(all_rows, previous_chunks)
                 source_rows.extend(m.get("sources") or [])
             except Exception as exc:
                 failures.append({"year":year,"provider":"local-incremental","error":str(exc)})
@@ -1098,9 +1122,8 @@ def main() -> int:
     # Merge existing media indexes for untouched incremental editions.
     if args.mode in {"incremental", "refresh"}:
         existing_media = load_existing_media(portal, args.portal_start_year, args.portal_end_year)
-        new_years = {int(r.get("edition_year") or 0) for r in media_rows}
         for row in existing_media:
-            if int(row.get("edition_year") or 0) not in new_years and int(row.get("edition_year") or 0) not in invalid_existing_years:
+            if int(row.get("edition_year") or 0) not in invalid_existing_years:
                 media_rows.append(row)
 
     # Deduplicate exact chunk IDs, sources, and deterministic image citations.
