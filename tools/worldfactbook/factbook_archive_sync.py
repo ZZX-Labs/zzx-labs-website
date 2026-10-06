@@ -399,13 +399,17 @@ class Resolver:
 
 
 def detect_edition_year(requested_year: int, *values: object) -> int:
-    candidates: list[int] = []
+    # Observation dates in country fields are not edition identifiers.
+    patterns=(r"(?:world[\s_-]*)?factbook[\s_:\-]*(19\d{2}|20\d{2})(?:[\s_-]+(19\d{2}|20\d{2}))?",
+              r"(19\d{2}|20\d{2})[\s_:\-]+(?:cia[\s_-]+)?(?:world[\s_-]*)?factbook")
     for value in values:
-        for match in re.findall(r"\b((?:19|20)\d{2})\b", str(value or "")):
-            year = int(match)
-            if 1962 <= year <= 2027 and abs(year - requested_year) <= 2:
-                candidates.append(year)
-    return candidates[0] if candidates else requested_year
+        for pattern in patterns:
+            match=re.search(pattern,str(value or ''),re.I)
+            if match:
+                years=[int(year) for year in match.groups() if year and 1962<=int(year)<=2027]
+                if years:return requested_year if requested_year in years else years[0]
+    return requested_year
+
 
 
 def record_from_section(
