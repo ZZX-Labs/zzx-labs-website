@@ -10,6 +10,7 @@
     "js/timeline.js",
     "js/globe-config.js",
     "js/globe-renderer.js",
+    "js/country-feed.js",
     "js/water-boundaries.js",
     "js/globe.js",
     "js/reading-room.js",
@@ -27,6 +28,8 @@
     return new URL("./", location.href);
   }
 
+  const moduleRoot = root();
+
   function loaded(path) {
     return document.querySelector('script[data-wfb-module="' + path + '"]');
   }
@@ -35,7 +38,7 @@
     if (loaded(path)) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const el = document.createElement("script");
-      el.src = new URL(path, root()).href;
+      el.src = new URL(path, moduleRoot).href;
       el.defer = true;
       el.dataset.wfbModule = path;
       el.onload = resolve;
