@@ -1,103 +1,94 @@
-name: ZZX World Factbook Global Power Grid Sync
-
+name: ZZX World Factbook Year Archive Sync
 on:
-  workflow_dispatch:
   workflow_call:
-
+    inputs:
+      start_year: {type: number, default: 1962}
+      end_year: {type: number, default: 2027}
+      kind: {type: string, default: all}
+      max_captures: {type: number, default: 60}
+    secrets:
+      WORLDFACTBOOK_PRIVATE_DATA_TOKEN: {required: true}
+  workflow_dispatch:
+    inputs:
+      start_year: {description: First edition year, type: number, default: 1962}
+      end_year: {description: Final edition year, type: number, default: 2027}
+      kind: {description: Collector, type: choice, options: [all, corpus, media, legacy, daily, manual], default: all}
+      max_captures: {description: Capture budget per year and feature, type: number, default: 60}
+  schedule:
+    - cron: '17 4 * * *'
 permissions:
   contents: write
-
-concurrency:
-  group: zzx-worldfactbook-global-power-grid-sync
-  cancel-in-progress: false
-
 jobs:
-  sync-electricity-history:
+  plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    outputs:
+      years: ${{ steps.plan.outputs.years }}
     steps:
-      - name: Checkout newest main with native Git
+      - id: plan
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          FIRST: ${{ inputs.start_year || 1962 }}
+          LAST: ${{ inputs.end_year || 2027 }}
+          EVENT: ${{ github.event_name }}
         run: |
-          set -euo pipefail
-          git init .
-          git remote remove origin >/dev/null 2>&1 || true
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
-          git fetch --force --prune --no-tags origin main
-          git checkout --force -B main origin/main
-          git clean -fdx
-
-      - name: Validate local corpus synchronizer
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m py_compile \
-            tools/worldfactbook/factbook_archive_sync.py \
-            tools/worldfactbook/global_power_grid_sync.py \
-            tools/bpi/bpi_git_publish.py
-          python3 tools/worldfactbook/global_power_grid_sync.py --self-test
-
-      - name: Rebuild Global Power Grid from normalized World Factbook corpus
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tools/worldfactbook/global_power_grid_sync.py \
-            --country-registry __partials/widgets/global-power-grid/data/countries.json \
-            --corpus-root worldfactbook/api/editions \
-            --electricity-output worldfactbook/api/electricity-history.json \
-            --reference-output worldfactbook/api/reference-index.json \
-            --power-grid-output bitcoin/power-grid/api/factbook-history.json \
-            --widget-output __partials/widgets/global-power-grid/data/factbook-history.json \
-            --start-year 1962 \
-            --end-year 2027 \
-            --preserve-existing \
-            | tee worldfactbook/api/global-power-grid-sync-report.json
-
-      - name: Validate compatibility outputs
-        shell: bash
-        run: |
-          set -euo pipefail
           python3 - <<'PY'
-          import json
-          from pathlib import Path
-          paths=[
-              Path('worldfactbook/api/electricity-history.json'),
-              Path('bitcoin/power-grid/api/factbook-history.json'),
-              Path('__partials/widgets/global-power-grid/data/factbook-history.json'),
-          ]
-          docs=[]
-          for path in paths:
-              data=json.loads(path.read_text(encoding='utf-8'))
-              if data.get('schema') != 'zzx-global-power-grid-factbook-history-v2':
-                  raise SystemExit(f'bad schema: {path}')
-              if int(data.get('scan_end_year') or 0) != 2027:
-                  raise SystemExit(f'bad scan_end_year: {path}')
-              docs.append(data)
-          if not docs[0].get('records'):
-              raise SystemExit('zero Global Power Grid records')
-          canonical=json.dumps(docs[0],sort_keys=True,separators=(',',':'))
-          if any(json.dumps(doc,sort_keys=True,separators=(',',':')) != canonical for doc in docs[1:]):
-              raise SystemExit('Global Power Grid ledgers diverged')
-          print('Global Power Grid sync gate passed:', len(docs[0]['records']), 'records')
+          import datetime,json,os
+          first,last=int(os.environ['FIRST']),int(os.environ['LAST'])
+          if not 1962<=first<=last<=2027:raise SystemExit('Invalid edition range')
+          years=list(range(first,last+1))
+          if os.environ['EVENT']=='schedule':
+              today=datetime.datetime.now(datetime.timezone.utc).date()
+              current=min(last,today.year);past=[year for year in years if year<current]
+              offset=(today.toordinal()*3)%len(past) if past else 0
+              years=sorted(set(([current] if current>=first else [])+[past[(offset+i)%len(past)] for i in range(min(3,len(past)))]))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('years='+json.dumps(years)+'\n')
           PY
-
-      - name: Publish compatibility databases
+  preserve-year:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        year: ${{ fromJSON(needs.plan.outputs.years) }}
+    concurrency:
+      group: zzx-worldfactbook-private-year-${{ matrix.year }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Require server-side private archive credential
         shell: bash
+        env:
+          PRIVATE_TOKEN: ${{ secrets.WORLDFACTBOOK_PRIVATE_DATA_TOKEN }}
         run: |
-          set -euo pipefail
-          git config user.name "zzx-worldfactbook-bot"
-          git config user.email "actions@github.com"
-          python3 tools/bpi/bpi_git_publish.py \
-            --root . \
-            --message "Sync Global Power Grid from World Factbook corpus" \
-            --path worldfactbook/api/electricity-history.json \
-            --path worldfactbook/api/reference-index.json \
-            --path worldfactbook/api/global-power-grid-sync-report.json \
-            --path bitcoin/power-grid/api/factbook-history.json \
-            --path __partials/widgets/global-power-grid/data/factbook-history.json \
-            --attempts 8 \
-            --sleep-seconds 6
+          test -n "$PRIVATE_TOKEN" || { printf '%s\n' 'WORLDFACTBOOK_PRIVATE_DATA_TOKEN is required before crawling.' >&2; exit 1; }
+      - name: Install Python extraction dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil python3-fitz poppler-utils libarchive13t64 p7zip-full antiword unrtf djvulibre-bin tesseract-ocr
+      - name: Validate archive collector
+        run: |
+          python3 -m compileall -q tools/worldfactbook
+          python3 tools/worldfactbook/worldfactbook_crawler_selftest.py
+          python3 tools/worldfactbook/global_power_grid_sync.py --self-test
+          python3 -m unittest discover -s tests -p test_year_archive.py
+      - name: Refresh and preserve this year's sources and readouts
+        env:
+          PRIVATE_TOKEN: ${{ secrets.WORLDFACTBOOK_PRIVATE_DATA_TOKEN }}
+          OWNER: ${{ vars.WORLDFACTBOOK_ARCHIVE_OWNER || github.repository_owner }}
+          YEAR: ${{ matrix.year }}
+          KIND: ${{ inputs.kind || 'all' }}
+          MAX_CAPTURES: ${{ inputs.max_captures || 60 }}
+        run: |
+          python3 tools/worldfactbook/year_archive.py run --repo-root . --archive-root "$RUNNER_TEMP/worldfactbook-years" --owner "$OWNER" --year "$YEAR" --kind "$KIND" --max-captures "$MAX_CAPTURES"
+      - name: Publish derived indexes and power-grid compatibility ledgers
+        env:
+          PUBLIC_TOKEN: ${{ github.token }}
+          PUBLIC_REPOSITORY: ${{ github.repository }}
+          PUBLIC_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          python3 tools/worldfactbook/publish_archive_indexes.py --archive-root "$RUNNER_TEMP/worldfactbook-years" --repository "$PUBLIC_REPOSITORY" --branch "$PUBLIC_BRANCH"
