@@ -84,60 +84,35 @@ The public `complete_historical_run` flag stays false until all gates pass.
   a flag image. Historic symbols mentioned in the daily facts are not
   automatically a historic Flag of the Day.
 
-The workflow `.github/workflows/zzx-worldfactbook-daily-recovery.yml` runs
-this backfill daily after a private-repository credential is configured. Set
-the Actions secret `WORLDFACTBOOK_PRIVATE_DATA_TOKEN` to a GitHub token that
-can create a private repository in the site owner's account or organization
-and read/write its Contents. GitHub documents the organization creation
-permission as Repository creation (write) or Administration (write) for a
-fine-grained token; a classic personal access token with `repo` scope can
-create a private repository. The token must also have access to the newly
-created repository. The default name is
-`<site-owner>/zzx-worldfactbook-daily-part-0001`. Optionally set the Actions
-variable `WORLDFACTBOOK_DAILY_STORE_REPO` to another private `owner/repo`.
+## Yearly private preservation
 
-The job checks the configured repository's visibility and refuses to clone
-or push if it is public. If the name does not exist, it creates a **private**
-repository, then loads checkpoints from its actual default branch. With no
-private token, the scheduled job records a visible skipped notice before
-checkout and does no recovery; a green workflow in that case does **not**
-mean the historical corpus is complete. The workflow copies the small public
-seed into a private checkpoint store on the first run, pushes raw evidence
-and the JSONL corpus only to the private repository, then publishes only the
-bounded static JSON to Pages. The existing private chain rollover tool should
-govern that repository when it approaches its capacity. The public output
-contains no private URL or token.
+The daily workflow calls the shared `zzx-worldfactbook-archive-sync.yml` workflow.
+All features use the same private repository per year, configured in
+`year-repositories.json`, with default `<owner>/zzx-worldfactbook-YYYY`.
+`WORLDFACTBOOK_PRIVATE_DATA_TOKEN` is the separate server-side writer secret;
+`WORLDFACTBOOK_ARCHIVE_OWNER` can override the site owner. Existing names are
+mapped under `years`. The previous single daily-store variable is no longer
+used by these workflows.
 
-### Repairing HTTP 403 on the private clone or push
+Missing credentials fail before crawling. Public repositories are rejected.
+Collectors retain raw sources and recovery checkpoints privately; only derived
+catalogs and power ledgers are published to the frontend. The browser reads
+monthly facts and year-sharded features through the configured Python readout
+service, with an installed-local fallback during migration. It never receives
+a GitHub token. Sparse public catalogs cannot erase private historical records.
 
-The Actions variable `WORLDFACTBOOK_DAILY_STORE_REPO` must be the exact
-`ZZX-Labs/zzx-worldfactbook-daily-part-0001` slug, not `owner/repo` or a URL.
-Set the separate Actions **secret** `WORLDFACTBOOK_PRIVATE_DATA_TOKEN` to a
-token whose resource owner is `ZZX-Labs`, whose selected repositories include
-that existing private repository, and whose **Contents** permission is **read
-and write**. If organization policy requires approval, an owner must approve
-the token. For a classic PAT, ensure the `repo` scope and authorize SSO for
-the organization if SSO is enforced. Update the secret after changing token
-permissions or replace an expired token. Never put the token in a variable,
-workflow file, issue, or public site bundle.
+Monthly leader PDF observations also qualify when the printed source month,
+person, office, filename and checksum are available. Their readout explicitly
+states that term dates were not inferred. Reviewed flag images can be shown as
+edition context, without asserting a historical validity period. Place of the
+Day is an independent deterministic selection from a cited country edition.
+Image of the Day still requires an explicit publication date and cleared media.
 
-The public checkout uses the workflow's `GITHUB_TOKEN`; that credential is
-scoped to the public repository URL. The private clone runs outside that
-checkout with a temporary Git prompt helper. The helper contains no token;
-Git reads `PRIVATE_TOKEN` through its prompt pipe. No token is embedded in the
-clone URL or Git configuration, and the helper is removed at the end of the
-job. This also avoids multiple `http.extraheader` credentials.
-
-The repository API lookup only establishes **metadata** access. Before
-cloning, the job now reads the private default branch's Git tree (Contents
-read) and creates an unreferenced tree object using an unchanged entry
-(Contents write). This probe does not change any branch or file. A 403/404
-at the read probe means the token can see repository metadata but cannot read
-the source. A 403 at the write probe means it lacks effective Contents write
-or the token owner lacks write access. Correct the token's resource owner,
-selected repository, Contents permission, approval, and account role before
-rerunning. A protected private branch can still block the eventual push and
-requires a repository rule change or an approved writer.
+See `../../README-MODIFIED-ONLY.md` for permissions, the complete first migration,
+original-file preservation, deployment and conditional frontend deletions.
+For an HTTP 403, check Contents write, selected repository access, organization
+approval/SSO and branch rules. The frontend's checkout credential is not reused
+for private clones; authentication uses an ephemeral askpass helper.
 
 Run the focused checks with `python tests/test_daily_fact_recovery.py` and
 `python tests/test_private_daily_repo.py`.
