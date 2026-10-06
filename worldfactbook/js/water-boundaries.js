@@ -9,6 +9,7 @@
   const wrap = angle => ((angle + 540) % 360 + 360) % 360 - 180;
 
   async function json(root, path) {
+    if(window.ZZXWorldFactbook?.resourceJSON)return window.ZZXWorldFactbook.resourceJSON(base + path);
     const response = await fetch(new URL(base + path, root));
     if (!response.ok) throw Error(`Water boundary HTTP ${response.status}: ${path}`);
     return response.json();
@@ -58,7 +59,7 @@
   }
 
   async function open(root, year) {
-    if (!manifests.has(root)) manifests.set(root, json(root, "manifest.json"));
+    if (!manifests.has(root)) manifests.set(root, json(root, "manifest.json").catch(error=>{manifests.delete(root);throw error;}));
     const manifest = await manifests.get(root);
     if (manifest.schema !== "zzx-water-boundaries-v1") throw Error("Unknown water boundary version");
     const dated = manifest.editions?.[String(year)];
@@ -68,7 +69,7 @@
     }
     const cacheKey = `${root}|${relative}`;
     if (opened.has(cacheKey)) return opened.get(cacheKey);
-    const promise = loadIndex(root, relative, Boolean(dated));
+    const promise = loadIndex(root, relative, Boolean(dated)).catch(error=>{opened.delete(cacheKey);throw error;});
     opened.set(cacheKey, promise);
     return promise;
   }
@@ -77,7 +78,14 @@
     if (index.schema !== 1 || !Array.isArray(index.indexes)) throw Error("Invalid water index");
     const prefix = relative.slice(0, relative.lastIndexOf("/") + 1);
     const indexes = await Promise.all(index.indexes.map(part => json(root, prefix + part)));
-    const features = indexes.flatMap(part => part.features || []);
+    const features = indexes.flatMap(part => part.features || []).map(feature=>{
+      const ocean = /^(?:North |South )?(Atlantic|Pacific|Indian|Arctic|Southern) Ocean$/i.exec(feature.name);
+      const name=ocean?ocean[1]+" Ocean":feature.name;
+      const kind=ocean?"ocean":feature.kind;
+      return {...feature,name,kind,code:ocean?"X-"+name.toUpperCase().replaceAll(" ","-"):"WATER-"+feature.id,
+        min_zoom:feature.geometry==="line"?4:kind==="ocean"?1:kind==="lake"?
+          angularSize(feature)>8?1.6:3:1.4};
+    });
     if (features.length !== index.features || features.length > MAX_FEATURES) {
       throw Error("Incomplete water feature index");
     }
@@ -89,7 +97,7 @@
       const promise = (async () => {
         const shards = await Promise.all(feature.parts.map(part => {
           if (!/^geometry\/part-\d{4}\.json$/.test(part)) throw Error("Invalid water shard path");
-          if (!shardCache.has(part)) shardCache.set(part, json(root, prefix + part));
+          if (!shardCache.has(part)) shardCache.set(part, json(root, prefix + part).catch(error=>{shardCache.delete(part);throw error;}));
           return shardCache.get(part);
         }));
         const groups = new Map();
@@ -104,8 +112,9 @@
           [...paths.entries()].sort((a, b) => a[0] - b[0]).map(([, pieces]) =>
             pieces.sort((a, b) => a[0] - b[0]).flatMap(([, points]) => points)));
       })();
-      geometryCache.set(feature.id, promise);
-      return promise;
+      const retryable=promise.catch(error=>{geometryCache.delete(feature.id);throw error;});
+      geometryCache.set(feature.id, retryable);
+      return retryable;
     }
     async function hit(lon, lat, x, y, project, width, height, zoom, land) {
       // Bounding boxes only reject candidates; exact polygon and screen-space
@@ -115,6 +124,7 @@
         180 / height, 360 / width) / zoom);
       const lonMargin = Math.min(40, margin / Math.max(.15, Math.cos(lat * RAD)));
       const candidates = features.filter(feature => {
+        if(zoom<feature.min_zoom)return false;
         const b = feature.bbox;
         if (lat < b[1] - margin || lat > b[3] + margin) return false;
         return b[2] - b[0] > 180 ||
@@ -149,5 +159,5 @@
     return {index, features, sources, historical, geometry, hit};
   }
 
-  window.WFBWaterBoundaries = Object.freeze({open, ringContains, polygonContains});
+  window.WFBWaterBoundaries = Object.freeze({open, ringContains, polygonContains, clearCache:()=>{opened.clear();manifests.clear();}});
 })();
