@@ -1313,8 +1313,8 @@ def write_media_shards(
                 path = root / rel
                 path.parent.mkdir(parents=True, exist_ok=True)
                 payload = MEDIA_SCHEMA_SQL + "".join(_media_row_sql(r) for r in batch)
-                with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as fh:
-                    fh.write(payload)
+                compressed=gzip.compress(payload.encode("utf-8"),compresslevel=9,mtime=0)
+                if not path.exists() or path.read_bytes()!=compressed:path.write_bytes(compressed)
                 size = path.stat().st_size
                 if size <= max_compressed_bytes or len(batch) <= 1:
                     break
