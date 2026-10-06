@@ -7,7 +7,7 @@
       aspect:f32, yaw:f32, pitch:f32, zoom:f32,
       flat:f32, tactical:f32, relief:f32, realism:f32,
       sunLon:f32, sunDecl:f32, accentR:f32, accentG:f32,
-      accentB:f32, width:f32, height:f32, padding:f32,
+      accentB:f32, width:f32, height:f32, flatLat:f32,
       tintR:f32, tintG:f32, tintB:f32, tintStrength:f32
     };
     @group(0) @binding(0) var<uniform> globe: Globe;
@@ -32,7 +32,7 @@
       var latitude:f32;
       var longitude:f32;
       if(globe.flat > 0.5){
-        latitude=(0.5-input.uv.y)*3.141592653589793/globe.zoom;
+        latitude=(0.5-input.uv.y)*3.141592653589793/globe.zoom+globe.flatLat;
         longitude=(input.uv.x-0.5)*2.0*pi/globe.zoom+globe.yaw;
         if(abs(latitude)>pi*0.5){discard;}
         normal=vec3f(0.0,0.0,1.0);
@@ -187,7 +187,7 @@
         device.queue.writeBuffer(uniform,0,new Float32Array([
           width/height,settings.yaw,settings.pitch,settings.zoom,
           Number(settings.flat),Number(settings.tactical),settings.relief,settings.realism,
-          settings.sunLon,settings.sunDecl,a[0],a[1],a[2],width,height,0,
+          settings.sunLon,settings.sunDecl,a[0],a[1],a[2],width,height,settings.flatLat||0,
           t[0],t[1],t[2],settings.tintStrength||0
         ]));
         if(!settings.flat && depthSize!==`${width}:${height}`){
@@ -218,21 +218,18 @@
     const screen = overlay.getContext("2d", {alpha:true});
     const buffer = document.createElement("canvas");
     const backing = buffer.getContext("2d", {willReadFrequently:true});
-    let pixels = null, sourceWidth = 0, sourceHeight = 0, lastDraw = 0;
+    let pixels = null, sourceWidth = 0, sourceHeight = 0;
     return {
       kind:"Canvas 2D fallback",
       setTexture(source) {
         const c = document.createElement("canvas");c.width=source.width;c.height=source.height;
         const ctx = c.getContext("2d", {willReadFrequently:true});ctx.drawImage(source,0,0);
         pixels = ctx.getImageData(0,0,c.width,c.height).data;
-        sourceWidth=c.width;sourceHeight=c.height;lastDraw=0;
+        sourceWidth=c.width;sourceHeight=c.height;
       },
       setRelief(){},
       draw(width, height, settings) {
         if (!pixels) return;
-        const now = performance.now();
-        if (now - lastDraw < 40) return;
-        lastDraw = now;
         if (overlay.width !== width || overlay.height !== height) {
           overlay.width=width;overlay.height=height;
         }
@@ -246,7 +243,7 @@
           const px=(x+.5)/buffer.width,py=(y+.5)/buffer.height;
           let lon,lat,light=1;
           if(settings.flat){
-            lat=(.5-py)*Math.PI/settings.zoom;
+            lat=(.5-py)*Math.PI/settings.zoom+(settings.flatLat||0);
             lon=(px-.5)*tau/settings.zoom+settings.yaw;
             if(Math.abs(lat)>Math.PI/2)continue;
           }else{
