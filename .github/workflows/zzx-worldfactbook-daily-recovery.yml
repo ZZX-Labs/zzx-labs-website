@@ -1,171 +1,18 @@
-name: World Factbook Daily Fact Recovery
-
+name: ZZX World Factbook Daily Refresh
 on:
   workflow_dispatch:
     inputs:
-      max_captures:
-        description: "Wayback captures to examine this run"
-        default: "120"
-        required: false
-        type: string
+      start_year: {type: number, default: 1994}
+      end_year: {type: number, default: 2026}
   schedule:
-    - cron: "27 3 * * *"
-
+    - cron: '57 6 * * *'
 permissions:
   contents: write
-
-concurrency:
-  group: worldfactbook-daily-facts
-  cancel-in-progress: false
-
 jobs:
-  recover:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 300
-    env:
-      PRIVATE_TOKEN: ${{ secrets.WORLDFACTBOOK_PRIVATE_DATA_TOKEN }}
-      MAX_CAPTURES: ${{ inputs.max_captures || '120' }}
-    steps:
-      - name: Check private archive credential before checkout
-        id: gate
-        shell: bash
-        env:
-          CONFIGURED_REPO: ${{ vars.WORLDFACTBOOK_DAILY_STORE_REPO }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${PRIVATE_TOKEN}" ]]; then
-            printf 'configured=false\n' >> "${GITHUB_OUTPUT}"
-            printf '%s\n' '::warning title=Daily recovery paused::Set the WORLDFACTBOOK_PRIVATE_DATA_TOKEN Actions secret. No source capture or private data publication was attempted.'
-            printf '%s\n' 'Daily recovery skipped: private-repository credential is absent. Set the WORLDFACTBOOK_PRIVATE_DATA_TOKEN secret and rerun this workflow.' >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-          PRIVATE_REPO="${CONFIGURED_REPO:-${GITHUB_REPOSITORY_OWNER}/zzx-worldfactbook-daily-part-0001}"
-          if [[ ! "${PRIVATE_REPO}" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
-            printf '%s\n' 'WORLDFACTBOOK_DAILY_STORE_REPO must be a plain owner/repo name.' >&2
-            exit 1
-          fi
-          printf 'configured=true\nrepository=%s\n' "${PRIVATE_REPO}" >> "${GITHUB_OUTPUT}"
-
-      - name: Load public checkout with native Git
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        env:
-          PUBLIC_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${PUBLIC_TOKEN}" | base64 | tr -d '\n')"
-          # Keep the public checkout credential off every private repository URL.
-          git config --local "http.https://github.com/${GITHUB_REPOSITORY}.git.extraheader" "AUTHORIZATION: basic ${AUTH}"
-          git fetch --no-tags origin main
-          git checkout -B main origin/main
-
-      - name: Verify or create the private repository
-        if: steps.gate.outputs.configured == 'true'
-        id: private
-        shell: bash
-        env:
-          PRIVATE_REPO: ${{ steps.gate.outputs.repository }}
-        run: |
-          set -euo pipefail
-          python3 tools/worldfactbook/ensure_private_daily_repo.py \
-            --repository "${PRIVATE_REPO}" --output "${GITHUB_OUTPUT}"
-
-      - name: Load private recovery checkpoints
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        env:
-          PRIVATE_REPO: ${{ steps.private.outputs.repository }}
-        run: |
-          set -euo pipefail
-          PRIVATE_DIR="${RUNNER_TEMP}/worldfactbook-daily-private"
-          PRIVATE_ASKPASS="$(mktemp "${RUNNER_TEMP}/worldfactbook-askpass.XXXXXX")"
-          cat > "${PRIVATE_ASKPASS}" <<'SH'
-          #!/usr/bin/env bash
-          case "${1:-}" in
-            *Username*) printf '%s\n' 'x-access-token' ;;
-            *Password*) printf '%s\n' "${PRIVATE_TOKEN:?}" ;;
-            *) exit 1 ;;
-          esac
-          SH
-          chmod 700 "${PRIVATE_ASKPASS}"
-          printf 'PRIVATE_ASKPASS=%s\n' "${PRIVATE_ASKPASS}" >> "${GITHUB_ENV}"
-          # Git receives the token through its prompt pipe, without a token URL
-          # or a second Authorization header from the public checkout.
-          GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
-            GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
-            git -C "${RUNNER_TEMP}" -c credential.helper= clone \
-              "https://github.com/${PRIVATE_REPO}.git" "${PRIVATE_DIR}"
-          printf 'PRIVATE_DIR=%s\n' "${PRIVATE_DIR}" >> "${GITHUB_ENV}"
-
-      - name: Check private checkpoint write access
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        env:
-          PRIVATE_REPO: ${{ steps.private.outputs.repository }}
-          PRIVATE_BRANCH: ${{ steps.private.outputs.branch }}
-        run: |
-          set -euo pipefail
-          if ! GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
-            GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
-            git -C "${PRIVATE_DIR}" -c credential.helper= \
-              push --dry-run origin "HEAD:${PRIVATE_BRANCH}"; then
-            printf '%s\n' '::error title=Private archive write denied::Check WORLDFACTBOOK_PRIVATE_DATA_TOKEN repository access and Contents read/write permission, plus organization approval or SSO where required.'
-            exit 1
-          fi
-
-      - name: Recover in reverse capture order and export reviewed date labels
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          STORE="${PRIVATE_DIR}/daily-facts-private-store"
-          python3 tests/test_daily_fact_recovery.py
-          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" bootstrap \
-            --api worldfactbook/api/daily-archive
-          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" recover \
-            --first-year 1994 --final-year 2026 --max-captures "${MAX_CAPTURES}" --wait 0.5
-          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" export \
-            --api worldfactbook/api/daily-archive \
-            --training "${PRIVATE_DIR}/training/cia_daily_facts.jsonl"
-          python3 tools/worldfactbook/recover_daily_facts.py --store "${STORE}" verify
-
-      - name: Commit source evidence to private repository
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        env:
-          PRIVATE_REPO: ${{ steps.private.outputs.repository }}
-          PRIVATE_BRANCH: ${{ steps.private.outputs.branch }}
-        run: |
-          set -euo pipefail
-          cd "${PRIVATE_DIR}"
-          git config user.name worldfactbook-recovery-bot
-          git config user.email actions@github.com
-          git add -- daily-facts-private-store training/cia_daily_facts.jsonl
-          if ! git diff --cached --quiet; then
-            git commit -m "Backfill dated Fact of the Day source captures"
-            GIT_ASKPASS="${PRIVATE_ASKPASS}" GIT_TERMINAL_PROMPT=0 \
-              GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
-              git -c credential.helper= push origin "HEAD:${PRIVATE_BRANCH}"
-          fi
-
-      - name: Publish only small static daily contracts
-        if: steps.gate.outputs.configured == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name worldfactbook-recovery-bot
-          git config user.email actions@github.com
-          python3 tools/bpi/bpi_git_publish.py \
-            --root . --message "Backfill sourced World Factbook daily facts" \
-            --path worldfactbook/api/daily-archive --attempts 8 --sleep-seconds 6
-
-      - name: Remove temporary private Git prompt
-        if: always() && steps.gate.outputs.configured == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${PRIVATE_ASKPASS:-}" ]]; then
-            rm -f -- "${PRIVATE_ASKPASS}"
-          fi
+  archive:
+    uses: ./.github/workflows/zzx-worldfactbook-archive-sync.yml
+    with:
+      start_year: ${{ inputs.start_year || 1994 }}
+      end_year: ${{ inputs.end_year || 2026 }}
+      kind: daily
+    secrets: inherit
