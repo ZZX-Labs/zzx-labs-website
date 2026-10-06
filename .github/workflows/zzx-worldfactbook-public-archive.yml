@@ -1,82 +1,30 @@
-name: Verify World Factbook public archive
-
+name: ZZX World Factbook Frontend Validation
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'worldfactbook/api/country-archive/**'
-      - 'worldfactbook/manual/reviews/**'
-      - 'worldfactbook/boundaries/**'
-      - 'worldfactbook/js/globe*.js'
-      - 'worldfactbook/js/water-boundaries.js'
-      - 'worldfactbook/js/reading-room.js'
-      - 'worldfactbook/css/globe.css'
-      - 'worldfactbook/index.html'
-      - 'worldfactbook/globe-preview/index.html'
-      - 'worldfactbook/script.js'
-      - 'tools/worldfactbook/install_globe_layer.py'
-      - 'tools/worldfactbook/verify_public_archive.py'
-      - 'tools/worldfactbook/verify_globe_assets.py'
-      - 'tools/worldfactbook/build_water_boundaries.py'
-      - 'tools/worldfactbook/render_water_layer.py'
-      - 'tools/worldfactbook/verify_water_boundaries.py'
-      - 'tools/worldfactbook/data/water-sources.json'
-      - 'tests/test_water_boundaries.py'
   workflow_dispatch:
-
+  push:
+    paths: ['worldfactbook/**', 'tools/worldfactbook/**', 'tests/**', '.github/workflows/zzx-worldfactbook*.yml']
+  pull_request:
+    paths: ['worldfactbook/**', 'tools/worldfactbook/**', 'tests/**', '.github/workflows/zzx-worldfactbook*.yml']
 permissions:
-  contents: write
-
-concurrency:
-  group: zzx-worldfactbook-country-archive
-  cancel-in-progress: false
-
+  contents: read
 jobs:
-  verify:
+  validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     steps:
-      - name: Checkout main with native Git
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y python3-pil python3-fitz
+      - name: Check source and deterministic runtime behavior
         run: |
-          set -euo pipefail
-          git init -b main .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH}"
-          git fetch --depth=2 --force --no-tags origin main
-          git checkout --force -B main origin/main
-          git clean -fdx
-
-      - name: Verify public JSON and signed source reviews
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f worldfactbook/api/country-archive/index.json ] && \
-             git cat-file -e HEAD^:worldfactbook/api/country-archive/index.json 2>/dev/null; then
-            printf 'Previously published country archive index was removed.\n' >&2
-            exit 1
-          fi
-          python3 tools/worldfactbook/verify_public_archive.py --repo . --update-portal --allow-absent
-
-      - name: Verify local globe imagery and clickable map units
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tools/worldfactbook/verify_globe_assets.py --repo .
-          python3 tools/worldfactbook/verify_water_boundaries.py --repo .
-          python3 tests/test_water_boundaries.py
-
-      - name: Commit status changes only after verification
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "zzx-worldfactbook-bot"
-          git config user.email "zzx-worldfactbook-bot@users.noreply.github.com"
-          git add worldfactbook/api/portal-index.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Update reviewed Factbook edition coverage"
-            git push origin HEAD:main
-          fi
+          python3 -m compileall -q tools/worldfactbook
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          python3 tests/worldfactbook_parser_selftest.py
+          python3 tests/worldfactbook_workflow_selftest.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          for path in Path("worldfactbook").rglob("*.js"):
+              subprocess.run(["node","--check",str(path)],check=True)
+          PY
+          node tests/worldfactbook_runtime_selftest.js
