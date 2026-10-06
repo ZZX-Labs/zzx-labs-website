@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="../static/styles.css">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./css/globe.css">
+  <link rel="stylesheet" href="./css/reading-room.css">
 
   <script src="../static/script.js" defer></script>
   <script src="./worldfactbook.js" defer></script>
@@ -142,23 +143,41 @@
           <button class="wfb-body-switch" type="button" role="switch" aria-checked="true" data-wfb-toggle="sun">Sun visible</button>
           <button class="wfb-body-switch" type="button" role="switch" aria-checked="true" data-wfb-toggle="moon">Moon visible</button>
         </div>
-        <small class="wfb-orbit-note">At 1× and 100% Earth axis, the globe follows a sidereal day. Moon and Sun speeds multiply the shared simulation clock. Their drawn paths are illustrations, not a precise ephemeris; hiding the Sun marker retains daylight shading.</small>
+        <small class="wfb-orbit-note">At 1× and 100% Earth axis, the globe follows a sidereal day. Moon and Sun speeds multiply the shared simulation clock. In 3D, the orbit paths are illustrative and remain visible at every Earth zoom. Pause, reverse, and speed controls share a clock; daylight shading remains independent of marker visibility.</small>
         <span data-wfb-globe-renderer role="status">Renderer: loading</span>
         <span data-wfb-boundary-status role="status">Boundaries: loading</span>
+        <span data-wfb-water-status role="status">Water: loading geometry</span>
       </div>
     </div>
     <div class="wfb-globe-layout">
       <div class="wfb-globe-surface">
-        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a region or a place marker"></canvas>
+        <canvas data-wfb-globe-canvas role="img" aria-label="Interactive 3D Earth; drag to rotate, click a nation, territory, ocean, sea, lake or river"></canvas>
         <canvas data-wfb-globe-markers aria-hidden="true"></canvas>
         <div class="wfb-globe-callout" data-wfb-globe-callout hidden></div>
-        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click a place · select an edition</p>
+        <p class="wfb-globe-instructions">Drag to rotate · wheel to zoom · click a place or water body · rivers at 400%+ · select an edition</p>
         <p class="wfb-globe-attribution" data-wfb-globe-attribution>Reference geography: Natural Earth</p>
       </div>
       <article class="wfb-country-panel" aria-live="polite">
-        <div class="wfb-country-panel-head"><p class="wfb-kicker">Edition profile</p><h3 data-wfb-country-heading>Select a location</h3>
-          <p data-wfb-country-status>Select a place on the globe or in the location list.</p></div>
-        <div data-wfb-country-profile></div>
+        <div class="wfb-reading-masthead"><span>World Factbook / Location record</span><span data-wfb-reading-edition>Edition 2007</span></div>
+        <div class="wfb-country-panel-head">
+          <div><p class="wfb-kicker">Edition profile</p><h3 data-wfb-country-heading>Select a location</h3>
+            <p data-wfb-country-status>Select a place on the globe or in the location list.</p></div>
+          <div class="wfb-reading-volume"><span>Location file</span><strong data-wfb-reading-code>—</strong></div>
+        </div>
+        <div class="wfb-reading-meta">
+          <div><span>Edition</span><strong data-wfb-reading-year>2007</strong></div>
+          <div><span data-wfb-reading-chapter-label>Sections</span><strong data-wfb-reading-chapters>—</strong></div>
+          <div><span data-wfb-reading-count-label>Fields</span><strong data-wfb-reading-fields>—</strong></div>
+        </div>
+        <p class="wfb-reading-integrity" data-wfb-reading-integrity hidden></p>
+        <div class="wfb-reading-room">
+          <aside class="wfb-reading-rail"><div class="wfb-reading-rail-inner">
+            <p class="wfb-reading-rail-title">Contents</p><nav data-wfb-reading-nav aria-label="Location record sections"></nav>
+          </div></aside>
+          <div class="wfb-reading-article"><div class="wfb-reading-empty" data-wfb-reading-empty><h4>Explore an edition</h4><p>Select a location to read its sources.</p></div>
+            <div data-wfb-country-profile></div>
+          </div>
+        </div>
       </article>
     </div>
     </div>
