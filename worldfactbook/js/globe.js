@@ -9,16 +9,17 @@
   const state = { catalogue:null, points:[], country:"", year:2004, yaw:0.2,
     layer:"tactical", layers:new Map(), renderer:null, candidates:[], version:0, available:new Set(), verifiedHTML:null,
     imageCache:new Map(), lastTexture:null, rotationSeconds:20, playing:true,
-    dragging:false, lastFrame:0, boundaryManifest:null, boundaries:null,
+    dragging:false, lastFrame:0, lastAnimationDraw:0, boundaryManifest:null, boundaries:null,
     boundaryVersion:0, lookup:null, waterLookup:null, waterFeatures:new Map(), selectedRings:[], shapeVersion:0,
     zoom:1, axis:0, pitchOffset:0, flat:false, rate:1, direction:1,
     axialTilt:23.44, solarSync:100, seasonDay:172, simulatedMs:Date.now(),
     clockEpochMs:Date.now(), sunOrbitSpeed:1, moonOrbitSpeed:1,
-    showSun:true, showMoon:true,
+    showSun:true, showMoon:true, sunElapsedMs:0, moonElapsedMs:0,
+    waterGeometry:null, waterVersion:0, selectionVersion:0, selectionAnchor:null, flatLat:0,
     theme:window.WFBGlobeConfig?.themes?.[0]||null, portal:null };
   const TAU=Math.PI*2, RAD=Math.PI/180, SIDEREAL_DAY=86164.0905;
   function orbitalDate(){
-    const base=new Date(state.clockEpochMs+(state.simulatedMs-state.clockEpochMs)*state.sunOrbitSpeed);
+    const base=new Date(state.clockEpochMs+state.sunElapsedMs);
     const start=Date.UTC(base.getUTCFullYear(),0,0);
     const day=(base.getTime()-start)/86400000;
     return new Date(base.getTime()+(state.seasonDay-day)*(1-state.solarSync/100)*86400000);
@@ -75,7 +76,9 @@
     const [min,max]=limits[name], amount=Math.max(min,Math.min(max,Number(value)||min));
     if(name==="tilt")state.axialTilt=amount;
     if(name==="sync"){
-      if(amount===100&&state.solarSync!==100)state.simulatedMs=Date.now();
+      if(amount===100&&state.solarSync!==100){
+        state.clockEpochMs=Date.now();state.sunElapsedMs=0;state.moonElapsedMs=0;state.simulatedMs=state.clockEpochMs;
+      }
       state.solarSync=amount;
     }
     if(name==="season")state.seasonDay=amount;
@@ -101,7 +104,7 @@
     draw();
   }
   function bindKnob(selector,get,set,step){
-    const knob=$(selector);let down=null;
+    const knob=$(selector);if(!knob)return;let down=null;
     knob.addEventListener("pointerdown",event=>{
       down={y:event.clientY,start:get()};knob.setPointerCapture(event.pointerId);
     });
@@ -136,7 +139,8 @@
       const img=new Image();img.crossOrigin="anonymous";
       img.onload=()=>resolve(img);img.onerror=()=>reject(Error("Unable to load globe texture"));img.src=url;
     });
-    state.imageCache.set(url,promise);return promise;
+    const retryable=promise.catch(error=>{state.imageCache.delete(url);throw error;});
+    state.imageCache.set(url,retryable);return retryable;
   }
   function texturePath(layer){
     const entry=state.layers.get(layer);
@@ -147,7 +151,11 @@
     }
     return entry.file;
   }
-  function layerTexture(layer){return loadImage(new URL(texturePath(layer),root).href);}
+  async function archiveImage(path){
+    const local=new URL(path,root).href,remote=await client.archiveAssetURL(path);
+    try{return await loadImage(remote);}catch(error){if(remote===local)throw error;return loadImage(local);}
+  }
+  function layerTexture(layer){return archiveImage(texturePath(layer));}
   async function setLayer(layer){
     const entry=state.layers.get(layer);if(!entry?.installed)return;
     state.layer=layer;
@@ -199,7 +207,7 @@
     try{
       const index=await getJSON(`boundaries/${selected}`);
       const base=selected.slice(0,selected.lastIndexOf("/")+1);
-      const source=await loadImage(new URL(`boundaries/${base}${index.lookup}`,root).href);
+      const source=await archiveImage(`boundaries/${base}${index.lookup}`);
       const c=document.createElement("canvas");c.width=source.naturalWidth;c.height=source.naturalHeight;
       const ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(source,0,0);
       const bytes=ctx.getImageData(0,0,c.width,c.height).data;
@@ -220,11 +228,11 @@
       boundaryStatus(index.kind==="historical"?
         `Boundaries: ${year} source geometry (${index.status})`:
         `Boundaries: present-day reference · ${year} historical geometry unavailable`);
-      loadSelectedShape(Boolean(state.country));setLayer(state.layer);draw();
+      if(!state.waterFeatures.has(state.country))loadSelectedShape(false);setLayer(state.layer);draw();
     }catch(error){
       if(generation!==state.boundaryVersion)return;
       console.warn("Local boundary layer unavailable",error);
-      state.lookup=null;state.boundaries=null;state.selectedRings=[];
+      state.lookup=null;state.boundaries=null;if(!state.waterFeatures.has(state.country))state.selectedRings=[];
       boundaryStatus("Boundaries unavailable; use location markers or the selector");
       setLayer(state.layer);draw();
     }
@@ -271,7 +279,7 @@
     let longitude,latitude;
     if(state.flat){
       longitude=(x/width-.5)*TAU/state.zoom+state.yaw;
-      latitude=(.5-y/height)*Math.PI/state.zoom;
+      latitude=(.5-y/height)*Math.PI/state.zoom+state.flatLat;
       if(Math.abs(latitude)>Math.PI/2)return null;
     }else{
       const radius=Math.min(width,height)*.4*state.zoom;
@@ -283,7 +291,8 @@
       longitude=Math.atan2(nx,gz)+state.yaw;
       latitude=Math.asin(Math.max(-1,Math.min(1,gy)));
     }
-    return {u:((longitude/TAU+.5)%1+1)%1,
+    return {lon:((longitude/RAD+540)%360+360)%360-180,lat:latitude/RAD,
+            u:((longitude/TAU+.5)%1+1)%1,
             v:Math.min(1-Number.EPSILON,Math.max(0,.5-latitude/Math.PI))};
   }
   function featureAt(lookup,position){
@@ -325,31 +334,30 @@
   }
   function drawOrbit(ctx,width,height,solar){
     if(state.flat)return;
-    const r=Math.min(width,height)*.4*state.zoom;
-    // The circular orbit is a visual approximation. Calendar and lunar phase
-    // advance from the same simulation clock as the Earth rotation.
-    const days=(state.clockEpochMs-Date.UTC(2000,0,6,18,14))/86400000+
-      (state.simulatedMs-state.clockEpochMs)*state.moonOrbitSpeed/86400000;
+    const base=Math.min(width,height)*.4;
+    const orbitR=Math.max(12,Math.min(width/2-38,base*1.22));
+    const orbitY=Math.max(10,Math.min(height/2-35,base*.33));
+    const days=(state.clockEpochMs-Date.UTC(2000,0,6,18,14)+state.moonElapsedMs)/86400000;
     const phase=TAU*days/27.321661;
-    const orbitR=r*1.22, orbitY=r*.33;
-    ctx.save();
+    ctx.save();ctx.lineWidth=1;ctx.font="11px monospace";
     if(state.showMoon){
-      ctx.strokeStyle="rgba(192,214,116,.20)";ctx.lineWidth=1;
+      ctx.strokeStyle="rgba(192,214,116,.20)";
       ctx.beginPath();ctx.ellipse(width/2,height/2,orbitR,orbitY,0,0,TAU);ctx.stroke();
+      const x=width/2+orbitR*Math.cos(phase),y=height/2+orbitY*Math.sin(phase);
+      ctx.beginPath();ctx.arc(x,y,5,0,TAU);ctx.fillStyle="#d9dfd3";ctx.fill();
+      ctx.fillStyle=state.theme.accent;ctx.fillText("Moon",x+9,y-9);
     }
-    const mx=width/2+orbitR*Math.cos(phase),my=height/2+orbitY*Math.sin(phase);
-    if(state.showMoon&&mx>=8&&mx<width-8&&my>=8&&my<height-8){
-      ctx.beginPath();ctx.arc(mx,my,Math.max(3,Math.min(9,r*.025)),0,TAU);
-      ctx.fillStyle="#d9dfd3";ctx.fill();
-      ctx.fillStyle=state.theme.accent;ctx.font="11px monospace";ctx.fillText("Moon",mx+10,my-9);
-    }
-    const sx=width/2+Math.max(r*1.45,120)*Math.cos(solar.sunLon-state.yaw);
-    const sy=height/2-Math.max(r*.5,60)*Math.sin(solar.sunDecl);
-    if(state.showSun&&sx>=10&&sx<width-10&&sy>=10&&sy<height-10){
-      const glow=ctx.createRadialGradient(sx,sy,2,sx,sy,28);
+    if(state.showSun){
+      const sx=Math.max(12,Math.min(width/2-40,base*1.45)),sy=Math.max(10,Math.min(height/2-36,base*.52));
+      const angle=TAU*(state.clockEpochMs+state.sunElapsedMs-Date.UTC(2000,0,1))/(365.2422*86400000);
+      ctx.strokeStyle="rgba(230,164,43,.20)";
+      ctx.beginPath();ctx.ellipse(width/2,height/2,sx,sy,0,0,TAU);ctx.stroke();
+      const x=width/2+sx*Math.cos(angle),y=height/2+sy*Math.sin(angle);
+      const glow=ctx.createRadialGradient(x,y,2,x,y,22);
       glow.addColorStop(0,"rgba(230,164,43,.82)");glow.addColorStop(1,"rgba(230,164,43,0)");
-      ctx.fillStyle=glow;ctx.fillRect(sx-28,sy-28,56,56);
-      ctx.fillStyle=state.theme.gold;ctx.font="11px monospace";ctx.fillText("Sun",sx+12,sy-8);
+      ctx.fillStyle=glow;ctx.fillRect(x-22,y-22,44,44);
+      ctx.beginPath();ctx.arc(x,y,6,0,TAU);ctx.fillStyle=state.theme.gold;ctx.fill();
+      ctx.fillText("Sun",x+9,y-9);
     }
     ctx.restore();
   }
@@ -358,7 +366,7 @@
     const lat=point.lat*RAD;
     const delta=((point.lon*RAD-state.yaw+Math.PI)%TAU+TAU)%TAU-Math.PI;
     if(state.flat)return {x:width/2+delta/TAU*width*state.zoom,
-      y:height/2-lat/Math.PI*height*state.zoom,z:1};
+      y:height/2-(lat-state.flatLat)/Math.PI*height*state.zoom,z:1};
     const rawz=Math.cos(lat)*Math.cos(delta);
     const y=Math.cos(pitch())*Math.sin(lat)-Math.sin(pitch())*rawz;
     const z=Math.sin(pitch())*Math.sin(lat)+Math.cos(pitch())*rawz;
@@ -378,7 +386,7 @@
     if(canvas.width!==w||canvas.height!==h){canvas.width=marker.width=w;canvas.height=marker.height=h;}
     const layer=state.layers.get(state.layer),solar=sunPosition();
     try{state.renderer?.draw(w,h,{yaw:state.yaw,pitch:pitch(),zoom:state.zoom,
-      flat:state.flat,tactical:Boolean(layer?.grid),relief:layer?.relief||0,
+      flat:state.flat,flatLat:state.flatLat,tactical:Boolean(layer?.grid),relief:layer?.relief||0,
       realism:state.axis,sunLon:solar.sunLon,sunDecl:solar.sunDecl,accent:themeAccent(),
       tint:themeTint(),tintStrength:/(?:satellite|nasa|blue.marble)/i.test(state.layer+" "+(layer?.file||""))?0:
         state.layer==="tactical"?.34:state.layer==="topographic"?.16:.23});}
@@ -399,7 +407,8 @@
     }
     ctx.setTransform(1,0,0,1,0,0);
     const callout=$("[data-wfb-globe-callout]");
-    const anchor=state.candidates.find(point=>point.code===state.country);
+    const anchor=(state.selectionAnchor?project(state.selectionAnchor,width,height):null)||
+      state.candidates.find(point=>point.code===state.country);
     callout.hidden=!state.country;
     if(state.country){
       const halfCard=Math.min(width/2,Math.max(70,callout.offsetWidth/2));
@@ -410,13 +419,77 @@
       callout.style.top=`${Math.max(minY,Math.min(height-14,y))}px`;
     }
   }
-  const getJSON=async path=>{
-    const response=await fetch(new URL(path,root));
-    if(!response.ok)throw Error(`HTTP ${response.status} loading ${path}`);
-    return response.json();
-  };
+  const getJSON=path=>client.resourceJSON(path);
+  const apiPath=path=>String(path).replace(/^worldfactbook\//, "").startsWith("api/")?
+    String(path).replace(/^worldfactbook\//, ""):"api/"+path;
+  function regionAt(x,y,width,height){return featureAt(state.lookup,geoAt(x,y,width,height));}
+  async function loadWaterGeometry(year){
+    const token=++state.waterVersion;
+    const label=$("[data-wfb-water-status]");
+    try{
+      const water=await window.WFBWaterBoundaries.open(root,year);
+      if(token!==state.waterVersion)return;
+      state.waterGeometry=water;
+      const current=state.waterFeatures.get(state.country);
+      if(current){
+        const active=water.features.find(item=>item.code===current.code&&(!current.source_id||item.source_id===current.source_id));
+        if(active){
+          const source=water.sources.get(active.source);
+          state.waterFeatures.set(current.code,{...current,...active,historical:water.historical,source_url:source?.url});
+          loadSelectedWaterShape();loadProfile();
+        }else if(current.code.startsWith("WATER-")){
+          state.waterFeatures.delete(current.code);choose("");
+        }
+      }
+      if(label)label.textContent=water.historical?`Water: ${year} source geometry`:
+        `Water: ${water.features.length.toLocaleString()} reference features · rivers at 400%+`;
+    }catch(error){
+      if(token!==state.waterVersion)return;
+      state.waterGeometry=null;
+      if(label)label.textContent="Detailed water geometry unavailable; coarse reference selection active";
+    }
+  }
+  async function loadSelectedWaterShape(){
+    const token=++state.shapeVersion,code=state.country,record=state.waterFeatures.get(code);
+    const feature=state.waterGeometry?.features.find(item=>item.code===code&&
+      (!record?.source_id||item.source_id===record.source_id));
+    if(!feature){state.selectedRings=[];draw();return;}
+    try {
+      const paths=await state.waterGeometry.geometry(feature);
+      if(token===state.shapeVersion&&code===state.country){state.selectedRings=paths.flat();draw();}
+    }catch(error){if(token===state.shapeVersion){state.selectedRings=[];draw();}}
+  }
+  async function selectAt(x,y,width,height){
+    const token=++state.selectionVersion,year=state.year;
+    const position=geoAt(x,y,width,height);if(!position)return;
+    const land=featureAt(state.lookup,position);
+    let matched=null;
+    try { matched=await state.waterGeometry?.hit(position.lon,position.lat,x,y,
+      point=>project(point,width,height),width,height,state.zoom,Boolean(land)); }
+    catch(error){console.warn("Detailed water selection failed",error);}
+    if(token!==state.selectionVersion||year!==state.year)return;
+    if(matched){
+      const feature=matched.feature,source=state.waterGeometry.sources.get(feature.source);
+      const record={...feature,source_url:feature.source_url||source?.url,
+        source_name:source?.name||source?.id,lat:position.lat,lon:position.lon,
+        historical:state.waterGeometry.historical};
+      state.waterFeatures.set(record.code,record);
+      const point=state.points.find(row=>row.code===record.code);
+      if(!point)state.points.push(record);
+      else Object.assign(point,record);
+      choose(record.code,{focus:false,anchor:position,rings:matched.paths.flat()});return;
+    }
+    const coarse=waterAt(position);
+    if(coarse&&(coarse.kind==="ocean"||!state.waterGeometry)){
+      choose(coarse.code,{focus:false,anchor:position});return;
+    }
+    if(land){choose(land.code,{focus:false,anchor:position});return;}
+    const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
+    if(near&&near.d<14)choose(near.code,{focus:false,anchor:position});
+  }
   function status(text){$("[data-wfb-country-status]").textContent=text;}
-  function choose(code){
+  function choose(code,options={}){
+    state.selectionVersion++;state.selectionAnchor=options.anchor||null;
     state.country=code;
     const select=$("[data-wfb-globe-country]");
     if(code&&!Array.from(select.options).some(option=>option.value===code)){
@@ -425,8 +498,16 @@
     }
     select.value=code;
     const point=state.points.find(x=>x.code===code);
-    if(point&&Number.isFinite(point.lon))state.yaw=point.lon*RAD;
-    loadSelectedShape(true);draw();loadProfile();
+    if(options.focus!==false&&point&&Number.isFinite(point.lon)){
+      state.yaw=point.lon*RAD;
+      if(Number.isFinite(point.lat)){
+        state.pitchOffset=point.lat*RAD-state.axis*state.axialTilt*RAD;state.flatLat=point.lat*RAD;
+      }
+    }
+    if(options.rings){state.shapeVersion++;state.selectedRings=options.rings;}
+    else if(state.waterFeatures.has(code))loadSelectedWaterShape();
+    else loadSelectedShape(options.focus!==false);
+    draw();loadProfile();
   }
   let request=0;
   function callout(rows,statusLabel){
@@ -459,27 +540,36 @@
       status(`${year}: edition source missing. No country record is available.`);
       callout([],"Edition source missing");return;
     }
-    // Legacy category files were assigned by weak headings. Some 2025-labelled
-    // files are explicitly titled 2014 and even the US Introduction contains
-    // the edition preface and other territories. Do not turn those raw chunks
-    // into a country profile, regardless of their entity_code tag.
+    const allowed=new Set((edition.sources||[]).filter(source=>{
+      const title=String(source.source_title||source.name||"");
+      const dated=title.match(/(?:factbook|world factbook)[^0-9]{0,12}((?:19|20)\d{2})(?!\d)/i);
+      return Number(source.edition_year||year)===year&&(!dated||Number(dated[1])===year)&&
+        !/readingroom/i.test(source.url||"");
+    }).map(source=>source.sha256));
+    const groups=new Map();
+    const parts=await Promise.allSettled((edition.categories||[]).map(part=>getJSON(apiPath(part.path))));
+    if(current!==request)return;
+    for(let i=0;i<parts.length;i++){
+      const result=parts[i];if(result.status!=="fulfilled")continue;
+      const chunks=(result.value.chunks||[]).filter(chunk=>chunk.entity_code===code&&
+        Number(chunk.edition_year||year)===year&&allowed.has(chunk.source_sha256)&&
+        chunk.content&&!/^(?:The World Factbook is prepared|This publication is prepared|Preface\b)/i.test(chunk.content.trim()));
+      if(chunks.length)groups.set(edition.categories[i].id,chunks);
+    }
     const note=document.createElement("p");note.className="wfb-country-notice";
-    note.textContent=`No reviewed ${year} ${state.points.find(point=>point.code===code)?.name||code} country profile has been installed. ${edition.chunks||0} archival excerpts remain edition-wide source material pending edition-year and location review.`;
+    note.textContent=groups.size?"Provisional legacy transcription. Source excerpts are tagged to this location and edition; field-level attribution remains unreviewed.":
+      `No attributable ${year} source excerpts are installed for this location.`;
     panel.append(note);
-    const link=document.createElement("a");
-    link.href=new URL(`api/editions/${year}/index.json`,root).href;
-    link.textContent=`Inspect ${year} source inventory and provenance ↗`;
-    link.target="_blank";link.rel="noopener noreferrer";
-    panel.append(link);
-    status(`${year} · country profile pending attribution review · ${edition.chunks||0} edition-wide source excerpts indexed`);
-    callout([],"Country profile pending source review");
+    if(groups.size)feed.legacy(panel,groups);
+    status(`${year} · ${groups.size} source sections · provisional transcription`);
+    callout([],groups.size?"Provisional source excerpts":"No attributed source record");
   }
   async function loadWebFeatures(panel,code,year,current){
     try{
       const manifest=await getJSON(`api/web-archive/years/${year}/index.json`);
       if(current!==request)return;
       const selected=[...(manifest.countries?.[code]||[]),...(manifest.common||[])];
-      const parts=await Promise.all(selected.map(item=>getJSON(`api/${item.path}`)));
+      const parts=await Promise.all(selected.map(item=>getJSON(apiPath(item.path))));
       if(current!==request)return;
       feed.web(panel,parts.flatMap(part=>part.records||[]),root,code,
         state.points.find(point=>point.code===code)?.name||code,year);
@@ -488,13 +578,13 @@
   async function loadLeadership(panel,code,year,current){
     try{
       const manifest=await getJSON(`api/leaders/countries/${code}/${year}/index.json`);
-      const parts=await Promise.all((manifest.parts||[]).map(path=>getJSON(path)));
+      const parts=await Promise.all((manifest.parts||[]).map(path=>getJSON(apiPath(path))));
       if(current!==request)return;
       feed.leaders(panel,parts.flatMap(part=>part.terms||[]),year);
     }catch(error){/* No sourced leadership terms are installed for this country/year. */}
   }
   async function loadHTMLProfile(panel,record,code,year,current){
-    const data=await getJSON(record.path);
+    const data=await getJSON(apiPath(record.path));
     if(current!==request)return;
     if(data.country!==code||Number(data.year)!==year)throw Error("HTML edition identity mismatch");
     const fields=(data.fields||[]).filter(row=>row.country===code&&Number(row.edition_year)===year);
@@ -565,6 +655,7 @@
   }
   async function loadProfile(){
     const current=++request,code=state.country,year=state.year;
+    callout([],"Loading selected source…");
     const panel=$("[data-wfb-country-profile]");panel.replaceChildren();
     const selected=state.catalogue?.countries?.find(row=>row.code===code);
     $("[data-wfb-country-heading]").textContent=selected?.name||state.points.find(x=>x.code===code)?.name||"Select a location";
@@ -587,9 +678,17 @@
       notice.textContent="This selectable water boundary is present-day reference geography. It is not a verified boundary or country profile for the selected Factbook edition.";
       const source=document.createElement("a");source.textContent="View geographic source ↗";
       source.href=water.source_url;source.target="_blank";source.rel="noopener noreferrer";
-      section.append(heading,notice,source);panel.append(section);
-      status(`${water.name} · ${water.kind} · present-day reference · ${year} edition profile pending`);
-      callout([],`${water.kind} · present-day reference`);
+      const details=document.createElement("dl");
+      for(const [name,value] of [["Type",water.kind],["Latitude",water.lat?.toFixed(5)+"°"],
+        ["Longitude",water.lon?.toFixed(5)+"°"],["Boundary source",water.source_name||"Natural Earth"]]){
+        const row=document.createElement("div"),label=document.createElement("dt"),body=document.createElement("dd");
+        label.textContent=name;body.textContent=value;row.className="wfb-country-field";
+        row.append(label,body);details.append(row);
+      }
+      if(water.historical)notice.textContent=`Source geometry installed for edition ${year}.`;
+      section.dataset.category="geography";section.append(heading,notice,details,source);panel.append(section);
+      status(`${water.name} · ${water.kind} · ${water.historical?`${year} source geometry`:"present-day reference"} · ${year} edition profile pending`);
+      callout([["Latitude",water.lat?.toFixed(5)+"°"],["Longitude",water.lon?.toFixed(5)+"°"]],`${water.kind} · ${water.historical?year:"reference geography"}`);
       return;
     }
     if(!entry){
@@ -602,14 +701,14 @@
     }
     status(`${year} · ${edition?.status||"partial"} · loading sourced fields…`);
     try{
-      const index=await getJSON(entry.path);
+      const index=await getJSON(apiPath(entry.path));
       const [parts,mediaParts]=await Promise.all([
-        Promise.all(index.parts.map(part=>getJSON(part.path))),
-        Promise.all((index.media_parts||[]).map(part=>getJSON(part.path)))
+        Promise.all(index.parts.map(part=>getJSON(apiPath(part.path)))),
+        Promise.all((index.media_parts||[]).map(part=>getJSON(apiPath(part.path))))
       ]);
       if(current!==request)return;
       const visuals=[...(index.media||[]),...mediaParts.flatMap(part=>part.media||[])];
-      status(`${year} · ${edition?.status||"partial"} · ${index.fields} fields · ${visuals.length} media · ${index.source.name}`);
+      status(`${year} · ${edition?.status||"partial"} · ${index.fields} fields · ${visuals.length} media · ${index.source?.name||"edition source"}`);
         const allFields=parts.flatMap(part=>part.fields||[]).filter(field=>
           (!field.country||field.country===code) &&
           (!field.edition_year||Number(field.edition_year)===year));
@@ -627,14 +726,15 @@
     }catch(error){if(current===request)status(`Source data unavailable: ${error.message}`);}
   }
   function setYear(year){
-    state.year=Number(year);$("[data-wfb-globe-year]").textContent=year;
+    const selected=Number(year);if(!Number.isInteger(selected)||selected<1962||selected>2027)return;
+    state.selectionVersion++;state.year=selected;$("[data-wfb-globe-year]").textContent=year;
     $("[data-wfb-globe-slider]").value=year;
     state.available=new Set([...(state.catalogue?.countries||[])
       .filter(row=>row.years?.some(entry=>entry.year===state.year)).map(row=>row.code),
       ...Object.entries(state.verifiedHTML?.countries||{})
         .filter(([,rows])=>rows.some(row=>Number(row.year)===state.year)).map(([code])=>code)]);
     boundaryStatus(`Boundaries: loading geometry for ${year}…`);
-    loadBoundaries(state.year);
+    loadBoundaries(state.year);loadWaterGeometry(state.year);
     draw();
     loadProfile();
   }
@@ -644,7 +744,7 @@
       if(event.button!==0&&event.button!==1)return;
       event.preventDefault();
       down={x:event.clientX,y:event.clientY,yaw:state.yaw,pitch:state.pitchOffset,
-        moved:false,button:event.button};
+        flatLat:state.flatLat,moved:false,button:event.button};
       state.dragging=true;
       canvas.setPointerCapture(event.pointerId);
     });
@@ -660,8 +760,10 @@
       const dx=event.clientX-down.x;
       if(Math.abs(dx)+Math.abs(event.clientY-down.y)>5)down.moved=true;
       if(down.moved){
-        state.yaw=down.yaw-dx*.007;
-        if(!state.flat)state.pitchOffset=Math.max(-1.2,Math.min(1.2,down.pitch-(event.clientY-down.y)*.006));
+        state.yaw=down.yaw-dx*.007/state.zoom;
+        if(!state.flat)state.pitchOffset=Math.max(-1.2,Math.min(1.2,down.pitch-(event.clientY-down.y)*.006/state.zoom));
+        if(state.flat)state.flatLat=Math.max(-Math.PI/2,Math.min(Math.PI/2,
+          down.flatLat+(event.clientY-down.y)*Math.PI/(canvas.clientHeight*state.zoom)));
         draw();
       }
     });
@@ -669,13 +771,7 @@
       if(!down)return;
       if(!down.moved&&down.button===0){
         const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-        const position=geoAt(x,y,rect.width,rect.height);
-        const water=waterAt(position);
-        const near=state.candidates.map(p=>({...p,d:Math.hypot(x-p.x,y-p.y)})).sort((a,b)=>a.d-b.d)[0];
-        if(water&&water.kind!=="ocean")choose(water.code);
-        else if(near&&near.d<14)choose(near.code);
-        else{const region=water||featureAt(state.lookup,position);
-          if(region)choose(region.code);}
+        selectAt(x,y,rect.width,rect.height);
       }
       down=null;
       state.dragging=false;
@@ -689,14 +785,18 @@
     });
   }
   function frame(now){
-    const dt=state.lastFrame?Math.max(0,(now-state.lastFrame)/1000):0;
+    const dt=state.lastFrame?Math.min(.25,Math.max(0,(now-state.lastFrame)/1000)):0;
     state.lastFrame=now;
     if(!document.hidden&&state.playing&&!state.dragging){
       const custom=state.rate/state.rotationSeconds;
       const turns=(1-state.axis)*custom-state.axis*state.rate/SIDEREAL_DAY;
-      state.simulatedMs+=dt*state.direction*state.rate*((1-state.axis)*86400/state.rotationSeconds+state.axis)*1000;
+      const step=dt*state.direction*state.rate*((1-state.axis)*86400/state.rotationSeconds+state.axis)*1000;
+      state.simulatedMs+=step;state.sunElapsedMs+=step*state.sunOrbitSpeed;
+      state.moonElapsedMs+=step*state.moonOrbitSpeed;
       state.yaw=(state.yaw+state.direction*TAU*dt*turns)%TAU;
-      draw();
+      if(state.renderer?.kind!=="Canvas 2D fallback"||now-state.lastAnimationDraw>=40){
+        state.lastAnimationDraw=now;draw();
+      }
     }
     requestAnimationFrame(frame);
   }
@@ -728,7 +828,7 @@
     applyTheme("theme-1");
     try{state.catalogue=await getJSON("api/country-archive/index.json");
       if(state.catalogue.country_parts?.length){
-        const parts=await Promise.all(state.catalogue.country_parts.map(part=>getJSON(part.path)));
+        const parts=await Promise.all(state.catalogue.country_parts.map(part=>getJSON(apiPath(part.path))));
         state.catalogue.countries.push(...parts.flatMap(part=>part.countries||[]));
       }
     }
@@ -814,17 +914,21 @@
     setZoom(1);setAxis(0);
     setOrbitControl("tilt",23.44);setOrbitControl("sync",100);setOrbitControl("season",172);
     setBodySpeed("moon",1);setBodySpeed("sun",1);
-    for(const body of ("sun","moon")){
+    for(const body of ["sun","moon"]){
       const toggle=$(`[data-wfb-toggle="${body}"]`);
       toggle.addEventListener("click",()=>{
         const enabled=body==="sun"?!state.showSun:!state.showMoon;
         if(body==="sun")state.showSun=enabled;else state.showMoon=enabled;
         toggle.setAttribute("aria-checked",String(enabled));
+        toggle.textContent=`${body==="sun"?"Sun":"Moon"} ${enabled?"visible":"hidden"}`;
         draw();
       });
     }
     document.querySelectorAll(".wfb-view-switch button[data-wfb-view]").forEach(button=>button.addEventListener("click",()=>{
-      state.flat=button.dataset.wfbView==="2d";
+      const flat=button.dataset.wfbView==="2d";
+      if(flat&&!state.flat)state.flatLat=pitch();
+      if(!flat&&state.flat)state.pitchOffset=state.flatLat-state.axis*state.axialTilt*RAD;
+      state.flat=flat;
       document.querySelectorAll(".wfb-view-switch button[data-wfb-view]").forEach(item=>
         item.setAttribute("aria-pressed",String(item===button)));
       draw();
@@ -863,5 +967,31 @@
     choose(state.points.find(x=>x.code==="IN")?.code||state.points[0]?.code||"");
     requestAnimationFrame(frame);
   }
-  W.globe=Object.freeze({init,choose,setYear});
+  async function refresh(){
+    const payloads=await Promise.allSettled([getJSON("api/country-archive/index.json"),getJSON("api/verified-html/index.json"),
+      getJSON("boundaries/manifest.json"),getJSON("api/portal-index.json")]);
+    if(payloads[0].status==="fulfilled"){
+      const catalog=payloads[0].value;
+      if(catalog.country_parts?.length){
+        const parts=await Promise.all(catalog.country_parts.map(part=>getJSON(apiPath(part.path))));
+        catalog.countries=[...(catalog.countries||[]),...parts.flatMap(part=>part.countries||[])];
+      }
+      state.catalogue=catalog;
+    }
+    if(payloads[1].status==="fulfilled")state.verifiedHTML=payloads[1].value;
+    if(payloads[2].status==="fulfilled")state.boundaryManifest=payloads[2].value;
+    if(payloads[3].status==="fulfilled")state.portal=payloads[3].value;
+    for(const [code,rows] of Object.entries(state.verifiedHTML?.countries||{})){
+      if(state.points.some(point=>point.code===code))continue;
+      const entry=rows.find(row=>Number.isFinite(row.lat)&&Number.isFinite(row.lon))||rows[0];
+      state.points.push({code,name:entry.name,lat:entry.lat,lon:entry.lon});
+      const option=document.createElement("option");option.value=code;option.textContent=`${entry.name} [${code}]`;
+      $("[data-wfb-globe-country]").append(option);
+    }
+    window.WFBWaterBoundaries?.clearCache();setYear(state.year);
+  }
+  W.globe=Object.freeze({init,choose,setYear,refresh,inspect:()=>({year:state.year,country:state.country,
+    zoom:state.zoom,flat:state.flat,showSun:state.showSun,showMoon:state.showMoon,
+    playing:state.playing,solarTime:new Date(state.clockEpochMs+state.sunElapsedMs).toISOString(),
+    waterFeatures:state.waterGeometry?.features.length||0})});
 })();
