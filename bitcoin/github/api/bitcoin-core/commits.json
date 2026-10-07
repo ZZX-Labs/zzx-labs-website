@@ -1,8 +1,177 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-07T17:16:09.842111Z",
+  "generated_at": "2026-10-07T22:15:24.940362Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "node_id": "C_kwDOABII59oAKGRiMGJkZTE2YjkxMGY0M2UzNzI1MmQ0MTcyZDk3ZjAxNjUzYWUwZjE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-07T20:25:35Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-07T20:25:35Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36418: kernel: document that btck_WriteBytes may receive a null pointer\n\nb497a71c6630fe37f25620f9f08f1c52f9d4d558 kernel: document that btck_WriteBytes may receive a null pointer (Alexander Wiederin)\n\nPull request description:\n\n  The header does not say whether the bytes pointer can be null when size is zero. It can: `btck_witness_stack_get_item_at` passes `std::vector::data()` straight through, and that may be null for an empty element.\n\n  An alternative is to guarantee non-null rather than document that it isn't. In other words, route the vector-backed writer calls through a helper that substitutes a valid, never-read pointer when the buffer is empty.\n\nACKs for top commit:\n  stickies-v:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n  sedited:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n\nTree-SHA512: bdcdf8e3ad1e1822af36e5c2014fd7e1aa69169a00a102aad2f1219ebe5cfa9d8c1c6ea56178f3b9437bf42804b7bcc80a83734595e0e79dfc01073678e74806",
+        "tree": {
+          "sha": "0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/db0bde16b910f43e37252d4172d97f01653ae0f1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrGqr8ACgkQm3m0VpHb\nQXMyBRAAzQmq0KpH8PUyqherRwI+BS0A7lRHmRhnidS3YJUWhG6dIQ4gYUq1q3zL\n5mXVu/Ufvs8LjBO5yBhhLGGs1aJe+BPSWpQBMT1n7az4EHvh2VRMk93Ju8q8moxY\nrGuM0eDruMjTSRlqMDRAHJA2ElDzL925sXtLiRvDrBntcxld15FITm/xxJLUz4mV\nkKwRid8SuOKyw9WjjSYMthzCmzGaVrdZsoKQsNKcoyUZ6+k+kaf9mssQklvWOhYo\nZExcMNU6FsqCCtKV+0zCZatJ8h1R5lWKz2qPMFqa3PUPlZjpgNOCTYtbAEjK0oMF\nr56QBu/bypobv7OtDn/050SmBm1Q95Y1MiG33sy7f47GgzVAlHzBuZp17LzhNNRF\nYv69IocnMidF1z0uuPce3HTgo30iBQrKQe+5El5pZGRv+bCCC2/ZGCzIsjoP/QRh\nh7lbcMefyHMGSM3tw+zWbxyQrijcjKf0DLrdsGYaIMK15pwrbVpGTddoBlLbPiQz\nsrYTS05UiCPR0X/Hy0ucnWj6sGUuk9+xvFy1dNjT8rfORPoXPDauGRVckAMmDqUQ\nbd70V9RYbWfNmLIHcLpq93xspJUQJLLTjTaZT3Q2GqcjyH8Gj2T50MUnyFevxBRb\nJyOPt2h/fUAUe5xxH9TV7fP6f8DTRtaqxmWwx1Xm2YdhaEVsk9A=\n=QuCW\n-----END PGP SIGNATURE-----",
+          "payload": "tree 0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb\nparent 9dfde64cc3262329051fd05fffe40eecc786a99f\nparent b497a71c6630fe37f25620f9f08f1c52f9d4d558\nauthor merge-script <seb.kung@gmail.com> 1791404735 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791404735 +0200\n\nMerge bitcoin/bitcoin#36418: kernel: document that btck_WriteBytes may receive a null pointer\n\nb497a71c6630fe37f25620f9f08f1c52f9d4d558 kernel: document that btck_WriteBytes may receive a null pointer (Alexander Wiederin)\n\nPull request description:\n\n  The header does not say whether the bytes pointer can be null when size is zero. It can: `btck_witness_stack_get_item_at` passes `std::vector::data()` straight through, and that may be null for an empty element.\n\n  An alternative is to guarantee non-null rather than document that it isn't. In other words, route the vector-backed writer calls through a helper that substitutes a valid, never-read pointer when the buffer is empty.\n\nACKs for top commit:\n  stickies-v:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n  sedited:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n\nTree-SHA512: bdcdf8e3ad1e1822af36e5c2014fd7e1aa69169a00a102aad2f1219ebe5cfa9d8c1c6ea56178f3b9437bf42804b7bcc80a83734595e0e79dfc01073678e74806\n",
+          "verified_at": "2026-10-07T20:25:59Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db0bde16b910f43e37252d4172d97f01653ae0f1/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
+        },
+        {
+          "sha": "b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b497a71c6630fe37f25620f9f08f1c52f9d4d558"
+        }
+      ]
+    },
+    {
+      "sha": "b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "node_id": "C_kwDOABII59oAKGI0OTdhNzFjNjYzMGZlMzdmMjU2MjBmOWYwOGYxYzUyZjlkNGQ1NTg",
+      "commit": {
+        "author": {
+          "name": "Alexander Wiederin",
+          "email": "alex@wiederin.xyz",
+          "date": "2026-10-02T14:09:23Z"
+        },
+        "committer": {
+          "name": "Alexander Wiederin",
+          "email": "alex@wiederin.xyz",
+          "date": "2026-10-07T17:29:29Z"
+        },
+        "message": "kernel: document that btck_WriteBytes may receive a null pointer\n\nbtck_witness_stack_get_item_at passes std::vector::data() to the writer,\nwhich can be null for an empty witness item. Document this in the\ncontract, together with the other btck_WriteBytes parameters.",
+        "tree": {
+          "sha": "11da9650c5d4261eefeedd1b7708e3314d5debc4",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/11da9650c5d4261eefeedd1b7708e3314d5debc4"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrs4II9Yk79ziwNXEGKsUmoSF5B\nhLD0QSj80cShIsoHYAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQO+ic8QDQ918jHi2954e0/Ke3l2KWsegiDdPzc8TO+t2cWII1A+N8p0h5U8id4EXg4\nDuyWx124JXMqXC5lfxPQw=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 11da9650c5d4261eefeedd1b7708e3314d5debc4\nparent 69142eacd1374925cc9e4ea736c21fcec16307d0\nauthor Alexander Wiederin <alex@wiederin.xyz> 1790950163 +0200\ncommitter Alexander Wiederin <alex@wiederin.xyz> 1791394169 +0200\n\nkernel: document that btck_WriteBytes may receive a null pointer\n\nbtck_witness_stack_get_item_at passes std::vector::data() to the writer,\nwhich can be null for an empty witness item. Document this in the\ncontract, together with the other btck_WriteBytes parameters.\n",
+          "verified_at": "2026-10-07T17:31:21Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558/comments",
+      "author": {
+        "login": "alexanderwiederin",
+        "id": 37130778,
+        "node_id": "MDQ6VXNlcjM3MTMwNzc4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37130778?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/alexanderwiederin",
+        "html_url": "https://github.com/alexanderwiederin",
+        "followers_url": "https://api.github.com/users/alexanderwiederin/followers",
+        "following_url": "https://api.github.com/users/alexanderwiederin/following{/other_user}",
+        "gists_url": "https://api.github.com/users/alexanderwiederin/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/alexanderwiederin/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/alexanderwiederin/subscriptions",
+        "organizations_url": "https://api.github.com/users/alexanderwiederin/orgs",
+        "repos_url": "https://api.github.com/users/alexanderwiederin/repos",
+        "events_url": "https://api.github.com/users/alexanderwiederin/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/alexanderwiederin/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "alexanderwiederin",
+        "id": 37130778,
+        "node_id": "MDQ6VXNlcjM3MTMwNzc4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37130778?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/alexanderwiederin",
+        "html_url": "https://github.com/alexanderwiederin",
+        "followers_url": "https://api.github.com/users/alexanderwiederin/followers",
+        "following_url": "https://api.github.com/users/alexanderwiederin/following{/other_user}",
+        "gists_url": "https://api.github.com/users/alexanderwiederin/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/alexanderwiederin/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/alexanderwiederin/subscriptions",
+        "organizations_url": "https://api.github.com/users/alexanderwiederin/orgs",
+        "repos_url": "https://api.github.com/users/alexanderwiederin/repos",
+        "events_url": "https://api.github.com/users/alexanderwiederin/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/alexanderwiederin/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "69142eacd1374925cc9e4ea736c21fcec16307d0",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/69142eacd1374925cc9e4ea736c21fcec16307d0"
+        }
+      ]
+    },
     {
       "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
       "node_id": "C_kwDOABII59oAKDlkZmRlNjRjYzMyNjIzMjkwNTFmZDA1ZmZmZTQwZWVjYzc4NmE5OWY",
@@ -7841,170 +8010,6 @@
           "sha": "622817f097d68cb1a59004ca7c115110d8bf64a0",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/622817f097d68cb1a59004ca7c115110d8bf64a0",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/622817f097d68cb1a59004ca7c115110d8bf64a0"
-        }
-      ]
-    },
-    {
-      "sha": "d57346d682f17e6cf09f8acc5e7893ee16eec193",
-      "node_id": "C_kwDOABII59oAKGQ1NzM0NmQ2ODJmMTdlNmNmMDlmOGFjYzVlNzg5M2VlMTZlZWMxOTM",
-      "commit": {
-        "author": {
-          "name": "Sebastian Falbesoner",
-          "email": "sebastian.falbesoner@gmail.com",
-          "date": "2026-09-28T23:24:14Z"
-        },
-        "committer": {
-          "name": "Sebastian Falbesoner",
-          "email": "sebastian.falbesoner@gmail.com",
-          "date": "2026-09-28T23:45:28Z"
-        },
-        "message": "doc: add 461 (Deterministic ECDSA signatures with low-R grinding) to bips.md",
-        "tree": {
-          "sha": "275f6fdf4aadb9eef0985a07dc64b48b24fbad48",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/275f6fdf4aadb9eef0985a07dc64b48b24fbad48"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d57346d682f17e6cf09f8acc5e7893ee16eec193",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d57346d682f17e6cf09f8acc5e7893ee16eec193",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/d57346d682f17e6cf09f8acc5e7893ee16eec193",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d57346d682f17e6cf09f8acc5e7893ee16eec193/comments",
-      "author": {
-        "login": "theStack",
-        "id": 91535,
-        "node_id": "MDQ6VXNlcjkxNTM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/91535?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/theStack",
-        "html_url": "https://github.com/theStack",
-        "followers_url": "https://api.github.com/users/theStack/followers",
-        "following_url": "https://api.github.com/users/theStack/following{/other_user}",
-        "gists_url": "https://api.github.com/users/theStack/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/theStack/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/theStack/subscriptions",
-        "organizations_url": "https://api.github.com/users/theStack/orgs",
-        "repos_url": "https://api.github.com/users/theStack/repos",
-        "events_url": "https://api.github.com/users/theStack/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/theStack/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "theStack",
-        "id": 91535,
-        "node_id": "MDQ6VXNlcjkxNTM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/91535?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/theStack",
-        "html_url": "https://github.com/theStack",
-        "followers_url": "https://api.github.com/users/theStack/followers",
-        "following_url": "https://api.github.com/users/theStack/following{/other_user}",
-        "gists_url": "https://api.github.com/users/theStack/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/theStack/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/theStack/subscriptions",
-        "organizations_url": "https://api.github.com/users/theStack/orgs",
-        "repos_url": "https://api.github.com/users/theStack/repos",
-        "events_url": "https://api.github.com/users/theStack/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/theStack/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "90374132737e5f3bd6a0b36e0ded662935552b61",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/90374132737e5f3bd6a0b36e0ded662935552b61",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/90374132737e5f3bd6a0b36e0ded662935552b61"
-        }
-      ]
-    },
-    {
-      "sha": "df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "node_id": "C_kwDOABII59oAKGRmMjk5NGIxNGE0YmEyNmM0Y2NlYmQ2ZGY0YzI0ZDhhYWYyMmQ4NTE",
-      "commit": {
-        "author": {
-          "name": "FlashW",
-          "email": "flashwayne00@gmail.com",
-          "date": "2026-09-28T19:48:32Z"
-        },
-        "committer": {
-          "name": "GitHub",
-          "email": "noreply@github.com",
-          "date": "2026-09-28T19:48:32Z"
-        },
-        "message": "wallet: accept uppercase addresses without amount in sendall\n\nsendall remembers the recipients given without an amount as the strings\nthe user passed, and later finds their outputs by comparing against\nEncodeDestination of each output script, which is the canonical\nlowercase form for bech32. An address given in uppercase, which is\nvalid bech32 and accepted by the rest of the wallet, never matches. Its\noutput then keeps the placeholder amount of 0 and sendall fails with\n\"Specified output amount to bcrt1q... is below dust threshold.\"\n\nStore the decoded destinations of those addresses instead and compare\nthem with the destinations of the outputs, so the match no longer\ndepends on how the address was written.",
-        "tree": {
-          "sha": "d03974e765a7d08cc0135a140fcf55d2ef106ac4",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d03974e765a7d08cc0135a140fcf55d2ef106ac4"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqusSQCRC1aQ7uu5UhlAAAKc0QAIEIlUVk8zg7XHRvudx/alaN\n63tA8d9mfs3G19AJ1m7DUFe8Mwviw4yCSU6VPrcc0d/lyK3NOAmZfXZbJTUyyAWu\nsVM0Q8rGp8JOvbcd826c8LtYJTkuKb117nrtrbm31n378ugNoCzSxXEvc5pjaF8B\ndxN0nlFz5rOwfRSx4BomBYk544NOLZ9fBdUOc0dv8qddXnp7Js22ggANWyPvTGyA\nmuJ/N2HUctk31lO+Y88AW3WkCa3GBncsaSYPlr/k7yvcJnTA61MzYQQlzuVEcGvG\nOfX8yEpBmyMIsNL3i+QAOAKdWqUdpRpzHUoSs10ruTK8/zAWEsB1uoeUw94uAGnI\nfMprfXaffXo+IeQMrYENNsKPLX7TjuVpLO97mBb6XmROzQw3STiAb5xcMDchhR/k\nJssE8xveiKDJ5whqJOU5XQcWxQ0K2ARuOusSfaA0ZK98r5NvWfnpMri0sjdFrpwq\noaDgvmNC7DUJZaRCsVnlgiqT46Gq7OQkNP2Y1U4aS6PtuQ8094XC4qPZvn2g/1/X\nEU62RH056Kqa95IcxRFb6Vkg0snVBRL7vdgY1oCyRXtvuKNeiH6pzMk2MQWU0aGS\nfkDvAEpnfumMQWK24z5YhwUbw914uX87H+3hgXaO+KnNbYRLQU6/mq+MMNwUdRnD\ncd3T+2pHHdVZ7a+LPAAI\n=pCcA\n-----END PGP SIGNATURE-----\n",
-          "payload": "tree d03974e765a7d08cc0135a140fcf55d2ef106ac4\nparent 05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940\nauthor FlashW <flashwayne00@gmail.com> 1790624912 -0300\ncommitter GitHub <noreply@github.com> 1790624912 -0300\n\nwallet: accept uppercase addresses without amount in sendall\n\nsendall remembers the recipients given without an amount as the strings\nthe user passed, and later finds their outputs by comparing against\nEncodeDestination of each output script, which is the canonical\nlowercase form for bech32. An address given in uppercase, which is\nvalid bech32 and accepted by the rest of the wallet, never matches. Its\noutput then keeps the placeholder amount of 0 and sendall fails with\n\"Specified output amount to bcrt1q... is below dust threshold.\"\n\nStore the decoded destinations of those addresses instead and compare\nthem with the destinations of the outputs, so the match no longer\ndepends on how the address was written.",
-          "verified_at": "2026-09-28T19:48:33Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/df2994b14a4ba26c4ccebd6df4c24d8aaf22d851/comments",
-      "author": {
-        "login": "FlashWayne",
-        "id": 332458478,
-        "node_id": "U_kgDOE9Dp7g",
-        "avatar_url": "https://avatars.githubusercontent.com/u/332458478?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/FlashWayne",
-        "html_url": "https://github.com/FlashWayne",
-        "followers_url": "https://api.github.com/users/FlashWayne/followers",
-        "following_url": "https://api.github.com/users/FlashWayne/following{/other_user}",
-        "gists_url": "https://api.github.com/users/FlashWayne/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/FlashWayne/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/FlashWayne/subscriptions",
-        "organizations_url": "https://api.github.com/users/FlashWayne/orgs",
-        "repos_url": "https://api.github.com/users/FlashWayne/repos",
-        "events_url": "https://api.github.com/users/FlashWayne/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/FlashWayne/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "web-flow",
-        "id": 19864447,
-        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
-        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/web-flow",
-        "html_url": "https://github.com/web-flow",
-        "followers_url": "https://api.github.com/users/web-flow/followers",
-        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
-        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
-        "organizations_url": "https://api.github.com/users/web-flow/orgs",
-        "repos_url": "https://api.github.com/users/web-flow/repos",
-        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/web-flow/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/05bc2f53ce0cb239c17dbdd6b261bd2db7d2a940"
         }
       ]
     }
