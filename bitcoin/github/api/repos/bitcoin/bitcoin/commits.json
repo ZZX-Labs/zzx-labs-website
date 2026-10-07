@@ -1,8 +1,177 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-07T18:03:30.259736Z",
+  "generated_at": "2026-10-07T22:48:19.829455Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "node_id": "C_kwDOABII59oAKGRiMGJkZTE2YjkxMGY0M2UzNzI1MmQ0MTcyZDk3ZjAxNjUzYWUwZjE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-07T20:25:35Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-07T20:25:35Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36418: kernel: document that btck_WriteBytes may receive a null pointer\n\nb497a71c6630fe37f25620f9f08f1c52f9d4d558 kernel: document that btck_WriteBytes may receive a null pointer (Alexander Wiederin)\n\nPull request description:\n\n  The header does not say whether the bytes pointer can be null when size is zero. It can: `btck_witness_stack_get_item_at` passes `std::vector::data()` straight through, and that may be null for an empty element.\n\n  An alternative is to guarantee non-null rather than document that it isn't. In other words, route the vector-backed writer calls through a helper that substitutes a valid, never-read pointer when the buffer is empty.\n\nACKs for top commit:\n  stickies-v:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n  sedited:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n\nTree-SHA512: bdcdf8e3ad1e1822af36e5c2014fd7e1aa69169a00a102aad2f1219ebe5cfa9d8c1c6ea56178f3b9437bf42804b7bcc80a83734595e0e79dfc01073678e74806",
+        "tree": {
+          "sha": "0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/db0bde16b910f43e37252d4172d97f01653ae0f1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrGqr8ACgkQm3m0VpHb\nQXMyBRAAzQmq0KpH8PUyqherRwI+BS0A7lRHmRhnidS3YJUWhG6dIQ4gYUq1q3zL\n5mXVu/Ufvs8LjBO5yBhhLGGs1aJe+BPSWpQBMT1n7az4EHvh2VRMk93Ju8q8moxY\nrGuM0eDruMjTSRlqMDRAHJA2ElDzL925sXtLiRvDrBntcxld15FITm/xxJLUz4mV\nkKwRid8SuOKyw9WjjSYMthzCmzGaVrdZsoKQsNKcoyUZ6+k+kaf9mssQklvWOhYo\nZExcMNU6FsqCCtKV+0zCZatJ8h1R5lWKz2qPMFqa3PUPlZjpgNOCTYtbAEjK0oMF\nr56QBu/bypobv7OtDn/050SmBm1Q95Y1MiG33sy7f47GgzVAlHzBuZp17LzhNNRF\nYv69IocnMidF1z0uuPce3HTgo30iBQrKQe+5El5pZGRv+bCCC2/ZGCzIsjoP/QRh\nh7lbcMefyHMGSM3tw+zWbxyQrijcjKf0DLrdsGYaIMK15pwrbVpGTddoBlLbPiQz\nsrYTS05UiCPR0X/Hy0ucnWj6sGUuk9+xvFy1dNjT8rfORPoXPDauGRVckAMmDqUQ\nbd70V9RYbWfNmLIHcLpq93xspJUQJLLTjTaZT3Q2GqcjyH8Gj2T50MUnyFevxBRb\nJyOPt2h/fUAUe5xxH9TV7fP6f8DTRtaqxmWwx1Xm2YdhaEVsk9A=\n=QuCW\n-----END PGP SIGNATURE-----",
+          "payload": "tree 0d99a1bc7b4a0c7d74ff3f44380d8902f1e234bb\nparent 9dfde64cc3262329051fd05fffe40eecc786a99f\nparent b497a71c6630fe37f25620f9f08f1c52f9d4d558\nauthor merge-script <seb.kung@gmail.com> 1791404735 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791404735 +0200\n\nMerge bitcoin/bitcoin#36418: kernel: document that btck_WriteBytes may receive a null pointer\n\nb497a71c6630fe37f25620f9f08f1c52f9d4d558 kernel: document that btck_WriteBytes may receive a null pointer (Alexander Wiederin)\n\nPull request description:\n\n  The header does not say whether the bytes pointer can be null when size is zero. It can: `btck_witness_stack_get_item_at` passes `std::vector::data()` straight through, and that may be null for an empty element.\n\n  An alternative is to guarantee non-null rather than document that it isn't. In other words, route the vector-backed writer calls through a helper that substitutes a valid, never-read pointer when the buffer is empty.\n\nACKs for top commit:\n  stickies-v:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n  sedited:\n    ACK b497a71c6630fe37f25620f9f08f1c52f9d4d558\n\nTree-SHA512: bdcdf8e3ad1e1822af36e5c2014fd7e1aa69169a00a102aad2f1219ebe5cfa9d8c1c6ea56178f3b9437bf42804b7bcc80a83734595e0e79dfc01073678e74806\n",
+          "verified_at": "2026-10-07T20:25:59Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/db0bde16b910f43e37252d4172d97f01653ae0f1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db0bde16b910f43e37252d4172d97f01653ae0f1/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
+        },
+        {
+          "sha": "b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b497a71c6630fe37f25620f9f08f1c52f9d4d558"
+        }
+      ]
+    },
+    {
+      "sha": "b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "node_id": "C_kwDOABII59oAKGI0OTdhNzFjNjYzMGZlMzdmMjU2MjBmOWYwOGYxYzUyZjlkNGQ1NTg",
+      "commit": {
+        "author": {
+          "name": "Alexander Wiederin",
+          "email": "alex@wiederin.xyz",
+          "date": "2026-10-02T14:09:23Z"
+        },
+        "committer": {
+          "name": "Alexander Wiederin",
+          "email": "alex@wiederin.xyz",
+          "date": "2026-10-07T17:29:29Z"
+        },
+        "message": "kernel: document that btck_WriteBytes may receive a null pointer\n\nbtck_witness_stack_get_item_at passes std::vector::data() to the writer,\nwhich can be null for an empty witness item. Document this in the\ncontract, together with the other btck_WriteBytes parameters.",
+        "tree": {
+          "sha": "11da9650c5d4261eefeedd1b7708e3314d5debc4",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/11da9650c5d4261eefeedd1b7708e3314d5debc4"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrs4II9Yk79ziwNXEGKsUmoSF5B\nhLD0QSj80cShIsoHYAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQO+ic8QDQ918jHi2954e0/Ke3l2KWsegiDdPzc8TO+t2cWII1A+N8p0h5U8id4EXg4\nDuyWx124JXMqXC5lfxPQw=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 11da9650c5d4261eefeedd1b7708e3314d5debc4\nparent 69142eacd1374925cc9e4ea736c21fcec16307d0\nauthor Alexander Wiederin <alex@wiederin.xyz> 1790950163 +0200\ncommitter Alexander Wiederin <alex@wiederin.xyz> 1791394169 +0200\n\nkernel: document that btck_WriteBytes may receive a null pointer\n\nbtck_witness_stack_get_item_at passes std::vector::data() to the writer,\nwhich can be null for an empty witness item. Document this in the\ncontract, together with the other btck_WriteBytes parameters.\n",
+          "verified_at": "2026-10-07T17:31:21Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b497a71c6630fe37f25620f9f08f1c52f9d4d558",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b497a71c6630fe37f25620f9f08f1c52f9d4d558/comments",
+      "author": {
+        "login": "alexanderwiederin",
+        "id": 37130778,
+        "node_id": "MDQ6VXNlcjM3MTMwNzc4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37130778?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/alexanderwiederin",
+        "html_url": "https://github.com/alexanderwiederin",
+        "followers_url": "https://api.github.com/users/alexanderwiederin/followers",
+        "following_url": "https://api.github.com/users/alexanderwiederin/following{/other_user}",
+        "gists_url": "https://api.github.com/users/alexanderwiederin/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/alexanderwiederin/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/alexanderwiederin/subscriptions",
+        "organizations_url": "https://api.github.com/users/alexanderwiederin/orgs",
+        "repos_url": "https://api.github.com/users/alexanderwiederin/repos",
+        "events_url": "https://api.github.com/users/alexanderwiederin/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/alexanderwiederin/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "alexanderwiederin",
+        "id": 37130778,
+        "node_id": "MDQ6VXNlcjM3MTMwNzc4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/37130778?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/alexanderwiederin",
+        "html_url": "https://github.com/alexanderwiederin",
+        "followers_url": "https://api.github.com/users/alexanderwiederin/followers",
+        "following_url": "https://api.github.com/users/alexanderwiederin/following{/other_user}",
+        "gists_url": "https://api.github.com/users/alexanderwiederin/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/alexanderwiederin/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/alexanderwiederin/subscriptions",
+        "organizations_url": "https://api.github.com/users/alexanderwiederin/orgs",
+        "repos_url": "https://api.github.com/users/alexanderwiederin/repos",
+        "events_url": "https://api.github.com/users/alexanderwiederin/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/alexanderwiederin/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "69142eacd1374925cc9e4ea736c21fcec16307d0",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/69142eacd1374925cc9e4ea736c21fcec16307d0",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/69142eacd1374925cc9e4ea736c21fcec16307d0"
+        }
+      ]
+    },
     {
       "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
       "node_id": "C_kwDOABII59oAKDlkZmRlNjRjYzMyNjIzMjkwNTFmZDA1ZmZmZTQwZWVjYzc4NmE5OWY",
@@ -1291,90 +1460,6 @@
           "sha": "fa0184afa2f92a3056a905ef17448a744fafcbe2",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0184afa2f92a3056a905ef17448a744fafcbe2",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/fa0184afa2f92a3056a905ef17448a744fafcbe2"
-        }
-      ]
-    },
-    {
-      "sha": "fa0184afa2f92a3056a905ef17448a744fafcbe2",
-      "node_id": "C_kwDOABII59oAKGZhMDE4NGFmYTJmOTJhMzA1NmE5MDVlZjE3NDQ4YTc0NGZhZmNiZTI",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-03-17T19:20:04Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T12:25:22Z"
-        },
-        "message": "refactor: Use util::NotNull<std::unique_ptr<LevelDBContext>> m_db_context\n\nThis allows to drop the runtime Assert every time the context is\naccessed, because the type is known to be not null at compile-time.\n\nNote there is still the runtime Assert inside the util::NotNull\nconstructor itself. However, this is called at most once, with the\npossibility of the compiler being able to optimize it away.",
-        "tree": {
-          "sha": "2c391cbbf1985b5b3ef1689b5b6c272ca599cfb9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/2c391cbbf1985b5b3ef1689b5b6c272ca599cfb9"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa0184afa2f92a3056a905ef17448a744fafcbe2",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQFO8+O/Zm9+EVHFJlL9ht5faoaSyR+s2EhoBm7wE+uhsr8rg+yDUE09hDt4YnWoQBp\nrP+Flg5Ci335Zhwe7Yowo=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 2c391cbbf1985b5b3ef1689b5b6c272ca599cfb9\nparent fafa44e020ab7783515c3176f2205d47e6bc99c3\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1773775204 +0100\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791289522 +0200\n\nrefactor: Use util::NotNull<std::unique_ptr<LevelDBContext>> m_db_context\n\nThis allows to drop the runtime Assert every time the context is\naccessed, because the type is known to be not null at compile-time.\n\nNote there is still the runtime Assert inside the util::NotNull\nconstructor itself. However, this is called at most once, with the\npossibility of the compiler being able to optimize it away.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0184afa2f92a3056a905ef17448a744fafcbe2",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa0184afa2f92a3056a905ef17448a744fafcbe2",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0184afa2f92a3056a905ef17448a744fafcbe2/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fafa44e020ab7783515c3176f2205d47e6bc99c3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fafa44e020ab7783515c3176f2205d47e6bc99c3",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fafa44e020ab7783515c3176f2205d47e6bc99c3"
-        }
-      ]
-    },
-    {
-      "sha": "fafa44e020ab7783515c3176f2205d47e6bc99c3",
-      "node_id": "C_kwDOABII59oAKGZhZmE0NGUwMjBhYjc3ODM1MTVjMzE3NmYyMjA1ZDQ3ZTZiYzk5YzM",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-05-26T11:39:27Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T12:25:09Z"
-        },
-        "message": "util: Add util::NotNull<SmartPtrType>\n\nCo-Authored-By: stickies-v <stickies-v@protonmail.com>\nCo-Authored-By: l0rinc <pap.lorinc@gmail.com>",
-        "tree": {
-          "sha": "218bdf4f409055ddd75f5ccaadd18870fa3aa0fe",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/218bdf4f409055ddd75f5ccaadd18870fa3aa0fe"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fafa44e020ab7783515c3176f2205d47e6bc99c3",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQNZXw0wViIZGWPYfIsS4XBMnKUAxej7H3sGgcCD5o593VcHxtVwOnymvl7bfe9zjN6\nelZ9YHXitqD1htYuNIvwI=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 218bdf4f409055ddd75f5ccaadd18870fa3aa0fe\nparent 67efced1fc83a0b7215cc1513e7c4754fee0f12f\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1779795567 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791289509 +0200\n\nutil: Add util::NotNull<SmartPtrType>\n\nCo-Authored-By: stickies-v <stickies-v@protonmail.com>\nCo-Authored-By: l0rinc <pap.lorinc@gmail.com>\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fafa44e020ab7783515c3176f2205d47e6bc99c3",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fafa44e020ab7783515c3176f2205d47e6bc99c3",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fafa44e020ab7783515c3176f2205d47e6bc99c3/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "67efced1fc83a0b7215cc1513e7c4754fee0f12f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/67efced1fc83a0b7215cc1513e7c4754fee0f12f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/67efced1fc83a0b7215cc1513e7c4754fee0f12f"
         }
       ]
     }
