@@ -1,8 +1,177 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-08T02:32:29.765493Z",
+  "generated_at": "2026-10-08T09:25:58.612848Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "282a05b8d10e317d2ce4b42b96ee8b13345804ea",
+      "node_id": "C_kwDOABII59oAKDI4MmEwNWI4ZDEwZTMxN2QyY2U0YjQyYjk2ZWU4YjEzMzQ1ODA0ZWE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-08T08:32:04Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-08T08:32:04Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36462: rpc: fix OpenRPC hex pattern to allow empty strings\n\n4d7e00d36bf0d287dc241c3aae3852f3d799ed08 rpc: Fix OpenRPC hex pattern to allow empty strings (ViniciusCestarii)\n\nPull request description:\n\n  The OpenRPC schema from `getopenrpcinfo` declares every `STR_HEX` value with the pattern `^[0-9a-fA-F]+$`. That pattern rejects the empty string, but the node both returns and accepts empty hex. For example:\n\n  - `scriptSig.hex` is `\"\"` for native segwit input (`decoderawtransaction`, `getrawtransaction`, etc)\n  - `decodescript \"\"` succeeds\n\n  So a client that validates traffic against the schema rejects valid requests and responses.\n\n  This changes the pattern to `^([0-9a-fA-F]{2})*$` (zero or more hex-encoded bytes)\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n  sedited:\n    ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n  willcl-ark:\n    ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n\nTree-SHA512: 68a9798dbdc7f6369313934b72876ba90e3bdc3d5320dbbfe72ae6ba9a51b27ff723c09979b808088e7a6bc60a15353f5c1d0c9dfb879154239bfaeb3e4ad231",
+        "tree": {
+          "sha": "6d408a99a78c0967adbe24d838098525ccc6c493",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/6d408a99a78c0967adbe24d838098525ccc6c493"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/282a05b8d10e317d2ce4b42b96ee8b13345804ea",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrHVQQACgkQm3m0VpHb\nQXNUSA//V4+s6rq+egoZGOVtVO45l5RL5XekDwkdjsri48KQ50PtTicQsMhI72Sl\nvs0TFJslDKYxOxwzANEvrjkN772QkqEnCRQT4IDIrMvNH6kkOA4x3Phqo797PaWD\nBVLCqMgJSapsUqHnGXDt0VN2uFY6g8tbLD9QWnCFYwDA69UmQLrvZ30xqpBtai3o\ntXjQ8TJz0TjvAN1n0y07jMj4kfEVSbsJKkyyC0HUHCqIzqcazbRqMtp6SNPBsW5s\n/epS66Kbwj/DusZc18hhzflojI2fsPJ6vuCXpVtdDvwgXj+nwtjYFG1+79jFXFU3\nWaVar8nXbB+oI6SGQXlJRETcNCNae3J7DXGYaktdUfiUF83Ww6iso5V1cnTHTRiP\n9YeRH5/VnzduNJR03Oy9PhYbo339PRUVvLqYVLqsP6fTd74OWnt0382yEDQgvVZ3\nE9MMQXRQJubiaaZQd56thuy9jf9ymh3jTHHd7+BkTl6DAncSnGGn7vGuXSXRGmmV\nU35RWoRwRaBkbDT1O2jh6wkZYeQEsFnklTtRfplDwc+LymXuZI7wyFmDJcYV2bSi\nyt+U/trIbOnJa38Sx1SEP5sXX8IHOSoMoJIjHArH5Ag9OgM961/Qn6WFYMnlTt/u\nHjuo2zl0+iUfBTxTsoPG5oUv0hL2GDGaM8MXEq/1UFMNU0xWurI=\n=V3Nh\n-----END PGP SIGNATURE-----",
+          "payload": "tree 6d408a99a78c0967adbe24d838098525ccc6c493\nparent db0bde16b910f43e37252d4172d97f01653ae0f1\nparent 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\nauthor merge-script <seb.kung@gmail.com> 1791448324 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791448324 +0200\n\nMerge bitcoin/bitcoin#36462: rpc: fix OpenRPC hex pattern to allow empty strings\n\n4d7e00d36bf0d287dc241c3aae3852f3d799ed08 rpc: Fix OpenRPC hex pattern to allow empty strings (ViniciusCestarii)\n\nPull request description:\n\n  The OpenRPC schema from `getopenrpcinfo` declares every `STR_HEX` value with the pattern `^[0-9a-fA-F]+$`. That pattern rejects the empty string, but the node both returns and accepts empty hex. For example:\n\n  - `scriptSig.hex` is `\"\"` for native segwit input (`decoderawtransaction`, `getrawtransaction`, etc)\n  - `decodescript \"\"` succeeds\n\n  So a client that validates traffic against the schema rejects valid requests and responses.\n\n  This changes the pattern to `^([0-9a-fA-F]{2})*$` (zero or more hex-encoded bytes)\n\nACKs for top commit:\n  maflcko:\n    lgtm ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n  sedited:\n    ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n  willcl-ark:\n    ACK 4d7e00d36bf0d287dc241c3aae3852f3d799ed08\n\nTree-SHA512: 68a9798dbdc7f6369313934b72876ba90e3bdc3d5320dbbfe72ae6ba9a51b27ff723c09979b808088e7a6bc60a15353f5c1d0c9dfb879154239bfaeb3e4ad231\n",
+          "verified_at": "2026-10-08T08:32:19Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/282a05b8d10e317d2ce4b42b96ee8b13345804ea",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/282a05b8d10e317d2ce4b42b96ee8b13345804ea",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/282a05b8d10e317d2ce4b42b96ee8b13345804ea/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "db0bde16b910f43e37252d4172d97f01653ae0f1",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/db0bde16b910f43e37252d4172d97f01653ae0f1",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/db0bde16b910f43e37252d4172d97f01653ae0f1"
+        },
+        {
+          "sha": "4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4d7e00d36bf0d287dc241c3aae3852f3d799ed08"
+        }
+      ]
+    },
+    {
+      "sha": "4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+      "node_id": "C_kwDOABII59oAKDRkN2UwMGQzNmJmMGQyODdkYzI0MWMzYWFlMzg1MmYzZDc5OWVkMDg",
+      "commit": {
+        "author": {
+          "name": "ViniciusCestarii",
+          "email": "viniciuscestari01@gmail.com",
+          "date": "2026-10-07T22:40:13Z"
+        },
+        "committer": {
+          "name": "ViniciusCestarii",
+          "email": "viniciuscestari01@gmail.com",
+          "date": "2026-10-07T22:40:13Z"
+        },
+        "message": "rpc: Fix OpenRPC hex pattern to allow empty strings",
+        "tree": {
+          "sha": "8c3391ecf415e67deeafbbff4c2d959eea05a66f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8c3391ecf415e67deeafbbff4c2d959eea05a66f"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgY7NROixtPE3hjThUiBvdMFhx+5\nJyj1M7a6RXrjRGqmMAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQHp4bfCMhRaebLCcBfGPLFq2zd9E5sgg6rrn8ee8QRzE2YM4bW2T5y41mfMwRvmbZo\nT9Vmbk7Fim5FNd8rdbEwQ=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 8c3391ecf415e67deeafbbff4c2d959eea05a66f\nparent 9dfde64cc3262329051fd05fffe40eecc786a99f\nauthor ViniciusCestarii <viniciuscestari01@gmail.com> 1791412813 -0300\ncommitter ViniciusCestarii <viniciuscestari01@gmail.com> 1791412813 -0300\n\nrpc: Fix OpenRPC hex pattern to allow empty strings\n",
+          "verified_at": "2026-10-07T22:40:21Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4d7e00d36bf0d287dc241c3aae3852f3d799ed08/comments",
+      "author": {
+        "login": "ViniciusCestarii",
+        "id": 124843824,
+        "node_id": "U_kgDOB3D3MA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ViniciusCestarii",
+        "html_url": "https://github.com/ViniciusCestarii",
+        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
+        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
+        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
+        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
+        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "ViniciusCestarii",
+        "id": 124843824,
+        "node_id": "U_kgDOB3D3MA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ViniciusCestarii",
+        "html_url": "https://github.com/ViniciusCestarii",
+        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
+        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
+        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
+        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
+        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
+        }
+      ]
+    },
     {
       "sha": "db0bde16b910f43e37252d4172d97f01653ae0f1",
       "node_id": "C_kwDOABII59oAKGRiMGJkZTE2YjkxMGY0M2UzNzI1MmQ0MTcyZDk3ZjAxNjUzYWUwZjE",
@@ -1376,90 +1545,6 @@
           "sha": "fa04fafb3aac3666599445f0944090e9d52b41a0",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa04fafb3aac3666599445f0944090e9d52b41a0",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/fa04fafb3aac3666599445f0944090e9d52b41a0"
-        }
-      ]
-    },
-    {
-      "sha": "fa04fafb3aac3666599445f0944090e9d52b41a0",
-      "node_id": "C_kwDOABII59oAKGZhMDRmYWZiM2FhYzM2NjY1OTk0NDVmMDk0NDA5MGU5ZDUyYjQxYTA",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-03-17T21:15:59Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T12:26:53Z"
-        },
-        "message": "refactor: In CNode use util::NotNull<std::unique_ptr<Transport>> m_transport\n\nThis documents (and checks) that the transport pointer is never null.",
-        "tree": {
-          "sha": "c6d2d8e87345920c005f580ac1322363523ad6fd",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c6d2d8e87345920c005f580ac1322363523ad6fd"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa04fafb3aac3666599445f0944090e9d52b41a0",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQA49vhslpjJff30q98Lul+wKvR22+0vjlUKq3AAK1r4YqQbQeyg02uP9E0DSPoJJkS\nCIE3CbwIjrsMSHnWa2YAQ=\n-----END SSH SIGNATURE-----",
-          "payload": "tree c6d2d8e87345920c005f580ac1322363523ad6fd\nparent fae9ab0f0dc40b318d71d3756b55504b95b6c421\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1773782159 +0100\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791289613 +0200\n\nrefactor: In CNode use util::NotNull<std::unique_ptr<Transport>> m_transport\n\nThis documents (and checks) that the transport pointer is never null.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa04fafb3aac3666599445f0944090e9d52b41a0",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa04fafb3aac3666599445f0944090e9d52b41a0",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa04fafb3aac3666599445f0944090e9d52b41a0/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fae9ab0f0dc40b318d71d3756b55504b95b6c421"
-        }
-      ]
-    },
-    {
-      "sha": "fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-      "node_id": "C_kwDOABII59oAKGZhZTlhYjBmMGRjNDBiMzE4ZDcxZDM3NTZiNTU1MDRiOTViNmM0MjE",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-07-09T11:54:17Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T12:25:52Z"
-        },
-        "message": "refactor: Use NotNull pointer to input fetching pool",
-        "tree": {
-          "sha": "84e43e942f442e8490cc19bd4e79a5346d569303",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/84e43e942f442e8490cc19bd4e79a5346d569303"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQONj96MdFVwEM1WSjXfaTpvbbhHcn4sIjrgFd1eRBR+YuUW9tcCH1hzDKLomGLBTuO\nz0PCS11So7NwASMA0r1QE=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 84e43e942f442e8490cc19bd4e79a5346d569303\nparent fa0184afa2f92a3056a905ef17448a744fafcbe2\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1783598057 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791289552 +0200\n\nrefactor: Use NotNull pointer to input fetching pool\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fae9ab0f0dc40b318d71d3756b55504b95b6c421",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fae9ab0f0dc40b318d71d3756b55504b95b6c421/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fa0184afa2f92a3056a905ef17448a744fafcbe2",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0184afa2f92a3056a905ef17448a744fafcbe2",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa0184afa2f92a3056a905ef17448a744fafcbe2"
         }
       ]
     }
