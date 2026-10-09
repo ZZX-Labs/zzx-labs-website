@@ -344,7 +344,7 @@
             catalogPromise = (async () => {
                 const index = await fetchJSON(config.layoutIndexUrl, "Layout catalog");
                 if (!Array.isArray(index.layouts) || index.layouts.length !== 128) {
-                    throw new Error(`CyberChefZZX layout index contains ${Array.isArray(index.layouts) ? index.layouts.length : 0} layouts; expected 128.`);
+                    throw new Error(`ZZXCyberChef layout index contains ${Array.isArray(index.layouts) ? index.layouts.length : 0} layouts; expected 128.`);
                 }
                 this.presets = index.layouts.map((entry, i) => ({ ...entry, index: i }));
                 this.ready = true;
@@ -356,7 +356,7 @@
                 this.ready = false;
                 this.error = err;
                 catalogPromise = null;
-                console.error("[CyberChefZZX layouts]", err);
+                console.error("[ZZXCyberChef layouts]", err);
                 M.Status?.set(err.message || "Layout catalog failed to load.", "error");
                 throw err;
             });
@@ -410,7 +410,7 @@
             } catch (err) {
                 applying = false;
                 if (serial === applySerial) {
-                    console.error("[CyberChefZZX layouts]", err);
+                    console.error("[ZZXCyberChef layouts]", err);
                     M.Status?.set(err.message || "Layout failed to load.", "error");
                 }
                 return null;
