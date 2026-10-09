@@ -1,17 +1,17 @@
 .cz-control-deck{
-  --rack-metal:#252a26;
+  --rack-metal:var(--cz-instrument-metal-hi);
   --rack-dark:#0d100e;
-  --rack-edge:#495148;
+  --rack-edge:var(--cz-instrument-edge);
   --rack-glow:rgba(192,214,116,.28);
   position:relative;
   padding:1rem;
   border:1px solid #4b5348;
-  border-top:0;
+  border-top:1px solid rgba(255,255,255,.04);
   background:
     linear-gradient(180deg,rgba(255,255,255,.025),transparent 16%),
     repeating-linear-gradient(90deg,rgba(255,255,255,.008) 0 1px,transparent 1px 4px),
-    #101310;
-  box-shadow:inset 0 1px rgba(255,255,255,.04),inset 0 -18px 40px rgba(0,0,0,.18);
+    linear-gradient(180deg,#171b18,#0f1210 75%);
+  box-shadow:inset 0 1px rgba(255,255,255,.04),inset 0 -18px 40px rgba(0,0,0,.18),0 8px 22px rgba(0,0,0,.18);
 }
 .cz-control-deck[hidden]{display:none}
 .cz-control-tier-label{
@@ -92,15 +92,14 @@
   min-width:0;
   min-height:82px;
   padding:.4rem .55rem .45rem;
-  border:1px solid #475a5f;
+  border:1px solid var(--cz-oled-border);
   border-radius:6px;
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,.04),
     inset 0 0 24px rgba(0,0,0,.78),
     0 0 0 1px rgba(0,0,0,.4),
     0 10px 16px rgba(0,0,0,.25);
-  background:
-    linear-gradient(180deg,rgba(132,222,255,.08),rgba(22,49,57,.18) 22%,rgba(5,12,14,.96) 100%);
+  background:var(--cz-oled-bg);
   overflow:hidden;
 }
 .cz-oled::before{
