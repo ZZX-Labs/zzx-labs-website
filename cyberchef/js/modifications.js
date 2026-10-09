@@ -2,7 +2,7 @@
     "use strict";
     const M=window.ZZXCyberChefModules,config=window.ZZX.CYBERCHEF;
     const cards=[
-        ["Pristine Native Baseline","<code>/cyberchef/app/</code> is installed byte-for-byte from the official GCHQ production release. The ZZX wrapper never rewrites upstream HTML, JavaScript, CSS, workers, or assets."],
+        ["Upstream Engine Integrity","<code>/cyberchef/app/</code> keeps the official CyberChef engine bundles, workers, and assets unchanged. Its entry HTML includes an additive mobile viewport and compatibility layer for direct Android access; the archived upstream release is unchanged."],
         ["Post-Load CSS Stack","Upstream styling loads first. <code>css/frame/shim.css</code> then imports independent token, font, theme, typography, layout, component, operation, and scrollbar override modules."],
         ["64 Theme Presets","Eight visual families × eight variants produce 64 independently selectable theme systems without editing upstream CyberChef stylesheets."],
         ["128 Layout Presets","Sixteen workspace geometries × eight density profiles produce 128 layouts for Operations, Recipe, Input, Output, and control density."],
