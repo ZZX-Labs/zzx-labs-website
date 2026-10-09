@@ -1166,13 +1166,13 @@
         }
       });
 
-    observer.observe(
-      D.documentElement,
-      {
-        childList: true,
-        subtree: true
-      }
-    );
+    // Observe only the ticker host and its immediate parent. Observing the
+    // entire document made every unrelated page mutation (CyberChef included)
+    // run widget-bootstrap health checks on the main thread.
+    const mount = getMount();
+    const parent = mount?.parentNode || D.body || D.documentElement;
+    observer.observe(parent, { childList: true, subtree: false });
+    if (mount) observer.observe(mount, { childList: true, subtree: false });
 
     D.__zzxTickerLoaderObserver =
       observer;
