@@ -91,7 +91,7 @@
         officialReleasesUrl: "https://github.com/gchq/CyberChef/releases",
         officialLatestReleaseUrl: "https://github.com/gchq/CyberChef/releases/latest",
         officialDownloadUrl: "https://github.com/gchq/CyberChef/releases/latest",
-        frameId: "cz-frame", runtimeId: "cz-runtime", sourceId: "cz-source", loadButtonId: "cz-load", refreshButtonId: "cz-refresh",
+        runtimeId: "cz-runtime", frameId: "cz-frame", sourceId: "cz-source", loadButtonId: "cz-load", refreshButtonId: "cz-refresh",
         statusId: "cz-status", activeSourceId: "cz-active-source", frameStateId: "cz-frame-state", modificationsId: "cz-modifications",
         macroDefaults,
         macroBanks: ["a", "b", "c", "d"], macroSlotsPerBank: 16,
