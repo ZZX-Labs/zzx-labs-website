@@ -132,3 +132,44 @@
   border:1px solid var(--zzx-border-hi, #596849)!important;
   box-shadow:inset 0 0 18px rgba(0,0,0,.35);
 }
+
+/* In Modified mode on phones the default Native preset is still available,
+   but rendered as a spacious vertical four-pane workspace. This never runs
+   inside the direct upstream /cyberchef/app/ native view. */
+@media(max-width:760px){
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #content-wrapper{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:hidden!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #banner{
+    position:absolute!important;left:7px!important;right:7px!important;top:7px!important;
+    width:auto!important;height:90px!important;max-height:90px!important;
+    margin:0!important;padding:5px!important;line-height:1.4!important;
+    display:flex!important;flex-wrap:wrap!important;align-items:center!important;
+    overflow:auto!important;box-sizing:border-box!important;
+  }
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #banner >.col,
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #banner >.col-md-6{
+    flex:1 1 110px!important;min-width:0!important;max-width:100%!important;padding:0!important;
+  }
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #workspace-wrapper{
+    position:absolute!important;top:106px!important;bottom:8px!important;left:8px!important;right:8px!important;
+    display:grid!important;grid-template-areas:"ops" "recipe" "input" "output"!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:repeat(4,minmax(0,1fr))!important;
+    gap:8px!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;
+    box-sizing:border-box!important;
+  }
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #IO{display:contents!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #operations{grid-area:ops!important;overflow-y:auto!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #recipe{grid-area:recipe!important;overflow-y:auto!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #input{grid-area:input!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #output{grid-area:output!important;}
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #operations,
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #recipe,
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #input,
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #output{
+    position:relative!important;float:none!important;display:block!important;width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;max-width:100%!important;
+    box-sizing:border-box!important;overflow-x:hidden!important;
+  }
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #workspace-wrapper > .gutter,
+  :root.zzx-cyberchef-modified:not(.zzx-layout-custom) #IO > .gutter{display:none!important;}
+}
