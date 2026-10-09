@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-09T15:31:58.820515Z",
+  "generated_at": "2026-10-09T20:19:37.283029Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "node_id": "C_kwDOABII59oAKGMwNjdhYTcxNmY4YzViN2IxOTUxZTQ3ZjhkNjdlNmNmMGZjMTQ4MjI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-09T16:07:27Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-09T16:07:27Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36337: fuzz: Cover block filter P2P messages\n\nfab64c032c1a0c997c6ec398cc5578df36b33b7d test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup() (MarcoFalke)\nfadc2c93d3dd46344f660c83005cdfe505d21efc fuzz: Cover block filter P2P messages (MarcoFalke)\n\nPull request description:\n\n  The BIP157 P2P messages are not covered by any fuzz targets at all.\n\n  Fix this to cover them via the P2P targets.\n\n  Should be possible to test by verifying the integer sanitizer is triggered (https://github.com/bitcoin/bitcoin/pull/36321#issuecomment-5810977529):\n\n  ```\n  $ echo 'FwAAAAEAAABcX2dldGNmY2hlY2twdAAftOvdD0sFqXEx6US5VIknlsOJqZ5goMwtmwZBPdCxQVxf\n  AfkGKP39/f0v/Q/9E1AP/f2ybAT1Af39A/399wEAuXEAAAAAAAAAAAB1z3QAbgAAQAHm/f39/f39\n  /f39/S8/D/0B/f3IAAcBBWNmaf8DAAAA' | base64 --decode > /tmp/msg.bin\n\n  $ UBSAN_OPTIONS=\"suppressions=$(pwd)/test/sanitizer_suppressions/ubsan:print_stacktrace=0:halt_on_error=0:report_error_type=1\" FUZZ=process_messages ./bld-cmake/bin/fuzz /tmp/msg.bin\n\n  ./bld-cmake/bin/fuzz: Running 1 inputs 1 time(s) each.\n  /src/net_processing.cpp:3662:33: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'size_type' (aka 'unsigned long')\n  /src/net_processing.cpp:3662:18: runtime error: implicit conversion from type 'size_type' (aka 'unsigned long') of value 18446744073709551615 (64-bit, unsigned) to type 'int' changed the value to -1 (32-bit, signed)\n\nACKs for top commit:\n  marcofleon:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n  Crypt-iQ:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n\nTree-SHA512: 23275c73a53f53b12ddf4466f9cb28fbab109fadcf1280d17c8fb293091958e957922f1abe979948407395e9e8ee2d4b3bd100571dadc049734bf2b0e3f5c155",
+        "tree": {
+          "sha": "f5fbea5cf251db29c558773a9d64004bd9554b13",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f5fbea5cf251db29c558773a9d64004bd9554b13"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrJET8ACgkQm3m0VpHb\nQXPC2xAAhcexbMm2Q2kmeq1XJBiUNJ8I0pmxkmvCQIITK6xjilv/2n9TjIND/JXj\nzm6/vlM3edKFc0LH6xrejvU189BfZhh1SeOxfB0IeVpbvrLtiimaj4JlT8InGu2h\nSnYhvEhDnkljp/4BZ4WmrH10ITXHmYG/5tfezO+0kuADRB/x5D2UsoOtUQcTy5gX\n6s+jCUR/r+FgUAM82HAagpegZJ/Unj5yLzBJnV2EKzD/Xmc2i6Zp/AT2K5AkxByI\nlnc8bXXmS7fLsAxTCSwpJgfe5fNDhuCHsxfuIraH2lG4ZKtaWae0m7yO5H1y1ETX\n9tF7leaGAZKPmIRDBFbXXsmyYra84wxJqQjlywVY8SDcgmQkudxHUt2q1J41+ZJg\nQnv0wkdIaCaPZ3vilsxZrQX3R9JoP7DYHze2QfTcHTEmfhL0d1cbEaeplKRLJYes\nGPQ7/SxxXnYZscFLPlpOpWrb9L3ZbXiBXajKOoI1fEtEx5C1mTmiHllXqigeg+23\nBQ+bPhjmDvnpH1Vt25IxlAo60nfAdcHgy8prcSFWUEMqlIh1YF1E2xwSgTQ/dF1s\nsu0XNKc+PxZoHH747yl+E/CqhNRd7s6NqpsD7yx/RQovxj0feV3EtXr72eAE33Qd\nEp5oesbH8SqbloBwDugMJNgXv9aC0CAyeBAfNCsbcVZWJ2nkzEs=\n=iCyK\n-----END PGP SIGNATURE-----",
+          "payload": "tree f5fbea5cf251db29c558773a9d64004bd9554b13\nparent 4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9\nparent fab64c032c1a0c997c6ec398cc5578df36b33b7d\nauthor merge-script <seb.kung@gmail.com> 1791562047 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791562047 +0200\n\nMerge bitcoin/bitcoin#36337: fuzz: Cover block filter P2P messages\n\nfab64c032c1a0c997c6ec398cc5578df36b33b7d test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup() (MarcoFalke)\nfadc2c93d3dd46344f660c83005cdfe505d21efc fuzz: Cover block filter P2P messages (MarcoFalke)\n\nPull request description:\n\n  The BIP157 P2P messages are not covered by any fuzz targets at all.\n\n  Fix this to cover them via the P2P targets.\n\n  Should be possible to test by verifying the integer sanitizer is triggered (https://github.com/bitcoin/bitcoin/pull/36321#issuecomment-5810977529):\n\n  ```\n  $ echo 'FwAAAAEAAABcX2dldGNmY2hlY2twdAAftOvdD0sFqXEx6US5VIknlsOJqZ5goMwtmwZBPdCxQVxf\n  AfkGKP39/f0v/Q/9E1AP/f2ybAT1Af39A/399wEAuXEAAAAAAAAAAAB1z3QAbgAAQAHm/f39/f39\n  /f39/S8/D/0B/f3IAAcBBWNmaf8DAAAA' | base64 --decode > /tmp/msg.bin\n\n  $ UBSAN_OPTIONS=\"suppressions=$(pwd)/test/sanitizer_suppressions/ubsan:print_stacktrace=0:halt_on_error=0:report_error_type=1\" FUZZ=process_messages ./bld-cmake/bin/fuzz /tmp/msg.bin\n\n  ./bld-cmake/bin/fuzz: Running 1 inputs 1 time(s) each.\n  /src/net_processing.cpp:3662:33: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'size_type' (aka 'unsigned long')\n  /src/net_processing.cpp:3662:18: runtime error: implicit conversion from type 'size_type' (aka 'unsigned long') of value 18446744073709551615 (64-bit, unsigned) to type 'int' changed the value to -1 (32-bit, signed)\n\nACKs for top commit:\n  marcofleon:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n  Crypt-iQ:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n\nTree-SHA512: 23275c73a53f53b12ddf4466f9cb28fbab109fadcf1280d17c8fb293091958e957922f1abe979948407395e9e8ee2d4b3bd100571dadc049734bf2b0e3f5c155\n",
+          "verified_at": "2026-10-09T16:08:32Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9"
+        },
+        {
+          "sha": "fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fab64c032c1a0c997c6ec398cc5578df36b33b7d"
+        }
+      ]
+    },
     {
       "sha": "4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
       "node_id": "C_kwDOABII59oAKDRiYWNmMjFhMTNjMmVkMjVlZjkzNjJjYTM4ZjI2YmYwYTY3ZDIyYzk",
@@ -907,6 +994,90 @@
           "sha": "4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/4d7e00d36bf0d287dc241c3aae3852f3d799ed08"
+        }
+      ]
+    },
+    {
+      "sha": "fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "node_id": "C_kwDOABII59oAKGZhYjY0YzAzMmMxYTBjOTk3YzZlYzM5OGNjNTU3OGRmMzZiMzNiN2Q",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-09-29T16:23:16Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-08T05:09:27Z"
+        },
+        "message": "test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup()\n\nDestroyAllBlockFilterIndexes is a no-op when no indexes exist, but\ncalling it here avoids a use-after-free: The validation signals are\ndestructed in ~ChainTestingSetup, so there is a UAF when\nBaseIndex::~BaseIndex() later calls Stop(), and Stop() dereferences\nm_chain->context()->validation_signals.\n\nThe shutdown order follows the one in init.cpp:\nDestroyAllBlockFilterIndexes() after FlushBackgroundCallbacks().",
+        "tree": {
+          "sha": "62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQII6BAMHSSz0uCWlmqax/4agWumj2Yk0UEC3Lt9gDUXiCbAWNNuwLJMAn8L6kzszCr\nmZn4Za7Phwm8/PsqBZvws=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8\nparent fadc2c93d3dd46344f660c83005cdfe505d21efc\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1790698996 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791436167 +0200\n\ntest: DestroyAllBlockFilterIndexes in ~ChainTestingSetup()\n\nDestroyAllBlockFilterIndexes is a no-op when no indexes exist, but\ncalling it here avoids a use-after-free: The validation signals are\ndestructed in ~ChainTestingSetup, so there is a UAF when\nBaseIndex::~BaseIndex() later calls Stop(), and Stop() dereferences\nm_chain->context()->validation_signals.\n\nThe shutdown order follows the one in init.cpp:\nDestroyAllBlockFilterIndexes() after FlushBackgroundCallbacks().\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "fadc2c93d3dd46344f660c83005cdfe505d21efc",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fadc2c93d3dd46344f660c83005cdfe505d21efc"
+        }
+      ]
+    },
+    {
+      "sha": "fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "node_id": "C_kwDOABII59oAKGZhZGMyYzkzZDNkZDQ2MzQ0ZjY2MGM4MzAwNWNkZmU1MDVkMjFlZmM",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-09-25T17:25:31Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-08T05:09:19Z"
+        },
+        "message": "fuzz: Cover block filter P2P messages",
+        "tree": {
+          "sha": "af85d1c6a3c8f5db253fc7e72542a488566a6820",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/af85d1c6a3c8f5db253fc7e72542a488566a6820"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQC5Bv5kNST0WAbc/PHa96K7YJ0WYuQM0piXVAKxifNaLdI33uvbzoKT774lvyszIyk\navUV4sh8yV5RByU3Dmdw8=\n-----END SSH SIGNATURE-----",
+          "payload": "tree af85d1c6a3c8f5db253fc7e72542a488566a6820\nparent 9dfde64cc3262329051fd05fffe40eecc786a99f\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1790357131 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791436159 +0200\n\nfuzz: Cover block filter P2P messages\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
         }
       ]
     },
@@ -7559,252 +7730,6 @@
           "sha": "e0f16ef9a4894dd91aa7e310e27f7423b139ef00",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e0f16ef9a4894dd91aa7e310e27f7423b139ef00",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/e0f16ef9a4894dd91aa7e310e27f7423b139ef00"
-        }
-      ]
-    },
-    {
-      "sha": "856f9ea158055460764883dfca01491951554d2e",
-      "node_id": "C_kwDOABII59oAKDg1NmY5ZWExNTgwNTU0NjA3NjQ4ODNkZmNhMDE0OTE5NTE1NTRkMmU",
-      "commit": {
-        "author": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-07-11T11:11:49Z"
-        },
-        "committer": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-09-30T12:41:45Z"
-        },
-        "message": "doc: add ipcbind max-connections release note",
-        "tree": {
-          "sha": "2c51d1cfc4ad14339b8a8d638ea055599f73db96",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/2c51d1cfc4ad14339b8a8d638ea055599f73db96"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/856f9ea158055460764883dfca01491951554d2e",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEETG0zo3KCcVN3Kn0mkGSmB0w13icFAmq9A4kbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEJBkpgdMNd4nJSEP/0XyUtKtHdgLHwjoyFM/\nRnIH2xH0IH0Z/a5Qc09b4WkUlZWoDLuiBpzfBpUKN3148bXaDDj4OiLuzkA6LHOG\nKuL49LyhpsjhXqHmyCjyXYn53JP0hkQVoBRKoaTHOLeuBqcM2CCvyZ4+V8hJG6jC\nGo6wOTQ+fIirESbFqCJZYHpK0aMasLWzFltXCX76XvEd2BYWFIksvTa5rgoKC/Cs\nE7VBJROoCknR1+4WPwe+WvH7n0fxGQDu8ybiYw9MMC0Ed8jEMBRZcMsZ+C/1GB3i\npGbUJai3qhbptsijnhPwUt1v9FbL9bB4aPQIDKLv7VkVrdZkXHJ/n2d4fgtSSFLD\nibbv/oQDtPtNfzAI9d3VxAUqzQdX7R2A8DijdC9PPvIaV4RR9pZhi2peLnSXChJN\nPudneWTLKD5sKfFy3rcVkJZ9lcAdMCdDACHt4bi3/bmQO/R6jELmNTPdEGp+5JGA\n6lw3BzeFKDiAalMIzIakPWYQsTB4YWnvI1xZnsX/2MrVUc3zdiB7kxCW/JH8jBVC\nyZU2Ccm8xuVv5ZMUegeIgzhtCy8mcFt7sUIuqI9yiH1LgCSuR0uplXjsjuxOolld\nRzYPmVBLvvAxutxeRRfi/7lYMvzlqZtN88PHdrMER6KFmj9rb/6bNzFeqozqj1Mo\n7ynSw7p8B9yER6+uC3P8hPnP\n=i739\n-----END PGP SIGNATURE-----",
-          "payload": "tree 2c51d1cfc4ad14339b8a8d638ea055599f73db96\nparent bdd381b8ed475b114d6a8ac25bb448515a2a42f9\nauthor Enoch Azariah <enirox001@gmail.com> 1783768309 +0100\ncommitter Enoch Azariah <enirox001@gmail.com> 1790772105 +0100\n\ndoc: add ipcbind max-connections release note\n",
-          "verified_at": "2026-09-30T12:41:58Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/856f9ea158055460764883dfca01491951554d2e",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/856f9ea158055460764883dfca01491951554d2e",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/856f9ea158055460764883dfca01491951554d2e/comments",
-      "author": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/bdd381b8ed475b114d6a8ac25bb448515a2a42f9"
-        }
-      ]
-    },
-    {
-      "sha": "bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-      "node_id": "C_kwDOABII59oAKGJkZDM4MWI4ZWQ0NzViMTE0ZDZhOGFjMjViYjQ0ODUxNWEyYTQyZjk",
-      "commit": {
-        "author": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-07-11T11:10:56Z"
-        },
-        "committer": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-09-30T12:41:45Z"
-        },
-        "message": "ipc: test per-address connection limiting over unix sockets\n\nAdd IPC coverage for local listener capacity over unix sockets.\n\nVerify a listener at capacity resumes accepting after a disconnect, check separate\nlisteners enforce their limits independently, and cover parser and aggregate file\ndescriptor limit boundaries.",
-        "tree": {
-          "sha": "d08c84664d6dede260b5f8109c30c0e6f1b4ffd7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d08c84664d6dede260b5f8109c30c0e6f1b4ffd7"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEETG0zo3KCcVN3Kn0mkGSmB0w13icFAmq9A4kbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEJBkpgdMNd4njJQP/2v2ocdUGSW0U2xmwadR\n+utOTO32F3XbOMwgN76Hhf6FXPg4XgyIH5xXVPyCJz0/zSyH5PVagEQlonOGP5O9\ni52HSJQKFtWCr3uhARsN08pTJ+fxnirhqibzMSC7Ob86uthzW+8viFdlbxR+kmoT\n++6tXSHmI7lDqCZhhyMDMSHy7NG4cFSq88qDIX9pwGGYsox0TWsq0yJfpHe6Es1Y\ncjolNSB3zB5lNnAvGVu/3x3L8eixprxsMGqzDXa3zU4eSUhbz7SK0qt9aObj0Ncz\naf20CaLjLrnJHIwtu25GTXLaW5+foEHSQ73M+oFEZNS2kWErrJYSqgiZrqG2F8/9\nZjnzGhJNEyktBSmmOaUDLlJKt9tRo9BHKqbmYB175I5xxVVjVdgZ++N+5VwaAgN9\nMRWEmsW5heBaIo73cXIxF2PcrzCt060nbYYk1dRmZ19YGU2bBYFY3f7RQUzpyuCe\nwsLc1hIYHA9k0aLUrxsVxmOTiuMONqGYT3ac1RRcqvsF33HJ5BthbK3bFE86nQ4t\ndXGrX/wRLhkz/1gUeDHIF4i2PtSAvmo7J9FsPoR/gWfN79ARb6j1yGT2dxhIofwC\nwRRsdo94grbylIhhKKpo3h+stIn1cERf4lGK9cnINnmS+fIzM53p9Uc//eg6WjTh\nwoivGDIoJMU8z2YsDF0jGuc8\n=a3Ey\n-----END PGP SIGNATURE-----",
-          "payload": "tree d08c84664d6dede260b5f8109c30c0e6f1b4ffd7\nparent 8761d53b250e9bb81e59a21d48598c1b62fa0e65\nauthor Enoch Azariah <enirox001@gmail.com> 1783768256 +0100\ncommitter Enoch Azariah <enirox001@gmail.com> 1790772105 +0100\n\nipc: test per-address connection limiting over unix sockets\n\nAdd IPC coverage for local listener capacity over unix sockets.\n\nVerify a listener at capacity resumes accepting after a disconnect, check separate\nlisteners enforce their limits independently, and cover parser and aggregate file\ndescriptor limit boundaries.\n",
-          "verified_at": "2026-09-30T12:41:58Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/bdd381b8ed475b114d6a8ac25bb448515a2a42f9",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/bdd381b8ed475b114d6a8ac25bb448515a2a42f9/comments",
-      "author": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/8761d53b250e9bb81e59a21d48598c1b62fa0e65"
-        }
-      ]
-    },
-    {
-      "sha": "8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-      "node_id": "C_kwDOABII59oAKDg3NjFkNTNiMjUwZTliYjgxZTU5YTIxZDQ4NTk4YzFiNjJmYTBlNjU",
-      "commit": {
-        "author": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-07-11T11:09:09Z"
-        },
-        "committer": {
-          "name": "Enoch Azariah",
-          "email": "enirox001@gmail.com",
-          "date": "2026-09-30T12:41:32Z"
-        },
-        "message": "ipc: support per-address max-connections on ipcbind\n\nParse optional max-connections socket options from -ipcbind values\nthrough interfaces::Ipc, returning ipc::ListenAddress values that keep\neach listener address and connection limit together.\n\nUse comma delimited socket options to avoid ambiguity with paths\ncontaining colons, and validate each configured limit before adding it\nto IPC file descriptor reservations.",
-        "tree": {
-          "sha": "18c8c6d374c6fcbd9742fe1592e89d4f5b9a8c43",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/18c8c6d374c6fcbd9742fe1592e89d4f5b9a8c43"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEETG0zo3KCcVN3Kn0mkGSmB0w13icFAmq9A3wbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEJBkpgdMNd4n9PwQAIZ72x+0cAqXqSnTNbEi\nfGc2/PggfOzMkAtnsdxYQqDOGMqp6g2bA9z7Q/5LldRT0ZBL66MJml4oFQcQRJoC\nrZZXWbBEnHkPthr1oCr2mZsteoHU9KNG8AM0tMujIZ6PdWLYAspxj8eRECk+WHRu\nBB7W/CM4LcdTcUwMGBNknzho3j6VFjLmji4my05O9URC9Zwt6pglO8XyDlUC/jH3\nm6n/CcmB5rpI5wH/lyByDV9XGPID/e94frU4zuAdhgEoL5WXj2xCCqxpD4tTSZUr\nhr8+8CF+5wMadCA61mc81jcRYQkviwqyauvD7p7Azloy3wWnzHHczaVvF3ttTD/t\nXKf9amXbi8HkoS8frF77g7XunVzVyD0tNHLfDrWBhPeoMgMeqZGRKvxzixbV7ooj\nX4N6KBz6lPblywQESlcLQ6Ir45mw+3gBuOUO7G0FmQahwqV1FFUwxTPdgy+B7Dx5\nhmrDi4r2wf5rNikccRIy6REMvVkHTHhxbBm2KVVaTGYHbcfOO98bzkHSjvOuEjsj\nxXBdq0rN5NLlKpOH8yvDDWCOUhFZFSFBgz66SOfhFCcwXYtNg2F2IbKddJkvddiF\nWWebbsWKE21aWS//H9ptEqkbs3HUp8+cKhsBuKVqPd7qNRBJ1KbRRoJiNh/GpedV\n3ucsvM9J9PKm7EzhGFpybBdE\n=Wm1p\n-----END PGP SIGNATURE-----",
-          "payload": "tree 18c8c6d374c6fcbd9742fe1592e89d4f5b9a8c43\nparent 3d2b65d050962a35b071618a3f32f7a78831e8e3\nauthor Enoch Azariah <enirox001@gmail.com> 1783768149 +0100\ncommitter Enoch Azariah <enirox001@gmail.com> 1790772092 +0100\n\nipc: support per-address max-connections on ipcbind\n\nParse optional max-connections socket options from -ipcbind values\nthrough interfaces::Ipc, returning ipc::ListenAddress values that keep\neach listener address and connection limit together.\n\nUse comma delimited socket options to avoid ambiguity with paths\ncontaining colons, and validate each configured limit before adding it\nto IPC file descriptor reservations.\n",
-          "verified_at": "2026-09-30T12:41:58Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/8761d53b250e9bb81e59a21d48598c1b62fa0e65",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8761d53b250e9bb81e59a21d48598c1b62fa0e65/comments",
-      "author": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "enirox001",
-        "id": 66912335,
-        "node_id": "MDQ6VXNlcjY2OTEyMzM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/66912335?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/enirox001",
-        "html_url": "https://github.com/enirox001",
-        "followers_url": "https://api.github.com/users/enirox001/followers",
-        "following_url": "https://api.github.com/users/enirox001/following{/other_user}",
-        "gists_url": "https://api.github.com/users/enirox001/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/enirox001/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/enirox001/subscriptions",
-        "organizations_url": "https://api.github.com/users/enirox001/orgs",
-        "repos_url": "https://api.github.com/users/enirox001/repos",
-        "events_url": "https://api.github.com/users/enirox001/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/enirox001/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "3d2b65d050962a35b071618a3f32f7a78831e8e3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3d2b65d050962a35b071618a3f32f7a78831e8e3",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/3d2b65d050962a35b071618a3f32f7a78831e8e3"
         }
       ]
     }
