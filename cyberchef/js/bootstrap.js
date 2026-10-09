@@ -79,7 +79,7 @@
                 M.Layouts?.loadCatalog?.()
             ]);
         } catch (err) {
-            console.error("[CyberChefZZX preset bootstrap]", err);
+            console.error("[ZZXCyberChef preset bootstrap]", err);
             M.Status?.set(err.message || "Preset catalog failed to load.", "error");
         }
 
