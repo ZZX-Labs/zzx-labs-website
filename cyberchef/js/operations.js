@@ -21,9 +21,10 @@
 
     function cleanText(node) {
         if (!node) return "";
-        const clone = node.cloneNode(true);
-        clone.querySelectorAll(".op-count, .material-icons, .badge").forEach(n => n.remove());
-        return (clone.textContent || "").replace(/\s+/g, " ").trim();
+        const title = node.querySelector?.(".op-title, .operation-title, [data-operation-title]");
+        if (title) return (title.textContent || "").replace(/\s+/g, " ").trim();
+        // Category header fallback; avoid deep-cloning hundreds of operations.
+        return (node.textContent || "").replace(/\s+/g, " ").trim().slice(0, 180);
     }
 
     function unique(nodes) {
@@ -32,14 +33,12 @@
 
     function operationNodes(root) {
         if (!root) return [];
-        const selectors = [
-            ".op-list li.operation",
-            "li.operation",
-            "[data-operation]",
-            ".operation"
-        ];
-        const nodes = unique(selectors.flatMap(selector => Array.from(root.querySelectorAll(selector))));
-        return nodes.filter(node => !nodes.some(other => other !== node && other.contains(node)));
+        // CyberChef's normal operation list has exactly one LI per operation.
+        // Do not run a quadratic pairwise .contains() search on mobile.
+        const standard = root.querySelectorAll("li.operation");
+        if (standard.length) return Array.from(standard);
+        const alternative = root.querySelectorAll("[data-operation], .operation");
+        return unique(Array.from(alternative)).filter(n => !n.closest?.("li.operation"));
     }
 
     function labelForCategory(node, fallback) {
@@ -251,6 +250,8 @@
 
         reset() {
             state.observer?.disconnect();
+            state.observer = null;
+            clearTimeout(state.timer);
             state.categories = [];
             state.operations = [];
         }
