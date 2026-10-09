@@ -4,7 +4,7 @@
     window.ZZX = window.ZZX || {};
 
     window.ZZX.CYBERCHEF = {
-        title: "CyberChefZZX",
+        title: "ZZXCyberChef",
         version: "latest",
         manifestUrl: "./runtime-manifest.json",
         nativeUrl: "./app/index.html",
