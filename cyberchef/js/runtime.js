@@ -39,8 +39,14 @@
         link.dataset.zzxCyberchefShim = "1";
         link.href = new URL(config.shimUrl, window.location.href).href;
         return new Promise((resolve, reject) => {
-            link.addEventListener("load", () => resolve(link), { once: true });
-            link.addEventListener("error", () => reject(new Error("ZZX CSS shim failed to load.")), { once: true });
+            const timeout = setTimeout(() => fail("ZZX CSS shim timed out."), 6500);
+            function fail(message) {
+                clearTimeout(timeout);
+                link.remove();
+                reject(new Error(message));
+            }
+            link.addEventListener("load", () => { clearTimeout(timeout); resolve(link); }, { once: true });
+            link.addEventListener("error", () => fail("ZZX CSS shim failed to load."), { once: true });
             doc.head.appendChild(link);
         });
     }
@@ -136,11 +142,12 @@
 
     async function setGuardedFrame(node, recipe = "") {
         const html = await fetchNativeHtml();
-        node.setAttribute("src", "about:blank");
+        node.removeAttribute("src");
         node.srcdoc = guardedHtml(html, recipe);
     }
 
-    async function afterLoad(mode) {
+    async function afterLoad(mode, serial = loadSerial) {
+        if (serial !== loadSerial) return;
         const doc = frameDocument();
         const win = frameWindow();
         if (!validate(doc, win)) {
@@ -154,8 +161,25 @@
 
         try {
             if (mode === "modified") {
+                // iframe load fires before CyberChef's async operation UI is usable.
+                // Wait without CPU-intensive DOM polling or observer loops.
+                const started = performance.now();
+                while (serial === loadSerial && !(
+                    doc.querySelector("#content-wrapper") &&
+                    doc.querySelector("#operations") &&
+                    doc.querySelector("#recipe") &&
+                    doc.querySelector("#input") &&
+                    doc.querySelector("#output")
+                )) {
+                    if (performance.now() - started > 16000) {
+                        throw new Error("CyberChef engine did not initialize its workspace within 16 seconds. Open Native Local App to test the upstream engine.");
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 240));
+                }
+                if (serial !== loadSerial || frameDocument() !== doc) return;
                 Status.frame("Applying ZZX modules…");
                 await appendShim(doc);
+                if (serial !== loadSerial || frameDocument() !== doc) return;
                 doc.documentElement.classList.remove("classic", "geocities", "solarizedDark", "solarizedLight");
                 doc.documentElement.classList.add("dark", "zzx-cyberchef-modified");
                 M.Themes?.applyCurrent(false);
@@ -190,13 +214,10 @@
 
     async function prepareStorage(mode) {
         if (!M.Quota?.ensureWritable) return { ok: true, repaired: false, fallback: false, removed: [] };
-        const result = await M.Quota.ensureWritable();
-        if (result.repaired) {
-            Status.set(
-                `CyberChef browser storage quota was full. ZZX backed up CyberChef storage to IndexedDB and freed ${result.removed.length} CyberChef key(s) before loading.`,
-                "ready"
-            );
-        } else if (!result.ok && mode === "native") {
+        // Read-only, synchronous probe on startup. The separate Repair button
+        // performs the opt-in IndexedDB backup and scoped key deletion.
+        const result = M.Quota.probe();
+        if (!result.ok && mode === "native") {
             Status.set(
                 "Browser localStorage is still full. The pristine native app is unmodified and may show CyberChef's QuotaExceededError. Use Modified mode for the guarded runtime or clear site storage for zzx-labs.io.",
                 "error"
@@ -217,6 +238,8 @@
             if (!node) return;
 
             const serial = ++loadSerial;
+            M.Layouts?.reset();
+            M.Operations?.reset();
             currentMode = mode === "native" ? "native" : "modified";
             const select = document.getElementById(config.sourceId);
             if (select) select.value = currentMode;
@@ -233,7 +256,7 @@
                 ? "Loading pristine local CyberChef, then applying ZZX CSS/JS modules…"
                 : "Loading pristine local CyberChef…");
 
-            node.onload = () => afterLoad(currentMode);
+            node.onload = () => { void afterLoad(currentMode, serial); };
 
             const base = config.nativeUrl;
             const target = options.recipe
@@ -271,7 +294,7 @@
         },
 
         reapply() {
-            if (currentMode === "modified") afterLoad("modified");
+            if (currentMode === "modified") void afterLoad("modified", loadSerial);
         }
     };
 
