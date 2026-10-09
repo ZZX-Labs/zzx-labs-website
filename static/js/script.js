@@ -30,8 +30,11 @@
 
   function loadScript(src) {
     return new Promise((resolve, reject) => {
-      const abs = new URL(src, location.href).href;
-      const absPath = new URL(abs).pathname;
+      const url = new URL(src, location.href);
+      const version = document.querySelector('meta[name="asset-version"]')?.getAttribute("content");
+      if (version && !url.searchParams.has("v")) url.searchParams.set("v", version);
+      const abs = url.href;
+      const absPath = url.pathname;
 
       // De-dupe by pathname
       if ([...document.scripts].some(sc => {
