@@ -245,7 +245,7 @@ def validate_custom_page(output_dir: Path) -> None:
         raise RuntimeError("Custom /cyberchef/index.html is missing.")
     html = page.read_text(encoding="utf-8", errors="strict")
     markers = (
-        "CyberChefZZX",
+        "ZZXCyberChef",
         'id="cz-frame"',
         'id="cz-control-deck"',
         'id="cz-modifications"',
@@ -307,14 +307,14 @@ def validate_custom_page(output_dir: Path) -> None:
     ]
     missing = [relative for relative in required if not (output_dir / relative).is_file()]
     if missing:
-        raise RuntimeError("Missing CyberChefZZX module(s): " + ", ".join(missing))
+        raise RuntimeError("Missing ZZXCyberChef module(s): " + ", ".join(missing))
 
     theme_index = json.loads((output_dir / "themes/index.json").read_text(encoding="utf-8"))
     layout_index = json.loads((output_dir / "layouts/index.json").read_text(encoding="utf-8"))
     if theme_index.get("count") != 64 or len(theme_index.get("themes", [])) != 64:
-        raise RuntimeError("CyberChefZZX must expose exactly 64 JSON themes.")
+        raise RuntimeError("ZZXCyberChef must expose exactly 64 JSON themes.")
     if layout_index.get("count") != 128 or len(layout_index.get("layouts", [])) != 128:
-        raise RuntimeError("CyberChefZZX must expose exactly 128 JSON layouts.")
+        raise RuntimeError("ZZXCyberChef must expose exactly 128 JSON layouts.")
 
     theme_dir = output_dir / "themes"
     layout_dir = output_dir / "layouts"
@@ -322,58 +322,58 @@ def validate_custom_page(output_dir: Path) -> None:
     theme_seen: set[str] = set()
     for position, item in enumerate(theme_index["themes"], start=1):
         if not isinstance(item, dict):
-            raise RuntimeError(f"CyberChefZZX theme entry {position} is not an object.")
+            raise RuntimeError(f"ZZXCyberChef theme entry {position} is not an object.")
         rel = item.get("file", "")
         if not isinstance(rel, str) or not rel.endswith(".theme.json"):
-            raise RuntimeError(f"Invalid CyberChefZZX theme file at entry {position}: {rel!r}")
+            raise RuntimeError(f"Invalid ZZXCyberChef theme file at entry {position}: {rel!r}")
         if rel in theme_seen:
-            raise RuntimeError(f"Duplicate CyberChefZZX theme file in index: {rel}")
+            raise RuntimeError(f"Duplicate ZZXCyberChef theme file in index: {rel}")
         theme_seen.add(rel)
         path = theme_dir / rel
         if not path.is_file() or path.stat().st_size == 0:
-            raise RuntimeError(f"Missing CyberChefZZX theme file: {rel!r}")
+            raise RuntimeError(f"Missing ZZXCyberChef theme file: {rel!r}")
         try:
             json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Invalid CyberChefZZX theme JSON {rel!r}: {exc}") from exc
+            raise RuntimeError(f"Invalid ZZXCyberChef theme JSON {rel!r}: {exc}") from exc
 
     layout_seen: set[str] = set()
     for position, item in enumerate(layout_index["layouts"], start=1):
         if not isinstance(item, dict):
-            raise RuntimeError(f"CyberChefZZX layout entry {position} is not an object.")
+            raise RuntimeError(f"ZZXCyberChef layout entry {position} is not an object.")
         rel = item.get("file", "")
         if not isinstance(rel, str) or not rel.endswith(".layout.json"):
-            raise RuntimeError(f"Invalid CyberChefZZX layout file at entry {position}: {rel!r}")
+            raise RuntimeError(f"Invalid ZZXCyberChef layout file at entry {position}: {rel!r}")
         if rel in layout_seen:
-            raise RuntimeError(f"Duplicate CyberChefZZX layout file in index: {rel}")
+            raise RuntimeError(f"Duplicate ZZXCyberChef layout file in index: {rel}")
         layout_seen.add(rel)
         path = layout_dir / rel
         if not path.is_file() or path.stat().st_size == 0:
-            raise RuntimeError(f"Missing CyberChefZZX layout file: {rel!r}")
+            raise RuntimeError(f"Missing ZZXCyberChef layout file: {rel!r}")
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Invalid CyberChefZZX layout JSON {rel!r}: {exc}") from exc
+            raise RuntimeError(f"Invalid ZZXCyberChef layout JSON {rel!r}: {exc}") from exc
 
         if payload.get("native"):
             continue
         if payload.get("schema") != "zzx-cyberchef-layout-v3":
-            raise RuntimeError(f"CyberChefZZX layout {rel!r} must use schema zzx-cyberchef-layout-v3.")
+            raise RuntimeError(f"ZZXCyberChef layout {rel!r} must use schema zzx-cyberchef-layout-v3.")
         workspace = payload.get("workspace") or {}
         areas = workspace.get("areas") or []
         columns = workspace.get("columns") or []
         rows = workspace.get("rows") or []
         if not isinstance(areas, list) or not isinstance(columns, list) or not isinstance(rows, list) or not areas or not columns or not rows:
-            raise RuntimeError(f"CyberChefZZX layout {rel!r} has incomplete workspace geometry.")
+            raise RuntimeError(f"ZZXCyberChef layout {rel!r} has incomplete workspace geometry.")
         widths = [len(str(row).split()) for row in areas]
         if len(set(widths)) != 1 or widths[0] != len(columns) or len(areas) != len(rows):
-            raise RuntimeError(f"CyberChefZZX layout {rel!r} has inconsistent grid dimensions.")
+            raise RuntimeError(f"ZZXCyberChef layout {rel!r} has inconsistent grid dimensions.")
         matrix = [str(row).split() for row in areas]
         required_panes = {"ops", "recipe", "input", "output"}
         tokens = {token for row in matrix for token in row}
         missing_panes = sorted(required_panes - tokens)
         if missing_panes:
-            raise RuntimeError(f"CyberChefZZX layout {rel!r} is missing pane(s): {', '.join(missing_panes)}")
+            raise RuntimeError(f"ZZXCyberChef layout {rel!r} is missing pane(s): {', '.join(missing_panes)}")
         for pane in sorted(required_panes):
             cells = [(r, c) for r, row in enumerate(matrix) for c, value in enumerate(row) if value == pane]
             rs = [r for r, _ in cells]
@@ -381,7 +381,7 @@ def validate_custom_page(output_dir: Path) -> None:
             for r in range(min(rs), max(rs) + 1):
                 for c in range(min(cs), max(cs) + 1):
                     if matrix[r][c] != pane:
-                        raise RuntimeError(f"CyberChefZZX layout {rel!r} has a non-rectangular grid area for {pane}.")
+                        raise RuntimeError(f"ZZXCyberChef layout {rel!r} has a non-rectangular grid area for {pane}.")
 
     extra_themes = sorted(path.name for path in theme_dir.glob("*.theme.json") if path.name not in theme_seen)
     extra_layouts = sorted(path.name for path in layout_dir.glob("*.layout.json") if path.name not in layout_seen)
@@ -393,7 +393,7 @@ def validate_custom_page(output_dir: Path) -> None:
     config_js = (output_dir / "js/config.js").read_text(encoding="utf-8", errors="strict")
     for expected in ('./css/frame/shim.css', './themes/index.json', './layouts/index.json'):
         if expected not in config_js:
-            raise RuntimeError(f"CyberChefZZX config is missing {expected}.")
+            raise RuntimeError(f"ZZXCyberChef config is missing {expected}.")
 
 
 def build(requested_version: str, output_dir: Path, archive: Path | None = None) -> dict[str, object]:
@@ -515,13 +515,13 @@ def main() -> int:
     parser.add_argument(
         "--validate-only",
         action="store_true",
-        help="Validate the CyberChefZZX source tree and preset catalogs without downloading or installing upstream CyberChef.",
+        help="Validate the ZZXCyberChef source tree and preset catalogs without downloading or installing upstream CyberChef.",
     )
     args = parser.parse_args()
     try:
         if args.validate_only:
             validate_custom_page(args.output_dir.resolve())
-            print("CyberChefZZX source validation passed (validator schema v18).")
+            print("ZZXCyberChef source validation passed (validator schema v18).")
             return 0
         build(args.version, args.output_dir, args.archive)
         return 0
