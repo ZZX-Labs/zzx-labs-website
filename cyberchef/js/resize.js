@@ -26,9 +26,9 @@
                 height = Math.max(900, Math.floor(window.innerHeight * 0.78));
             }
 
-            box.style.height = `${height}px`;
-            box.style.minHeight = `${height}px`;
-            child.style.height = `${height}px`;
+            box.style.setProperty("height", `${height}px`, "important");
+            box.style.setProperty("min-height", `${height}px`, "important");
+            child.style.setProperty("height", "100%", "important");
         },
         boot() {
             window.addEventListener("resize", () => this.resize(), { passive: true });
