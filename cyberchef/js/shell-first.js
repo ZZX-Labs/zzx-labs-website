@@ -31,7 +31,7 @@
             if (!footer.children.length) footer.innerHTML = f;
             window.dispatchEvent(new CustomEvent("zzx:cyberchef-shell-ready"));
         } catch (err) {
-            console.warn("[CyberChefZZX] independent header/footer mount failed; sitewide loader will retry:", err);
+            console.warn("[ZZXCyberChef] independent header/footer mount failed; sitewide loader will retry:", err);
         }
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => { void mount(); }, { once: true });
