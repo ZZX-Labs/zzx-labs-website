@@ -38,7 +38,7 @@
   .cz-param-knob{width:42px;height:42px}
 
   .cz-runtime-shell,.cz-container{width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important}
-  .cz-runtime{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:700px!important;min-height:700px!important;border:0!important}
+  .cz-runtime{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:var(--cz-runtime-height,940px)!important;min-height:var(--cz-runtime-height,940px)!important;border:0!important}
   .cz-frame-toolbar{font-size:.58rem;gap:.25rem;flex-wrap:wrap}
   .cz-major-timeline,.cz-release-history-grid{grid-template-columns:minmax(0,1fr)!important}
   .cz-license-full pre{font-size:.55rem;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -55,5 +55,17 @@
   .cz-rotary-label{font-size:.43rem!important}
   .cz-rotary-value{font-size:.55rem!important}
   .cz-rotary-help,.cz-rotary-meter{font-size:.43rem!important}
-  .cz-runtime{height:660px!important;min-height:660px!important}
+  .cz-runtime{height:var(--cz-runtime-height,940px)!important;min-height:var(--cz-runtime-height,940px)!important}
+}
+
+/* Keep the upstream iframe interactive while deferring off-screen history/references. */
+@supports (content-visibility:auto) {
+  .cz-provenance-section { content-visibility:auto; contain-intrinsic-size:auto 900px; }
+}
+.cz-frame { overscroll-behavior:contain; }
+@media (pointer:coarse) {
+  .cz-knob, .cz-param-knob { touch-action:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .cz-knob, .cz-rotary, .cz-rotary-display { animation:none!important; transition:none!important; }
 }
