@@ -91,7 +91,7 @@
     function serialStep(name, work) {
         const previous = stepping.get(name) || Promise.resolve();
         const next = previous.catch(() => {}).then(work).catch(err => {
-            console.error(`[CyberChefZZX rotary:${name}]`, err);
+            console.error(`[ZZXCyberChef rotary:${name}]`, err);
             M.Status?.set(err?.message || `${name} control failed.`, "error");
         });
         stepping.set(name, next);
