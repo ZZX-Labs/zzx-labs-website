@@ -123,7 +123,9 @@
                 ...(preset.workspace || {}),
                 areas: (preset.mobile.areas || ["ops", "recipe", "input", "output"]).map(String),
                 columns: preset.mobile.columns || ["minmax(0,1fr)"],
-                rows: preset.mobile.rows || ["minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)"],
+                rows: (preset.mobile.rows && preset.mobile.rows.length === 4)
+                    ? preset.mobile.rows.map(() => "minmax(0,1fr)")
+                    : ["minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)", "minmax(0,1fr)"],
                 gap: Math.min(6, Number(preset.workspace?.gap ?? 4)),
                 padding: Math.min(.24, Number(preset.workspace?.padding ?? .16))
             },
@@ -293,7 +295,8 @@
             important(gutter.style, "flex-basis", "0");
         });
 
-        root.style.setProperty("--zzx-ui-scale", String(density.scale ?? .88));
+        // Keep mobile text and editable controls legible when the panels stack.
+        root.style.setProperty("--zzx-ui-scale", String(isMobile() ? Math.max(.94, Number(density.scale ?? .88)) : (density.scale ?? .88)));
         root.style.setProperty("--zzx-op-pad-y", `${Number(density.operationPadding ?? 3)}px`);
         root.style.setProperty("--zzx-banner-height", `${bannerHeight}px`);
         root.style.setProperty("--zzx-workspace-gap", gap);
