@@ -1,4 +1,4 @@
-"""CyberChefZZX offline regression tests. Standard-library only.
+"""ZZXCyberChef offline regression tests. Standard-library only.
 
 Run from repository root: python -m unittest discover -s cyberchef/tests -v
 These tests do not require a browser, network, node/npm, or changes to app/.
