@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-09T08:32:53.124983Z",
+  "generated_at": "2026-10-09T20:20:49.253056Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "node_id": "C_kwDOABII59oAKGMwNjdhYTcxNmY4YzViN2IxOTUxZTQ3ZjhkNjdlNmNmMGZjMTQ4MjI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-09T16:07:27Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-09T16:07:27Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36337: fuzz: Cover block filter P2P messages\n\nfab64c032c1a0c997c6ec398cc5578df36b33b7d test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup() (MarcoFalke)\nfadc2c93d3dd46344f660c83005cdfe505d21efc fuzz: Cover block filter P2P messages (MarcoFalke)\n\nPull request description:\n\n  The BIP157 P2P messages are not covered by any fuzz targets at all.\n\n  Fix this to cover them via the P2P targets.\n\n  Should be possible to test by verifying the integer sanitizer is triggered (https://github.com/bitcoin/bitcoin/pull/36321#issuecomment-5810977529):\n\n  ```\n  $ echo 'FwAAAAEAAABcX2dldGNmY2hlY2twdAAftOvdD0sFqXEx6US5VIknlsOJqZ5goMwtmwZBPdCxQVxf\n  AfkGKP39/f0v/Q/9E1AP/f2ybAT1Af39A/399wEAuXEAAAAAAAAAAAB1z3QAbgAAQAHm/f39/f39\n  /f39/S8/D/0B/f3IAAcBBWNmaf8DAAAA' | base64 --decode > /tmp/msg.bin\n\n  $ UBSAN_OPTIONS=\"suppressions=$(pwd)/test/sanitizer_suppressions/ubsan:print_stacktrace=0:halt_on_error=0:report_error_type=1\" FUZZ=process_messages ./bld-cmake/bin/fuzz /tmp/msg.bin\n\n  ./bld-cmake/bin/fuzz: Running 1 inputs 1 time(s) each.\n  /src/net_processing.cpp:3662:33: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'size_type' (aka 'unsigned long')\n  /src/net_processing.cpp:3662:18: runtime error: implicit conversion from type 'size_type' (aka 'unsigned long') of value 18446744073709551615 (64-bit, unsigned) to type 'int' changed the value to -1 (32-bit, signed)\n\nACKs for top commit:\n  marcofleon:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n  Crypt-iQ:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n\nTree-SHA512: 23275c73a53f53b12ddf4466f9cb28fbab109fadcf1280d17c8fb293091958e957922f1abe979948407395e9e8ee2d4b3bd100571dadc049734bf2b0e3f5c155",
+        "tree": {
+          "sha": "f5fbea5cf251db29c558773a9d64004bd9554b13",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f5fbea5cf251db29c558773a9d64004bd9554b13"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrJET8ACgkQm3m0VpHb\nQXPC2xAAhcexbMm2Q2kmeq1XJBiUNJ8I0pmxkmvCQIITK6xjilv/2n9TjIND/JXj\nzm6/vlM3edKFc0LH6xrejvU189BfZhh1SeOxfB0IeVpbvrLtiimaj4JlT8InGu2h\nSnYhvEhDnkljp/4BZ4WmrH10ITXHmYG/5tfezO+0kuADRB/x5D2UsoOtUQcTy5gX\n6s+jCUR/r+FgUAM82HAagpegZJ/Unj5yLzBJnV2EKzD/Xmc2i6Zp/AT2K5AkxByI\nlnc8bXXmS7fLsAxTCSwpJgfe5fNDhuCHsxfuIraH2lG4ZKtaWae0m7yO5H1y1ETX\n9tF7leaGAZKPmIRDBFbXXsmyYra84wxJqQjlywVY8SDcgmQkudxHUt2q1J41+ZJg\nQnv0wkdIaCaPZ3vilsxZrQX3R9JoP7DYHze2QfTcHTEmfhL0d1cbEaeplKRLJYes\nGPQ7/SxxXnYZscFLPlpOpWrb9L3ZbXiBXajKOoI1fEtEx5C1mTmiHllXqigeg+23\nBQ+bPhjmDvnpH1Vt25IxlAo60nfAdcHgy8prcSFWUEMqlIh1YF1E2xwSgTQ/dF1s\nsu0XNKc+PxZoHH747yl+E/CqhNRd7s6NqpsD7yx/RQovxj0feV3EtXr72eAE33Qd\nEp5oesbH8SqbloBwDugMJNgXv9aC0CAyeBAfNCsbcVZWJ2nkzEs=\n=iCyK\n-----END PGP SIGNATURE-----",
+          "payload": "tree f5fbea5cf251db29c558773a9d64004bd9554b13\nparent 4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9\nparent fab64c032c1a0c997c6ec398cc5578df36b33b7d\nauthor merge-script <seb.kung@gmail.com> 1791562047 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791562047 +0200\n\nMerge bitcoin/bitcoin#36337: fuzz: Cover block filter P2P messages\n\nfab64c032c1a0c997c6ec398cc5578df36b33b7d test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup() (MarcoFalke)\nfadc2c93d3dd46344f660c83005cdfe505d21efc fuzz: Cover block filter P2P messages (MarcoFalke)\n\nPull request description:\n\n  The BIP157 P2P messages are not covered by any fuzz targets at all.\n\n  Fix this to cover them via the P2P targets.\n\n  Should be possible to test by verifying the integer sanitizer is triggered (https://github.com/bitcoin/bitcoin/pull/36321#issuecomment-5810977529):\n\n  ```\n  $ echo 'FwAAAAEAAABcX2dldGNmY2hlY2twdAAftOvdD0sFqXEx6US5VIknlsOJqZ5goMwtmwZBPdCxQVxf\n  AfkGKP39/f0v/Q/9E1AP/f2ybAT1Af39A/399wEAuXEAAAAAAAAAAAB1z3QAbgAAQAHm/f39/f39\n  /f39/S8/D/0B/f3IAAcBBWNmaf8DAAAA' | base64 --decode > /tmp/msg.bin\n\n  $ UBSAN_OPTIONS=\"suppressions=$(pwd)/test/sanitizer_suppressions/ubsan:print_stacktrace=0:halt_on_error=0:report_error_type=1\" FUZZ=process_messages ./bld-cmake/bin/fuzz /tmp/msg.bin\n\n  ./bld-cmake/bin/fuzz: Running 1 inputs 1 time(s) each.\n  /src/net_processing.cpp:3662:33: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'size_type' (aka 'unsigned long')\n  /src/net_processing.cpp:3662:18: runtime error: implicit conversion from type 'size_type' (aka 'unsigned long') of value 18446744073709551615 (64-bit, unsigned) to type 'int' changed the value to -1 (32-bit, signed)\n\nACKs for top commit:\n  marcofleon:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n  Crypt-iQ:\n    re-ACK fab64c032c1a0c997c6ec398cc5578df36b33b7d\n\nTree-SHA512: 23275c73a53f53b12ddf4466f9cb28fbab109fadcf1280d17c8fb293091958e957922f1abe979948407395e9e8ee2d4b3bd100571dadc049734bf2b0e3f5c155\n",
+          "verified_at": "2026-10-09T16:08:32Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c067aa716f8c5b7b1951e47f8d67e6cf0fc14822/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9"
+        },
+        {
+          "sha": "fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fab64c032c1a0c997c6ec398cc5578df36b33b7d"
+        }
+      ]
+    },
     {
       "sha": "4bacf21a13c2ed25ef9362ca38f26bf0a67d22c9",
       "node_id": "C_kwDOABII59oAKDRiYWNmMjFhMTNjMmVkMjVlZjkzNjJjYTM4ZjI2YmYwYTY3ZDIyYzk",
@@ -911,6 +998,90 @@
       ]
     },
     {
+      "sha": "fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "node_id": "C_kwDOABII59oAKGZhYjY0YzAzMmMxYTBjOTk3YzZlYzM5OGNjNTU3OGRmMzZiMzNiN2Q",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-09-29T16:23:16Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-08T05:09:27Z"
+        },
+        "message": "test: DestroyAllBlockFilterIndexes in ~ChainTestingSetup()\n\nDestroyAllBlockFilterIndexes is a no-op when no indexes exist, but\ncalling it here avoids a use-after-free: The validation signals are\ndestructed in ~ChainTestingSetup, so there is a UAF when\nBaseIndex::~BaseIndex() later calls Stop(), and Stop() dereferences\nm_chain->context()->validation_signals.\n\nThe shutdown order follows the one in init.cpp:\nDestroyAllBlockFilterIndexes() after FlushBackgroundCallbacks().",
+        "tree": {
+          "sha": "62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQII6BAMHSSz0uCWlmqax/4agWumj2Yk0UEC3Lt9gDUXiCbAWNNuwLJMAn8L6kzszCr\nmZn4Za7Phwm8/PsqBZvws=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 62cd459a48de9afcdaf9cea9290fc0c4c7cdc7f8\nparent fadc2c93d3dd46344f660c83005cdfe505d21efc\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1790698996 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791436167 +0200\n\ntest: DestroyAllBlockFilterIndexes in ~ChainTestingSetup()\n\nDestroyAllBlockFilterIndexes is a no-op when no indexes exist, but\ncalling it here avoids a use-after-free: The validation signals are\ndestructed in ~ChainTestingSetup, so there is a UAF when\nBaseIndex::~BaseIndex() later calls Stop(), and Stop() dereferences\nm_chain->context()->validation_signals.\n\nThe shutdown order follows the one in init.cpp:\nDestroyAllBlockFilterIndexes() after FlushBackgroundCallbacks().\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fab64c032c1a0c997c6ec398cc5578df36b33b7d",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fab64c032c1a0c997c6ec398cc5578df36b33b7d/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "fadc2c93d3dd46344f660c83005cdfe505d21efc",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fadc2c93d3dd46344f660c83005cdfe505d21efc"
+        }
+      ]
+    },
+    {
+      "sha": "fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "node_id": "C_kwDOABII59oAKGZhZGMyYzkzZDNkZDQ2MzQ0ZjY2MGM4MzAwNWNkZmU1MDVkMjFlZmM",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-09-25T17:25:31Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-08T05:09:19Z"
+        },
+        "message": "fuzz: Cover block filter P2P messages",
+        "tree": {
+          "sha": "af85d1c6a3c8f5db253fc7e72542a488566a6820",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/af85d1c6a3c8f5db253fc7e72542a488566a6820"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQC5Bv5kNST0WAbc/PHa96K7YJ0WYuQM0piXVAKxifNaLdI33uvbzoKT774lvyszIyk\navUV4sh8yV5RByU3Dmdw8=\n-----END SSH SIGNATURE-----",
+          "payload": "tree af85d1c6a3c8f5db253fc7e72542a488566a6820\nparent 9dfde64cc3262329051fd05fffe40eecc786a99f\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1790357131 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791436159 +0200\n\nfuzz: Cover block filter P2P messages\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fadc2c93d3dd46344f660c83005cdfe505d21efc",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fadc2c93d3dd46344f660c83005cdfe505d21efc/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
+        }
+      ]
+    },
+    {
       "sha": "4d7e00d36bf0d287dc241c3aae3852f3d799ed08",
       "node_id": "C_kwDOABII59oAKDRkN2UwMGQzNmJmMGQyODdkYzI0MWMzYWFlMzg1MmYzZDc5OWVkMDg",
       "commit": {
@@ -1419,177 +1590,6 @@
           "sha": "fad49a733d611f6d49ab9cb80509b79af500b384",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fad49a733d611f6d49ab9cb80509b79af500b384",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/fad49a733d611f6d49ab9cb80509b79af500b384"
-        }
-      ]
-    },
-    {
-      "sha": "fa466dea808dedfc281cdff842cbefafae574d8a",
-      "node_id": "C_kwDOABII59oAKGZhNDY2ZGVhODA4ZGVkZmMyODFjZGZmODQyY2JlZmFmYWU1NzRkOGE",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T16:13:36Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-07T10:40:54Z"
-        },
-        "message": "test: Avoid pending validation events from TestChain100Setup\n\nDrain events in mineBlock and CreateAndProcessBlock by default to avoid\nintermittnet test failures in scan_for_wallet_transactions_attach_chain\nand other tests.",
-        "tree": {
-          "sha": "437e8306da858cc62b6fcef9db64187930b63d77",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/437e8306da858cc62b6fcef9db64187930b63d77"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa466dea808dedfc281cdff842cbefafae574d8a",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQBr3NzDVmUpOwtcBC+h3THYznhXdY0THYgGDkIegB1IcSlGgKdHTpBjB7kPjxz9OlP\nOZY4J5e7V2Pw71+cr3vgA=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 437e8306da858cc62b6fcef9db64187930b63d77\nparent fa339713dbc58e36b0da0f2f1cce8a231939893f\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791303216 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791369654 +0200\n\ntest: Avoid pending validation events from TestChain100Setup\n\nDrain events in mineBlock and CreateAndProcessBlock by default to avoid\nintermittnet test failures in scan_for_wallet_transactions_attach_chain\nand other tests.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa466dea808dedfc281cdff842cbefafae574d8a",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa466dea808dedfc281cdff842cbefafae574d8a",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa466dea808dedfc281cdff842cbefafae574d8a/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fa339713dbc58e36b0da0f2f1cce8a231939893f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa339713dbc58e36b0da0f2f1cce8a231939893f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa339713dbc58e36b0da0f2f1cce8a231939893f"
-        }
-      ]
-    },
-    {
-      "sha": "fa339713dbc58e36b0da0f2f1cce8a231939893f",
-      "node_id": "C_kwDOABII59oAKGZhMzM5NzEzZGJjNThlMzZiMGRhMGYyZjFjY2U4YTIzMTkzOTg5M2Y",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-06T21:03:44Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-07T10:40:48Z"
-        },
-        "message": "test: Drain all validation events before stopping indexes\n\nNo test relies on pending validation events, and it would be unsafe\nanyway and lead to intermittent tsan error reports.",
-        "tree": {
-          "sha": "f960b7ff4074d1433f3dcfedadb969e79de73c3b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f960b7ff4074d1433f3dcfedadb969e79de73c3b"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa339713dbc58e36b0da0f2f1cce8a231939893f",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQETV173X8NoD+Ebd6aqN7zne1ZisFtfql3xg28IS9ILQOf7Z0TgcBvl45myUu8qVOs\n520usy5lNOnVe5gGt3pAo=\n-----END SSH SIGNATURE-----",
-          "payload": "tree f960b7ff4074d1433f3dcfedadb969e79de73c3b\nparent fa21ac647dc2e28f3b67ea0f057393a3b61e0aa6\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791320624 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1791369648 +0200\n\ntest: Drain all validation events before stopping indexes\n\nNo test relies on pending validation events, and it would be unsafe\nanyway and lead to intermittent tsan error reports.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa339713dbc58e36b0da0f2f1cce8a231939893f",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa339713dbc58e36b0da0f2f1cce8a231939893f",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa339713dbc58e36b0da0f2f1cce8a231939893f/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fa21ac647dc2e28f3b67ea0f057393a3b61e0aa6",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa21ac647dc2e28f3b67ea0f057393a3b61e0aa6",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa21ac647dc2e28f3b67ea0f057393a3b61e0aa6"
-        }
-      ]
-    },
-    {
-      "sha": "9523d2b4a185c704994ef44d2229c3d1604cb9e5",
-      "node_id": "C_kwDOABII59oAKDk1MjNkMmI0YTE4NWM3MDQ5OTRlZjQ0ZDIyMjljM2QxNjA0Y2I5ZTU",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-07T10:34:10Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-07T10:34:10Z"
-        },
-        "message": "Merge bitcoin/bitcoin#34844: util: Add util::NotNull<SmartPtrType>\n\nfa42e2868414544503dcd9ae4bd74c911fedee80 refactor: Return util::NotNull<std::unique_ptr<ChangeSet>> from CTxMemPool::GetChangeSet() (MarcoFalke)\nfa04fafb3aac3666599445f0944090e9d52b41a0 refactor: In CNode use util::NotNull<std::unique_ptr<Transport>> m_transport (MarcoFalke)\nfae9ab0f0dc40b318d71d3756b55504b95b6c421 refactor: Use NotNull pointer to input fetching pool (MarcoFalke)\nfa0184afa2f92a3056a905ef17448a744fafcbe2 refactor: Use util::NotNull<std::unique_ptr<LevelDBContext>> m_db_context (MarcoFalke)\nfafa44e020ab7783515c3176f2205d47e6bc99c3 util: Add util::NotNull<SmartPtrType> (MarcoFalke)\n\nPull request description:\n\n  The C++ standard library lacks a type to denote a smart pointer is not null. For raw pointer there is `std::reference_wrapper`, or a plain reference.\n\n  Other third-party libraries provide such a type, such as `gsl::strict_not_null`.\n\n  Fix all issues by adding `util::NotNull<SmartPtrType>`, which documents (and checks) that the inner pointer is never null.\n\n  This type can be used when passing never-null smart pointers between functions. It removes the need to `Assert()` the pointer before dereference. For example, in a getter function:\n\n  ```cpp\n  util::NotNull<std::unique_ptr<Stats>> GetStats()\n  {\n      return util::NotNull{std::make_unique<Stats>()};\n  }\n\n  int main()\n  {\n      auto stats{GetStats()};\n      stats->foo; // This can never lead to a nullptr deref\n      // Assert(stats)->foo; // This is redundant and won't compile\n  }\n  ```\n\n  Fixes https://github.com/bitcoin/bitcoin/issues/24423\n\nACKs for top commit:\n  l0rinc:\n    quick diff review ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n  sedited:\n    Re-ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n  stickies-v:\n    re-ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n\nTree-SHA512: d467d558715e60990b52536aa9520fda99fdb7e4404f24cbcc7d7d0ef50a88dd72f1a7d7944098513bfe7add4ce8efabe42b151504debcf171c9cb6ec944ce67",
-        "tree": {
-          "sha": "678728a8b864a6ae1acb008d96b6da57cf726b73",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/678728a8b864a6ae1acb008d96b6da57cf726b73"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/9523d2b4a185c704994ef44d2229c3d1604cb9e5",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrGICIACgkQm3m0VpHb\nQXPEMA//YDfUdrqakh6Ik1k6TjAewcNuNFR7fQB3XH+s/z7ubP+h7At/mAbbe/sH\nDoGOb50n4tmoZcxfwOxcCvPeqdiSByxJMOo7F2+dlY81OYVNQRhkSgU5eOSYd0ZA\nBfzy5A/63lnmq7mu/Wb/BaE9BkMmnk4N7f0M/ivExrJ825LRAMygF6/QjOPFOQw8\n4eQ9x3Xzn3XCXVlE3zuLtQ452XMpmJIbcc50b2K2DfrMTUFKc8dFETpV0MvypUX9\nyJPs5Ej6nGnokDpLCB92ODcjAcLGD88kzsCjSqBdxCE6l7Nu+m7OUsgHhxNUsjZ7\nAJoFRA6XsOcgr5EVYbuZI/XoQ80/DvvTUzzwcpgzjS2wuNXjZRVtr5CfoeY/1WvT\nduqwoaxQ1RA1MYrpFi4PKkixiUnwGwVfu8+YPCuO62XV5k4L0ORK6L6Er3Bhb7Xv\nhqJ/z5yt5dTLzb+HdAUGvcXww62VLV1WKrisIJ3bClytPcy2Yw7IpfY3lhy/TUDa\nbJA5YaFTR4A7Tj1T6E+cEMqo/LmayeMEYCM1wXldXpzWAatyt7/vVO2DZAuWc9H1\ndbuGcNEpURDVOdGoG+2mhIkan5trxDUR1kK/JnDiQEAHNlnMGizmKGrEgNcJtkE1\n8Fzuf8MyXwzmGSKf1IqQqoQ+J2O7leYxnRXlJlBVxoFgkJd0s0w=\n=GKVd\n-----END PGP SIGNATURE-----",
-          "payload": "tree 678728a8b864a6ae1acb008d96b6da57cf726b73\nparent 14a328f75df8193d762f421998b859a30aac1f3f\nparent fa42e2868414544503dcd9ae4bd74c911fedee80\nauthor merge-script <seb.kung@gmail.com> 1791369250 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791369250 +0200\n\nMerge bitcoin/bitcoin#34844: util: Add util::NotNull<SmartPtrType>\n\nfa42e2868414544503dcd9ae4bd74c911fedee80 refactor: Return util::NotNull<std::unique_ptr<ChangeSet>> from CTxMemPool::GetChangeSet() (MarcoFalke)\nfa04fafb3aac3666599445f0944090e9d52b41a0 refactor: In CNode use util::NotNull<std::unique_ptr<Transport>> m_transport (MarcoFalke)\nfae9ab0f0dc40b318d71d3756b55504b95b6c421 refactor: Use NotNull pointer to input fetching pool (MarcoFalke)\nfa0184afa2f92a3056a905ef17448a744fafcbe2 refactor: Use util::NotNull<std::unique_ptr<LevelDBContext>> m_db_context (MarcoFalke)\nfafa44e020ab7783515c3176f2205d47e6bc99c3 util: Add util::NotNull<SmartPtrType> (MarcoFalke)\n\nPull request description:\n\n  The C++ standard library lacks a type to denote a smart pointer is not null. For raw pointer there is `std::reference_wrapper`, or a plain reference.\n\n  Other third-party libraries provide such a type, such as `gsl::strict_not_null`.\n\n  Fix all issues by adding `util::NotNull<SmartPtrType>`, which documents (and checks) that the inner pointer is never null.\n\n  This type can be used when passing never-null smart pointers between functions. It removes the need to `Assert()` the pointer before dereference. For example, in a getter function:\n\n  ```cpp\n  util::NotNull<std::unique_ptr<Stats>> GetStats()\n  {\n      return util::NotNull{std::make_unique<Stats>()};\n  }\n\n  int main()\n  {\n      auto stats{GetStats()};\n      stats->foo; // This can never lead to a nullptr deref\n      // Assert(stats)->foo; // This is redundant and won't compile\n  }\n  ```\n\n  Fixes https://github.com/bitcoin/bitcoin/issues/24423\n\nACKs for top commit:\n  l0rinc:\n    quick diff review ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n  sedited:\n    Re-ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n  stickies-v:\n    re-ACK fa42e2868414544503dcd9ae4bd74c911fedee80\n\nTree-SHA512: d467d558715e60990b52536aa9520fda99fdb7e4404f24cbcc7d7d0ef50a88dd72f1a7d7944098513bfe7add4ce8efabe42b151504debcf171c9cb6ec944ce67\n",
-          "verified_at": "2026-10-07T10:36:20Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9523d2b4a185c704994ef44d2229c3d1604cb9e5",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/9523d2b4a185c704994ef44d2229c3d1604cb9e5",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9523d2b4a185c704994ef44d2229c3d1604cb9e5/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "14a328f75df8193d762f421998b859a30aac1f3f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/14a328f75df8193d762f421998b859a30aac1f3f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/14a328f75df8193d762f421998b859a30aac1f3f"
-        },
-        {
-          "sha": "fa42e2868414544503dcd9ae4bd74c911fedee80",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa42e2868414544503dcd9ae4bd74c911fedee80",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa42e2868414544503dcd9ae4bd74c911fedee80"
         }
       ]
     }
