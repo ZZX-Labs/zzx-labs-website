@@ -137,7 +137,7 @@
             catalogPromise = (async () => {
                 const index = await fetchJSON(config.themeIndexUrl, "Theme catalog");
                 if (!Array.isArray(index.themes) || index.themes.length !== 64) {
-                    throw new Error(`CyberChefZZX theme index contains ${Array.isArray(index.themes) ? index.themes.length : 0} themes; expected 64.`);
+                    throw new Error(`ZZXCyberChef theme index contains ${Array.isArray(index.themes) ? index.themes.length : 0} themes; expected 64.`);
                 }
                 this.presets = index.themes.map((entry, i) => ({ ...entry, index: i }));
                 this.ready = true;
@@ -149,7 +149,7 @@
                 this.ready = false;
                 this.error = err;
                 catalogPromise = null;
-                console.error("[CyberChefZZX themes]", err);
+                console.error("[ZZXCyberChef themes]", err);
                 M.Status?.set(err.message || "Theme catalog failed to load.", "error");
                 throw err;
             });
@@ -194,7 +194,7 @@
                 return preset;
             } catch (err) {
                 if (serial === applySerial) {
-                    console.error("[CyberChefZZX themes]", err);
+                    console.error("[ZZXCyberChef themes]", err);
                     M.Status?.set(err.message || "Theme failed to load.", "error");
                 }
                 return null;
