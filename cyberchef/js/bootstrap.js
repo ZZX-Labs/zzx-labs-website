@@ -29,60 +29,40 @@
         }
     }
 
-    function chromePresent() {
-        const header = document.getElementById("zzx-header");
-        const footer = document.getElementById("zzx-footer");
-        return Boolean(header?.children.length && footer?.children.length);
-    }
-
-    function waitForChrome(maxMs = 3200) {
-        if (chromePresent()) return Promise.resolve(true);
-        return new Promise(resolve => {
-            let finished = false;
-            const done = result => {
-                if (finished) return;
-                finished = true;
-                clearTimeout(timeout);
-                window.removeEventListener("zzx:cyberchef-shell-ready", inspect);
-                window.removeEventListener("zzx:frame:ready", inspect);
-                window.removeEventListener("zzx:frame-ready", inspect);
-                resolve(result);
-            };
-            const inspect = () => { if (chromePresent()) done(true); };
-            const timeout = setTimeout(() => done(chromePresent()), maxMs);
-            window.addEventListener("zzx:cyberchef-shell-ready", inspect);
-            window.addEventListener("zzx:frame:ready", inspect);
-            window.addEventListener("zzx:frame-ready", inspect);
-        });
-    }
-
     async function boot() {
         const source = document.getElementById(config.sourceId);
         const stored = Storage.read(config.storageKeys.source, config.defaultSource);
         const initialMode = stored === "native" ? "native" : "modified";
         if (source) source.value = initialMode;
 
-        let started = false;
-        let intersection = null;
-        const startRuntime = (options = {}) => {
-            intersection?.disconnect();
-            intersection = null;
-            started = true;
-            const iframe = document.getElementById(config.frameId);
-            // Once requested, never let iframe loading=lazy defer an explicit
-            // button press or an actual IntersectionObserver intersection.
-            if (iframe) iframe.loading = "eager";
-            return M.Runtime.load(M.Runtime.selectedMode(), options);
+        let initialLoadStarted = false;
+        let intersectionObserver = null;
+        let loadTimer = null;
+
+        const startRuntime = async (options = {}) => {
+            if (options.force) initialLoadStarted = false;
+            if (initialLoadStarted) return;
+            initialLoadStarted = true;
+            if (intersectionObserver) {
+                try { intersectionObserver.disconnect(); } catch (_) {}
+                intersectionObserver = null;
+            }
+            if (loadTimer) {
+                clearTimeout(loadTimer);
+                loadTimer = null;
+            }
+            await M.Runtime.load(M.Runtime.selectedMode(), { force: true });
         };
-        document.getElementById(config.loadButtonId)?.addEventListener("click", () => {
-            void startRuntime({ force: true });
-        });
-        document.getElementById(config.refreshButtonId)?.addEventListener("click", () => {
-            if (started) void M.Runtime.reload();
-            else void startRuntime({ force: true });
-        });
+
+        const triggerImmediateLoad = async () => {
+            initialLoadStarted = false;
+            await M.Runtime.load(M.Runtime.selectedMode(), { force: true });
+        };
+
+        document.getElementById(config.loadButtonId)?.addEventListener("click", () => { void triggerImmediateLoad(); });
+        document.getElementById(config.refreshButtonId)?.addEventListener("click", () => M.Runtime.reload());
         document.getElementById("cz-repair-native")?.addEventListener("click", () => { void repairNative(false); });
-        source?.addEventListener("change", () => { void startRuntime({ force: true }); });
+        source?.addEventListener("change", () => { void triggerImmediateLoad(); });
 
         M.Resize?.boot();
         M.PageModes?.boot();
@@ -102,28 +82,32 @@
             console.error("[CyberChefZZX preset bootstrap]", err);
             M.Status?.set(err.message || "Preset catalog failed to load.", "error");
         }
+
         await M.Rotary?.boot?.();
 
-        // Don't start CyberChef's 13MB engine while header/nav/footer fetches
-        // are still outstanding.  The independent shell-first loader has a
-        // bounded timeout, so it never deadlocks offline operation.
-        await waitForChrome();
+        const statusNode = document.getElementById(config.statusId);
+        if (statusNode) {
+            statusNode.textContent = "Standby. The CyberChef engine will load when the workspace enters view, or immediately when Load is pressed.";
+        }
+        M.Status?.frame?.("Standby");
+
+        const panel = document.getElementById("cz-workspace-panel") || document.getElementById("cz-runtime") || document.getElementById("cz-container");
+        if (panel && "IntersectionObserver" in window) {
+            intersectionObserver = new IntersectionObserver(entries => {
+                if (entries.some(entry => entry.isIntersecting)) {
+                    void startRuntime();
+                }
+            }, { rootMargin: "240px 0px" });
+            intersectionObserver.observe(panel);
+            loadTimer = setTimeout(() => { void startRuntime(); }, 1800);
+        } else {
+            loadTimer = setTimeout(() => { void startRuntime(); }, 500);
+        }
+
         window.ZZXCyberChef = {
-            load: (...args) => {
-                intersection?.disconnect();
-                started = true;
-                const iframe = document.getElementById(config.frameId);
-                if (iframe) iframe.loading = "eager";
-                return M.Runtime.load(...args);
-            },
-            reload: () => started ? M.Runtime.reload() : startRuntime({ force: true }),
-            loadRecipe: recipe => {
-                intersection?.disconnect();
-                started = true;
-                const iframe = document.getElementById(config.frameId);
-                if (iframe) iframe.loading = "eager";
-                return M.Runtime.loadRecipe(recipe);
-            },
+            load: (...args) => M.Runtime.load(...args),
+            reload: () => M.Runtime.reload(),
+            loadRecipe: recipe => M.Runtime.loadRecipe(recipe),
             repairNativeStorage: repairNative,
             getFrame: () => M.Runtime.frame(),
             getDocument: () => M.Runtime.document(),
@@ -132,27 +116,6 @@
             reapplyShim: () => M.Runtime.reapply(),
             modules: M
         };
-
-        M.Status?.frame("Standby");
-        M.Status?.set("Page loaded. CyberChef starts automatically near its workspace, or press Load to start now.");
-
-        const runtime = document.getElementById(config.runtimeId || "cz-runtime");
-        if (runtime && "IntersectionObserver" in window) {
-            intersection = new IntersectionObserver(entries => {
-                if (!started && entries.some(entry => entry.isIntersecting)) {
-                    void startRuntime({ force: true });
-                }
-            }, { rootMargin: matchMedia("(max-width: 760px)").matches ? "120px 0px" : "360px 0px" });
-            intersection.observe(runtime);
-        } else {
-            // Compatibility path for browsers lacking IntersectionObserver.
-            const startOnScroll = () => {
-                window.removeEventListener("scroll", startOnScroll);
-                void startRuntime({ force: true });
-            };
-            window.addEventListener("scroll", startOnScroll, { passive: true, once: true });
-            // The Load button still works when no scrolling is possible.
-        }
     }
 
     if (document.readyState === "loading") {
