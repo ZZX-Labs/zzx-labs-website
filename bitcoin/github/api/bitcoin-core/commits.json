@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-08T21:47:37.441102Z",
+  "generated_at": "2026-10-09T01:44:12.123262Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "acdb32693417c1b6596edfbdd19ab793c010d34f",
+      "node_id": "C_kwDOABII59oAKGFjZGIzMjY5MzQxN2MxYjY1OTZlZGZiZGQxOWFiNzkzYzAxMGQzNGY",
+      "commit": {
+        "author": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-08T23:05:49Z"
+        },
+        "committer": {
+          "name": "Ava Chow",
+          "email": "github@achow101.com",
+          "date": "2026-10-08T23:05:49Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35989: wallet: fix crash on importdescriptors with a range ending at 2^31-1\n\n93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0 doc: add release note for #35989 (Shuvam Pandey)\n457c9e8999fbee1d37f41eaede681f787e657395 script: avoid overflow when checking descriptor range bounds (Shuvam Pandey)\nab3bb55a67cced3551e8ebb658c4d962a10d3715 test: add coverage for descriptor range end bounds (Shuvam Pandey)\n867ad9bffbd3ab26c9899207ddd11380e0c1a1bd wallet: fix integer overflow in descriptor keypool top up (Shuvam Pandey)\n1889440f821d6bf8394050c96cc8e06a2f18d9c2 wallet: reject unrepresentable descriptor import ranges (Shuvam Pandey)\n\nPull request description:\n\n  `WalletDescriptor` stores an exclusive range end in `int32_t`. Importing\n  `[2147483647, 2147483647]` produces an end of `2^31`, which narrows to a negative\n  value and aborts the node during keypool top-up. An import without a range can\n  hit the same issue with an oversized `-keypool`.\n\n  Check the exclusive end before constructing the wallet descriptor, covering\n  both explicit and default ranges. The bound stays wallet-specific: scanning\n  RPCs still accept `INT32_MAX` as an inclusive endpoint.\n\n  Also calculate the keypool top-up endpoint in `int64_t` before checking its\n  bound, and reject reversed ranges before computing `high - low` in\n  `CheckDescriptorRangeBounds`. These fix the overflows reached by\n  `keypoolrefill INT32_MAX` after advancing a descriptor, and by `[INT64_MAX, 0]`,\n  respectively. Regression tests cover all three fixes.\n\n  I tested on macOS arm64 with Clang 22 and UBSan passed: 34 targeted unit\n  cases and the importdescriptors, keypool, deriveaddresses (RPC and CLI),\n  scantxoutset, and scanblocks functional tests.\n\nACKs for top commit:\n  achow101:\n    ACK 93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0\n  polespinasa:\n    ACK 93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0\n\nTree-SHA512: aec09a6e8d71ff1f57f8db6927fd93469e47f3549357dde4fceb3ef77f9c3be802c720d6856578149f78e5a277be8605477dbe9df7fd88555b4db355624cad0f",
+        "tree": {
+          "sha": "147a2c2ee4748f93e971b0a85ab731b68305ff83",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/147a2c2ee4748f93e971b0a85ab731b68305ff83"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/acdb32693417c1b6596edfbdd19ab793c010d34f",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unknown_key",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEFSgSMAeFyWRE0zNNF1ZXMuCOXkEFAmrIIc0ACgkQF1ZXMuCO\nXkHR3A//Y+sn4GVR0ec9viUUH1tay6VnbcVGtUXxdHV00ScyP4ZTDXLEWxu0imWv\nPtiElubXEfCYe0flT8mBjm5P+W76bXFtXDvQLVxBTxHzkISWoSBGns/4RbOSP9O3\ndiNuGh7WPmjkzB71YIsewNiPIejS6O2nIsfgnLDUEVvSsQ1nX+bw1BHL9fIDLWEw\n23qZgKpbtffFKVOV9ZzvT7Vq5axgOQxchC0PS3QA7Ha/hrBaBJfwIZ06vxNzsuha\ngxH6W0pdpQOGQ37zt0IGipBi49u1AMQzbWglpJjU2+HNP3zqOn3uLUHwsA2fTwzY\n9M/Z4KJnP+m1hPwvukqyjHLk1/E6+h7+Yi6Hvp2w8LJFOj5H8w1vCE8yxFOSUfZ0\nw8JFeBIcpPEJb56goyVj/LPJwUbMVqjUsTSCCWWcFIed2ycisT+n/ayRFlOqwx//\n1zFfAYnkXfFiVvhZ/TYggYxMmhzHc2eZcXVqn+SOISNZxYV02g8yNfVPkKrKM5nq\n9Os2ZE6bS5LJgbmKK+jHodeyEVM71ax7YPQ9o5L1kcTYiDGiqyeZD8j16no3krPc\nRFpVJxEJZ87OBH19R4mnzkoyomANzzAj6RBRHwRjp0fY0WPW2KDHIEwzLD790E/H\n5T36/RKiA8zYcgZuNOGmMp2GRnbVACR/DkMOt2MhjO2fKsb3Cmk=\n=CHlh\n-----END PGP SIGNATURE-----\n-----BEGIN OPENTIMESTAMPS GIT TIMESTAMP-----\n\nAQHwIKVzZt524vm24ds9dLcCNzIPr4Y2jRMwFr6Ic7wTehr2CP/wCE0H0WXwqcq1\nCPAQp0I7JKrn3svPcD8FA5/vywjxIMdA7EnRQN6Hh25YZ30uXULfBHZlC8X87Bsq\ncLg0poWDCPEgudhNBfw+LP17ajZMD273G63v+UX5xf4vsz8AMuGmCVYI8QRqyCHV\n8Ag3htoUwDYnxQCD3+MNLvkMjiwraHR0cHM6Ly9ib2IuYnRjLmNhbGVuZGFyLm9w\nZW50aW1lc3RhbXBzLm9yZ//wCMfhDj3t6j8qCPAQSf7LA0xr9q8C5leEs/UrnAjx\nIOCm1xiH2zNtKPsRxtSr428AFMpXKGg2kQsKYKX+6BtSCPEEasgh1fAINaJp/91+\nINoAg9/jDS75DI4uLWh0dHBzOi8vYWxpY2UuYnRjLmNhbGVuZGFyLm9wZW50aW1l\nc3RhbXBzLm9yZ//wENlgHx3CqjnSOoonMEAbAgcI8SCMgeWH37QR3vvN7u/mZ/SI\ndxvRP8XA0+UyA6va6WFujwjxBGrIIdTwCBKJ4x8Zko/jAIPf4w0u+QyOIyJodHRw\nczovL2J0Yy5jYWxlbmRhci5jYXRhbGxheHkuY29t8BDqICIAV+4pybcP1WVp0ele\nCPEgiPuhXm3gknUoQ6WOauACJUKtonHyHeqyhLS9+wfl0yUI8CB1oPh7u0yAmqgk\nlqLO4QmvgFIzEQMz0o+16Bh1IHxXXAjwIHi0Gopr8CZduLTRS3vZlxuWYm9J0MOG\nhBcclNQwFihGCPEEasgh1vAICH6ClQ1iJl8Ag9/jDS75DI4pKGh0dHBzOi8vZmlu\nbmV5LmNhbGVuZGFyLmV0ZXJuaXR5d2FsbC5jb20=\n-----END OPENTIMESTAMPS GIT TIMESTAMP-----",
+          "payload": "tree 147a2c2ee4748f93e971b0a85ab731b68305ff83\nparent f739c7876b81304bdc72e7eaa307702da269ac31\nparent 93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0\nauthor Ava Chow <github@achow101.com> 1791500749 -0700\ncommitter Ava Chow <github@achow101.com> 1791500749 -0700\n\nMerge bitcoin/bitcoin#35989: wallet: fix crash on importdescriptors with a range ending at 2^31-1\n\n93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0 doc: add release note for #35989 (Shuvam Pandey)\n457c9e8999fbee1d37f41eaede681f787e657395 script: avoid overflow when checking descriptor range bounds (Shuvam Pandey)\nab3bb55a67cced3551e8ebb658c4d962a10d3715 test: add coverage for descriptor range end bounds (Shuvam Pandey)\n867ad9bffbd3ab26c9899207ddd11380e0c1a1bd wallet: fix integer overflow in descriptor keypool top up (Shuvam Pandey)\n1889440f821d6bf8394050c96cc8e06a2f18d9c2 wallet: reject unrepresentable descriptor import ranges (Shuvam Pandey)\n\nPull request description:\n\n  `WalletDescriptor` stores an exclusive range end in `int32_t`. Importing\n  `[2147483647, 2147483647]` produces an end of `2^31`, which narrows to a negative\n  value and aborts the node during keypool top-up. An import without a range can\n  hit the same issue with an oversized `-keypool`.\n\n  Check the exclusive end before constructing the wallet descriptor, covering\n  both explicit and default ranges. The bound stays wallet-specific: scanning\n  RPCs still accept `INT32_MAX` as an inclusive endpoint.\n\n  Also calculate the keypool top-up endpoint in `int64_t` before checking its\n  bound, and reject reversed ranges before computing `high - low` in\n  `CheckDescriptorRangeBounds`. These fix the overflows reached by\n  `keypoolrefill INT32_MAX` after advancing a descriptor, and by `[INT64_MAX, 0]`,\n  respectively. Regression tests cover all three fixes.\n\n  I tested on macOS arm64 with Clang 22 and UBSan passed: 34 targeted unit\n  cases and the importdescriptors, keypool, deriveaddresses (RPC and CLI),\n  scantxoutset, and scanblocks functional tests.\n\nACKs for top commit:\n  achow101:\n    ACK 93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0\n  polespinasa:\n    ACK 93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0\n\nTree-SHA512: aec09a6e8d71ff1f57f8db6927fd93469e47f3549357dde4fceb3ef77f9c3be802c720d6856578149f78e5a277be8605477dbe9df7fd88555b4db355624cad0f\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/acdb32693417c1b6596edfbdd19ab793c010d34f",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/acdb32693417c1b6596edfbdd19ab793c010d34f",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/acdb32693417c1b6596edfbdd19ab793c010d34f/comments",
+      "author": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "achow101",
+        "id": 3782274,
+        "node_id": "MDQ6VXNlcjM3ODIyNzQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/3782274?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/achow101",
+        "html_url": "https://github.com/achow101",
+        "followers_url": "https://api.github.com/users/achow101/followers",
+        "following_url": "https://api.github.com/users/achow101/following{/other_user}",
+        "gists_url": "https://api.github.com/users/achow101/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/achow101/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/achow101/subscriptions",
+        "organizations_url": "https://api.github.com/users/achow101/orgs",
+        "repos_url": "https://api.github.com/users/achow101/repos",
+        "events_url": "https://api.github.com/users/achow101/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/achow101/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f739c7876b81304bdc72e7eaa307702da269ac31",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f739c7876b81304bdc72e7eaa307702da269ac31",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f739c7876b81304bdc72e7eaa307702da269ac31"
+        },
+        {
+          "sha": "93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0"
+        }
+      ]
+    },
     {
       "sha": "f739c7876b81304bdc72e7eaa307702da269ac31",
       "node_id": "C_kwDOABII59oAKGY3MzljNzg3NmI4MTMwNGJkYzcyZTdlYWEzMDc3MDJkYTI2OWFjMzE",
@@ -2183,6 +2270,88 @@
           "sha": "aef8a04966d7ab6c04edc5d19b733e78205405de",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/aef8a04966d7ab6c04edc5d19b733e78205405de",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/aef8a04966d7ab6c04edc5d19b733e78205405de"
+        }
+      ]
+    },
+    {
+      "sha": "93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+      "node_id": "C_kwDOABII59oAKDkzYzhhZWMzZmJjOGM1YTJmY2M4MzRjNGFjYzFiN2Q5NmJmZmE5YTA",
+      "commit": {
+        "author": {
+          "name": "Shuvam Pandey",
+          "email": "shuvampandey1@gmail.com",
+          "date": "2026-09-29T18:42:48Z"
+        },
+        "committer": {
+          "name": "Shuvam Pandey",
+          "email": "shuvampandey1@gmail.com",
+          "date": "2026-10-06T13:42:20Z"
+        },
+        "message": "doc: add release note for #35989",
+        "tree": {
+          "sha": "b29d25db157b007d19bb6241372d6b049a1353ff",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b29d25db157b007d19bb6241372d6b049a1353ff"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/93c8aec3fbc8c5a2fcc834c4acc1b7d96bffa9a0/comments",
+      "author": {
+        "login": "shuv-amp",
+        "id": 63120087,
+        "node_id": "MDQ6VXNlcjYzMTIwMDg3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/63120087?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/shuv-amp",
+        "html_url": "https://github.com/shuv-amp",
+        "followers_url": "https://api.github.com/users/shuv-amp/followers",
+        "following_url": "https://api.github.com/users/shuv-amp/following{/other_user}",
+        "gists_url": "https://api.github.com/users/shuv-amp/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/shuv-amp/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/shuv-amp/subscriptions",
+        "organizations_url": "https://api.github.com/users/shuv-amp/orgs",
+        "repos_url": "https://api.github.com/users/shuv-amp/repos",
+        "events_url": "https://api.github.com/users/shuv-amp/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/shuv-amp/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "shuv-amp",
+        "id": 63120087,
+        "node_id": "MDQ6VXNlcjYzMTIwMDg3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/63120087?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/shuv-amp",
+        "html_url": "https://github.com/shuv-amp",
+        "followers_url": "https://api.github.com/users/shuv-amp/followers",
+        "following_url": "https://api.github.com/users/shuv-amp/following{/other_user}",
+        "gists_url": "https://api.github.com/users/shuv-amp/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/shuv-amp/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/shuv-amp/subscriptions",
+        "organizations_url": "https://api.github.com/users/shuv-amp/orgs",
+        "repos_url": "https://api.github.com/users/shuv-amp/repos",
+        "events_url": "https://api.github.com/users/shuv-amp/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/shuv-amp/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "457c9e8999fbee1d37f41eaede681f787e657395",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/457c9e8999fbee1d37f41eaede681f787e657395",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/457c9e8999fbee1d37f41eaede681f787e657395"
         }
       ]
     },
@@ -7676,170 +7845,6 @@
           "sha": "d57346d682f17e6cf09f8acc5e7893ee16eec193",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d57346d682f17e6cf09f8acc5e7893ee16eec193",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/d57346d682f17e6cf09f8acc5e7893ee16eec193"
-        }
-      ]
-    },
-    {
-      "sha": "cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-      "node_id": "C_kwDOABII59oAKGNkZTJmMmVjNjQxYWNmYjdhYjExZTVkMzcxODJiNWZjYWZiNjVhOTQ",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-29T16:57:29Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-30T09:13:16Z"
-        },
-        "message": "build: enable -Wunused-exception-parameter",
-        "tree": {
-          "sha": "61e85c12d7fb0d648a008a85641397d293dd9bc9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/61e85c12d7fb0d648a008a85641397d293dd9bc9"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmq80qwbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBN0cP/jBDfvL/xBU8FnNpAcGO\n7yBP9PIwL2RQvw30H/XbJ3XvENB4LBsPw6NYoVusG57Pi3s4QuBoiWfIoyOR27Wm\ngc6YD0d7Os8fshB3RADvHP16HVPEc5IO4POfcO/d0ESc29RfmyLQ7xRviY9UOLfp\nZhUzmu8ZJ3TZBHNuokin/QM7Sjs//dNC97JRPV9qAuRfH16C+9YtUReSZ3frqomp\ne2VDFS7X63J1SAbinx9opWkiLztnaF/730RsYDryIqtAiM6sBj/c8Y6wr7BKr72j\ncEap+SOAGux4VdTDbqa58Td0w5emyZp11pXw5Mka+hiRhVa/y804wZFBHw48O7n+\nlP4LCj9zmnacdx6Phm3dLcEESAFn6Y1PdbH1r3CBfgUfDMUPt7piLb1QCYg8QlbY\nX40h2KPG3RqX4Bb+9CuCPP3NpnTWGQ0hfl+SFQtxvkgpFRNBgZVOubfRc4tcFyBi\nyqnxG8Bs3CMX11a1LIJbXWztYoHkU60j6k9dbKNZ2NgC36sbUMoFaRDGMF6ZrGUy\nChSCc012SQwIdsI6gzqChC/HfbEtuIcbzao8naQ97ccZrGuEevZglBhpR17I2glp\nk1RnIgMkrBM24Pbx/qewPW0AZimSPx2A+1K1XH+86s7qNZSoRLKIHSlaSvAqTq53\nKqTOTLBIQZBuptN9PjKpD2ov\n=Q3RY\n-----END PGP SIGNATURE-----",
-          "payload": "tree 61e85c12d7fb0d648a008a85641397d293dd9bc9\nparent 1b00dff743da029a25b13e31e79552befc4c3f30\nauthor fanquake <fanquake@gmail.com> 1790701049 +0100\ncommitter fanquake <fanquake@gmail.com> 1790759596 +0100\n\nbuild: enable -Wunused-exception-parameter\n",
-          "verified_at": "2026-09-30T09:19:55Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cde2f2ec641acfb7ab11e5d37182b5fcafb65a94/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "1b00dff743da029a25b13e31e79552befc4c3f30",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1b00dff743da029a25b13e31e79552befc4c3f30",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/1b00dff743da029a25b13e31e79552befc4c3f30"
-        }
-      ]
-    },
-    {
-      "sha": "1b00dff743da029a25b13e31e79552befc4c3f30",
-      "node_id": "C_kwDOABII59oAKDFiMDBkZmY3NDNkYTAyOWEyNWIxM2UzMWU3OTU1MmJlZmM0YzNmMzA",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-29T17:03:49Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-09-30T09:13:16Z"
-        },
-        "message": "util: remove unused exception parameter in Popen::execute_process",
-        "tree": {
-          "sha": "d92f6ce93ee48cadfdc34f4a0e0b56bac20d505b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/d92f6ce93ee48cadfdc34f4a0e0b56bac20d505b"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/1b00dff743da029a25b13e31e79552befc4c3f30",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmq80qwbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBSGwP/1Ezs+YoSzGpZ5onZ2IU\nXgI1++xlRU8wZANSK0WmgkAAnJwHkP/m+cJOh2Mu8DVPV7PKVw4lR+SUuwJmhFMV\nSv9WO9IUjg01eWOmaYQWZ1NS46Jl2pedrBPjfbOSr6NaJj5izjOHjnE2Q5ldlj0+\nGjIdWd4p7qyDebuCEdzRe+M4Di8g82XDPvReMpLBKAJo6m/ETaoteVW+m0G5HNZK\nPRxsTWOyLe0yTsx8sxzj1HRWrDt0B/+9cods9/t00xmGD2QjVZkYVipKP6trta2n\ndNxKbS1CZGxfs3wdhYY0a0SFKY+8LfQ0JBxv3Xh5Ajo72XLABNJyGPjQdu1qEZpC\neIdr4np9OPGFXFfZB7whuaRnd90le6pffdttylGNE2z8gDjAYJteFaAWo0s3H9CT\nnR8L3BtCR9TXOHqGSODynGzHcMzNLJ7ocyLkmG+Sv+2A+g5/aV49YAiaiKrbuykF\nQdiTkNLs4TUkw5N6H8+uphKSn2h5gFlYG7dB0x0/hbwmfcVfOPgm2NLVqy5I5H2A\nApyTfEwUspvgvpf4WnJKUg1UOlW0rNnCuyA03trzE8UZmchGCxZVGsTGv7GCuzS9\nQ9fUW83KbZVYjC5EJ8WVxeIWpCQqP6xxihBf7L75sbN7sgZ5aTBA9SY9IuU7YTS6\nBZCxFWJFHrV4Du/Auv5eDcgE\n=ABUu\n-----END PGP SIGNATURE-----",
-          "payload": "tree d92f6ce93ee48cadfdc34f4a0e0b56bac20d505b\nparent e7aef7e86da79000aa42f5ba6d13b0d123d9da7c\nauthor fanquake <fanquake@gmail.com> 1790701429 +0100\ncommitter fanquake <fanquake@gmail.com> 1790759596 +0100\n\nutil: remove unused exception parameter in Popen::execute_process\n",
-          "verified_at": "2026-09-30T09:19:55Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1b00dff743da029a25b13e31e79552befc4c3f30",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/1b00dff743da029a25b13e31e79552befc4c3f30",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1b00dff743da029a25b13e31e79552befc4c3f30/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "e7aef7e86da79000aa42f5ba6d13b0d123d9da7c",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/e7aef7e86da79000aa42f5ba6d13b0d123d9da7c",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/e7aef7e86da79000aa42f5ba6d13b0d123d9da7c"
         }
       ]
     }
