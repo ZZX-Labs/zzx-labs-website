@@ -188,8 +188,8 @@
                    any custom four-pane topology is applied. */
                 Status.set(
                     isGuardedDocument(doc)
-                        ? "CyberChefZZX loaded with the ZZX CSS shim and an in-memory storage fallback because browser localStorage is full."
-                        : "CyberChefZZX loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.",
+                        ? "ZZXCyberChef loaded with the ZZX CSS shim and an in-memory storage fallback because browser localStorage is full."
+                        : "ZZXCyberChef loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.",
                     "ready"
                 );
             } else {
@@ -201,9 +201,9 @@
             window.dispatchEvent(new CustomEvent("zzx-cyberchef-frame-ready", { detail: { mode } }));
             M.Resize?.resize();
         } catch (err) {
-            console.error("[CyberChefZZX]", err);
+            console.error("[ZZXCyberChef]", err);
             Status.frame("Module error");
-            Status.set(err?.message || "CyberChefZZX modules failed to load.", "error");
+            Status.set(err?.message || "ZZXCyberChef modules failed to load.", "error");
         }
     }
 
@@ -268,7 +268,7 @@
                     await setGuardedFrame(node, options.recipe || "");
                     return;
                 } catch (err) {
-                    console.error("[CyberChefZZX storage fallback]", err);
+                    console.error("[ZZXCyberChef storage fallback]", err);
                     Status.frame("Storage fallback failed");
                     Status.set(err?.message || "Could not start guarded CyberChef runtime.", "error");
                     return;
