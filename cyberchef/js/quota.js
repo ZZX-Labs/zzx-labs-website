@@ -120,41 +120,76 @@
     }
 
     function memoryPrelude() {
+        // The modified iframe gets a copy-on-write facade ONLY when origin storage
+        // is unwritable. Read values lazily: an eager clone of every site key
+        // doubled memory usage and could freeze low-RAM Firefox/Android devices.
         return `
 <script data-zzx-cyberchef-storage-guard>
 (function () {
     "use strict";
     var nativeStorage = null;
     var memory = Object.create(null);
+    var removed = Object.create(null);
+    var cleared = false;
     var keys = [];
-    function refreshKeys() { keys = Object.keys(memory); }
-    try {
-        nativeStorage = window.localStorage;
-        for (var i = 0; i < nativeStorage.length; i++) {
-            var k = nativeStorage.key(i);
-            if (k !== null) memory[k] = nativeStorage.getItem(k);
+    try { nativeStorage = window.localStorage; } catch (ignored) {}
+    function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+    function refreshKeys() {
+        var seen = Object.create(null), next = [];
+        if (nativeStorage && !cleared) {
+            try {
+                for (var i = 0; i < nativeStorage.length; i++) {
+                    var k = nativeStorage.key(i);
+                    if (k !== null && !removed[k] && !seen[k]) {
+                        seen[k] = true; next.push(k);
+                    }
+                }
+            } catch (ignored) {}
         }
-    } catch (ignored) {}
+        Object.keys(memory).forEach(function (k) {
+            if (!seen[k]) { seen[k] = true; next.push(k); }
+        });
+        keys = next;
+    }
     refreshKeys();
     var facade = {
-        getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(memory, k) ? memory[k] : null; },
-        setItem: function (k, v) { memory[String(k)] = String(v); refreshKeys(); },
-        removeItem: function (k) { delete memory[String(k)]; refreshKeys(); },
-        clear: function () { memory = Object.create(null); refreshKeys(); },
+        getItem: function (k) {
+            k = String(k);
+            if (own(memory, k)) return memory[k];
+            if (cleared || removed[k] || !nativeStorage) return null;
+            try { return nativeStorage.getItem(k); } catch (ignored) { return null; }
+        },
+        setItem: function (k, v) {
+            k = String(k); memory[k] = String(v);
+            delete removed[k]; refreshKeys();
+        },
+        removeItem: function (k) {
+            k = String(k); delete memory[k]; removed[k] = true; refreshKeys();
+        },
+        clear: function () {
+            memory = Object.create(null); removed = Object.create(null);
+            cleared = true; keys = [];
+        },
         key: function (i) { return keys[i] === undefined ? null : keys[i]; }
     };
     Object.defineProperty(facade, "length", { get: function () { return keys.length; } });
     try {
-        Object.defineProperty(window, "localStorage", { configurable: true, enumerable: true, value: facade });
+        Object.defineProperty(window, "localStorage", {
+            configurable: true, enumerable: true, value: facade
+        });
         document.documentElement.dataset.zzxStorageFallback = "memory";
     } catch (err) {
+        // Firefox configurations which forbid replacing window.localStorage
+        // still need to prevent a QuotaExceededError from crashing upstream.
         try {
             if (window.Storage && Storage.prototype && nativeStorage) {
                 var originalSetItem = Storage.prototype.setItem;
                 Storage.prototype.setItem = function (k, v) {
                     try { return originalSetItem.call(this, k, v); }
                     catch (e) {
-                        if (e && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22 || e.code === 1014)) return undefined;
+                        if (e && (e.name === "QuotaExceededError" ||
+                                  e.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+                                  e.code === 22 || e.code === 1014)) return undefined;
                         throw e;
                     }
                 };
