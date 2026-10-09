@@ -189,7 +189,7 @@
                 Status.set(
                     isGuardedDocument(doc)
                         ? "ZZXCyberChef loaded with the ZZX CSS shim and an in-memory storage fallback because browser localStorage is full."
-                        : "ZZXCyberChef loaded: pristine CyberChef loaded first; ZZX CSS shim applied afterward.",
+                        : "ZZXCyberChef loaded: upstream CyberChef engine loaded; ZZX CSS shim applied afterward.",
                     "ready"
                 );
             } else {
