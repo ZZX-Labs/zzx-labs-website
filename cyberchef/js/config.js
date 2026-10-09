@@ -79,7 +79,7 @@
     };
 
     window.ZZX.CYBERCHEF = Object.assign(previous, {
-        title: "CyberChefZZX",
+        title: "ZZXCyberChef",
         defaultSource: "modified",
         nativeUrl: "./app/index.html",
         manifestUrl: "./runtime-manifest.json",
