@@ -40,9 +40,9 @@
   transform:none!important;
 }
 
-/* Upstream code still sees #IO in its original DOM position, but CSS makes the
-   wrapper boxless so Input and Output become first-class items in the main
-   workspace grid.  This is what gives all 128 presets true four-pane control. */
+/* #workspace-wrapper (not #content-wrapper) is the four-pane grid.
+   #IO remains the native parent of Input/Output.  display:contents exposes
+   its children as grid items without moving anything in CyberChef's DOM. */
 :root.zzx-cyberchef-modified.zzx-layout-custom #IO{
   display:contents!important;
   width:auto!important;
@@ -111,4 +111,24 @@
 }
 :root.zzx-cyberchef-modified .zzx-knob-selected-operation{
   box-shadow:inset 3px 0 0 var(--zzx-accent)!important;
+}
+
+/* Custom workspaces are inset from all edges of the embedded viewport. */
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper > #operations,
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper > #recipe,
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper #input,
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper #output{
+  border:1px solid var(--zzx-border-hi, #596849)!important;
+  border-radius:6px!important;
+  overflow:hidden!important;
+  background-clip:padding-box;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+}
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper > #operations,
+:root.zzx-cyberchef-modified.zzx-layout-custom #workspace-wrapper > #recipe{
+  overflow:auto!important;
+}
+:root.zzx-cyberchef-modified.zzx-layout-custom #banner{
+  border:1px solid var(--zzx-border-hi, #596849)!important;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.35);
 }
