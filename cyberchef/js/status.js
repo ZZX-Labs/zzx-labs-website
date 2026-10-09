@@ -24,7 +24,7 @@
             const modified = mode === "modified";
             const active = byId(config.activeSourceId);
             const card = byId("cz-mode-card");
-            if (active) active.textContent = modified ? "CyberChefZZX Modified" : "Native Local CyberChef";
+            if (active) active.textContent = modified ? "ZZXCyberChef Modified" : "Native Local CyberChef";
             if (card) card.textContent = modified ? "ZZX Modified" : "Native Local";
             document.body.dataset.cyberchefMode = modified ? "modified" : "native";
         }
