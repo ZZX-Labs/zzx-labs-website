@@ -13,6 +13,17 @@
     const value = name => root(name)?.querySelector(".cz-rotary-value") || null;
     const display = name => root(name)?.querySelector(".cz-rotary-display") || null;
     const stepping = new Map();
+    const queuedSteps = new Map();
+    let queuedFrame = 0;
+    function queueStep(name, delta) {
+        queuedSteps.set(name, (queuedSteps.get(name) || 0) + delta);
+        if (queuedFrame) return;
+        queuedFrame = requestAnimationFrame(() => {
+            queuedFrame = 0;
+            for (const [control, amount] of queuedSteps) step(control, amount);
+            queuedSteps.clear();
+        });
+    }
 
     function visual(name, index, count, label, pending = false) {
         const btn = button(name), card = root(name);
@@ -128,7 +139,7 @@
         btn.addEventListener("wheel", event => {
             event.preventDefault();
             const direction = event.deltaY > 0 ? 1 : -1;
-            step(name, direction * (event.shiftKey ? 8 : 1));
+            queueStep(name, direction * (event.shiftKey ? 8 : 1));
         }, { passive: false });
 
         btn.addEventListener("keydown", event => {
@@ -175,7 +186,7 @@
             const threshold = event.shiftKey ? 3.5 : 7;
             if (Math.abs(accumulator) < threshold) return;
             const amount = Math.max(1, Math.min(12, Math.floor(Math.abs(accumulator) / threshold)));
-            step(name, (accumulator > 0 ? 1 : -1) * amount);
+            queueStep(name, (accumulator > 0 ? 1 : -1) * amount);
             accumulator = 0;
             moved = true;
         });
@@ -186,7 +197,7 @@
             pointerId = null;
             card?.classList.remove("is-grabbing");
             if (!moved) press(name);
-            else if (Math.abs(velocity) > .75) step(name, velocity > 0 ? 2 : -2);
+            else if (Math.abs(velocity) > .75) queueStep(name, velocity > 0 ? 2 : -2);
         });
 
         btn.addEventListener("pointercancel", () => {
