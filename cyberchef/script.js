@@ -40,7 +40,7 @@
         const active = byId(config.activeSourceId || "cz-active-source");
         const card = byId("cz-mode-card");
         const modified = mode === "modified";
-        if (active) active.textContent = modified ? "CyberChefZZX Modified" : "Native Local CyberChef";
+        if (active) active.textContent = modified ? "ZZXCyberChef Modified" : "Native Local CyberChef";
         if (card) card.textContent = modified ? "ZZX Modified" : "Native Local";
         document.body.dataset.cyberchefMode = mode;
     }
@@ -139,7 +139,7 @@
                 setFrameState("Applying ZZX shim…");
                 await installShim(doc);
                 setModifiedRoot(doc);
-                setStatus("CyberChefZZX loaded: upstream CyberChef first, ZZX CSS shim second.", "ready");
+                setStatus("ZZXCyberChef loaded: upstream CyberChef first, ZZX CSS shim second.", "ready");
             } else {
                 clearShim(doc);
                 setStatus("Native local CyberChef loaded with no ZZX CSS shim.", "ready");
@@ -149,9 +149,9 @@
             emitReady(mode);
             window.ZZXCyberChefResize?.();
         } catch (err) {
-            console.error("[CyberChefZZX]", err);
+            console.error("[ZZXCyberChef]", err);
             setFrameState("Shim error");
-            setStatus(err?.message || "CyberChefZZX shim failed to load.", "error");
+            setStatus(err?.message || "ZZXCyberChef shim failed to load.", "error");
         }
     }
 
@@ -198,7 +198,7 @@
                 node.textContent = String(tag);
             });
         } catch (err) {
-            console.warn("[CyberChefZZX] Runtime manifest unavailable:", err);
+            console.warn("[ZZXCyberChef] Runtime manifest unavailable:", err);
         }
     }
 
