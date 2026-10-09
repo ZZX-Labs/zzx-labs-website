@@ -42,9 +42,27 @@ class CyberChefIntegrity(unittest.TestCase):
         for script in scripts:
             if script.startswith('./'):
                 with self.subTest(script=script):
-                    self.assertTrue((ROOT / script).exists())
+                    self.assertTrue((ROOT / script.split("?", 1)[0]).exists())
         for element_id in ('cz-runtime', 'cz-frame', 'cz-source', 'cz-control-deck'):
             self.assertIn(f'id="{element_id}"', html)
+
+    def test_shell_first_and_observer_safety(self):
+        html = (ROOT / 'index.html').read_text(encoding='utf-8')
+        downloads = (ROOT / 'js/downloads.js').read_text(encoding='utf-8')
+        bootstrap = (ROOT / 'js/bootstrap.js').read_text(encoding='utf-8')
+        shell = (ROOT / 'js/shell-first.js').read_text(encoding='utf-8')
+        ticker = (ROOT.parent / 'static/js/modules/ticker-loader.js').read_text(encoding='utf-8')
+        self.assertLess(html.index('js/shell-first.js'), html.index('../static/script.js'))
+        self.assertIn('loading="lazy"', html)
+        self.assertIn('zzx:cyberchef-shell-ready', shell)
+        for element in ('header/header.html', 'nav/nav.html', 'footer/footer.html'):
+            self.assertIn(element, shell)
+        self.assertIn('anchor.getAttribute("href") !== official', downloads)
+        self.assertIn('node.querySelectorAll?.("a[href],a[download]")', downloads)
+        self.assertIn('IntersectionObserver', bootstrap)
+        self.assertIn('waitForChrome()', bootstrap)
+        self.assertIn('observer.observe(mount, { childList: true, subtree: false })', ticker)
+        self.assertNotIn('observer.observe(' + chr(10) + '      D.documentElement,', ticker)
 
     def test_all_64_themes(self):
         index = read_json('themes/index.json')
