@@ -10,7 +10,7 @@
     let catalogPromise = null;
     let nativeSnapshot = null;
     let mutationObserver = null;
-    let frameResizeObserver = null;
+    let activeMobile = null;
     let reapplyTimer = null;
     let applying = false;
     let applySerial = 0;
@@ -46,9 +46,12 @@
     }
 
     function captureNative(doc) {
-        if (nativeSnapshot || !doc) return;
+        if (!doc) return;
+        if (nativeSnapshot?.document === doc) return;
+        nativeSnapshot = null;
         const nodes = nodesFor(doc);
         nativeSnapshot = {
+            document: doc,
             root: snap(doc.documentElement),
             body: snap(doc.body),
             nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snap(node)])),
@@ -60,7 +63,7 @@
     }
 
     function restoreNative(doc) {
-        if (!doc || !nativeSnapshot) return;
+        if (!doc || nativeSnapshot?.document !== doc) return;
         const nodes = nodesFor(doc);
         restoreNode(doc.documentElement, nativeSnapshot.root);
         restoreNode(doc.body, nativeSnapshot.body);
@@ -393,12 +396,17 @@
         },
 
         preloadNeighbors() {
-            if (!this.presets.length) return;
-            [-1, 1].forEach(offset => {
-                const i = wrap(this.index + offset, this.presets.length);
-                const meta = this.presets[i];
-                if (meta && !cache.has(meta.id)) void this.resolve(meta).catch(() => {});
-            });
+            if (!this.presets.length || isMobile() || navigator.connection?.saveData) return;
+            const atIndex = this.index;
+            const work = () => {
+                if (atIndex !== this.index) return;
+                [-1, 1].forEach(offset => {
+                    const meta = this.presets[wrap(this.index + offset, this.presets.length)];
+                    if (meta && !cache.has(meta.id)) void this.resolve(meta).catch(() => {});
+                });
+            };
+            if ("requestIdleCallback" in window) requestIdleCallback(work, { timeout: 2000 });
+            else setTimeout(work, 500);
         },
 
         scheduleReapply(delay = 90) {
@@ -409,31 +417,29 @@
 
         observe() {
             mutationObserver?.disconnect();
-            frameResizeObserver?.disconnect();
-
+            activeMobile = isMobile();
             const doc = M.Runtime?.document();
             const content = doc?.querySelector("#content-wrapper");
             if (content && window.MutationObserver) {
+                // Ignore style/class writes from upstream Split.js and our own shim.
+                // Their old feedback loop could reapply 200+ inline declarations
+                // indefinitely, saturating Firefox and Android's main thread.
                 mutationObserver = new MutationObserver(mutations => {
                     if (applying || this.current()?.id === "native") return;
-                    const meaningful = mutations.some(m => m.target === content || m.target?.classList?.contains("gutter"));
-                    if (meaningful) this.scheduleReapply(100);
+                    if (mutations.some(m => Array.from(m.addedNodes).some(n => n.nodeType === 1 &&
+                            (n.matches?.("#operations,#recipe,#IO,#input,#output") ||
+                             n.querySelector?.("#operations,#recipe,#IO,#input,#output"))))) {
+                        this.scheduleReapply(250);
+                    }
                 });
-                mutationObserver.observe(content, { subtree: true, attributes: true, attributeFilter: ["style", "class"] });
-            }
-
-            const frame = M.Runtime?.frame?.();
-            if (frame && window.ResizeObserver) {
-                frameResizeObserver = new ResizeObserver(() => this.scheduleReapply(70));
-                frameResizeObserver.observe(frame);
+                mutationObserver.observe(content, { childList: true, subtree: false });
             }
         },
 
         reset() {
             mutationObserver?.disconnect();
-            frameResizeObserver?.disconnect();
             mutationObserver = null;
-            frameResizeObserver = null;
+            activeMobile = null;
             nativeSnapshot = null;
             clearTimeout(reapplyTimer);
             applying = false;
@@ -452,5 +458,11 @@
         }, 160);
     });
 
-    window.addEventListener("resize", () => Layouts.scheduleReapply(90), { passive: true });
+    window.addEventListener("resize", () => {
+        const mobile = isMobile();
+        if (activeMobile !== null && activeMobile !== mobile) {
+            activeMobile = mobile;
+            Layouts.scheduleReapply(120);
+        }
+    }, { passive: true });
 })();
