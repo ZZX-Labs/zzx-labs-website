@@ -7,11 +7,11 @@
   .cz-workbench-shell.container{padding:.5rem!important}
   .cz-workbench-section,.cz-hero,.cz-panel,.cz-workspace-section{min-width:0!important;padding:.68rem!important}
   .cz-hero-grid,.cz-workspace-head{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
-  .cz-hero-brand{grid-template-columns:minmax(0,1fr)!important;justify-items:center!important;text-align:left!important}
+  .cz-hero-brand{grid-template-columns:84px minmax(0,1fr)!important;justify-items:start!important;align-items:start!important;gap:.65rem!important;text-align:left!important}
   .cz-hero-copy{width:100%!important}
-  .cz-coin-shell{padding-top:0!important;padding-bottom:.2rem!important}
-  .cz-coin-hex{width:96px!important;height:108px!important}
-  .cz-coin-image{width:80px!important;height:80px!important}
+  .cz-coin-shell{justify-content:flex-start!important;padding-top:0!important;padding-bottom:.2rem!important}
+  .cz-coin-hex{width:82px!important;height:92px!important}
+  .cz-coin-image{width:70px!important;height:70px!important}
   .cz-trust-card{width:100%;min-width:0}
   .cz-sourcebar{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:.42rem!important}
   .cz-source-field,.cz-sourcebar>*{width:100%!important;min-width:0!important;max-width:100%!important}
@@ -45,7 +45,7 @@
 
   .cz-runtime-shell,.cz-container{width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important}
   .cz-container{padding:.8rem!important;border-radius:10px!important}
-  .cz-runtime{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:700px!important;min-height:700px!important;padding:.7rem!important;border-width:1px!important}
+  .cz-runtime{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:var(--cz-mobile-runtime-height,1820px)!important;min-height:var(--cz-mobile-runtime-height,1820px)!important;padding:.7rem!important;border-width:1px!important}
   .cz-frame-toolbar{font-size:.58rem;gap:.25rem;flex-wrap:wrap}
   .cz-major-timeline,.cz-release-history-grid{grid-template-columns:minmax(0,1fr)!important}
   .cz-license-full pre{font-size:.55rem;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -63,5 +63,34 @@
   .cz-rotary-value{font-size:.55rem!important}
   .cz-rotary-help,.cz-rotary-meter{font-size:.43rem!important}
   .cz-container{padding:.6rem!important}
-  .cz-runtime{padding:.55rem!important;height:660px!important;min-height:660px!important}
+  .cz-runtime{padding:.55rem!important;height:var(--cz-mobile-runtime-height,1820px)!important;min-height:var(--cz-mobile-runtime-height,1820px)!important}
+}
+
+/* Four genuinely usable mobile work areas, rather than four 130px strips. */
+@media(max-width:760px){
+  .cz-runtime{--cz-mobile-runtime-height:1820px}
+  .cz-frame{min-height:0!important;height:100%!important}
+  .cz-hero-copy h1{font-size:clamp(1.55rem,5.8vw,2.15rem)!important;overflow-wrap:anywhere}
+}
+@media(max-width:360px){
+  .cz-hero-brand{grid-template-columns:70px minmax(0,1fr)!important;gap:.5rem!important}
+  .cz-coin-hex{width:68px!important;height:77px!important}
+  .cz-coin-image{width:58px!important;height:58px!important}
+}
+
+/* Narrow phones: spend the available width on the CyberChef workspace,
+   rather than stacked decorative padding. Outer instrument border remains. */
+@media(max-width:760px){
+  .cz-shell{padding-inline:2px!important}
+  .cz-workbench-shell.container{inline-size:calc(100% - 2px)!important;width:calc(100% - 2px)!important;max-inline-size:100%!important;margin-inline:1px!important;padding:.35rem!important}
+  .cz-workspace-section{padding:.3rem!important}
+  .cz-container{padding:.4rem!important}
+  .cz-runtime{padding:.35rem!important}
+  .cz-runtime::before{inset:.35rem!important}
+}
+@media(max-width:420px){
+  .cz-workspace-section{padding:.24rem!important}
+  .cz-container{padding:.3rem!important}
+  .cz-runtime{padding:.28rem!important}
+  .cz-runtime::before{inset:.28rem!important}
 }
