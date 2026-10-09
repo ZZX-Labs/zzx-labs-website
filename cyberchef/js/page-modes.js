@@ -59,7 +59,7 @@
         bar.id = "cz-viewbar";
         bar.className = "cz-viewbar";
         bar.setAttribute("role", "toolbar");
-        bar.setAttribute("aria-label", "CyberChefZZX page view controls");
+        bar.setAttribute("aria-label", "ZZXCyberChef page view controls");
 
         const label = document.createElement("span");
         label.className = "cz-viewbar-label";
@@ -100,7 +100,7 @@
             makeViewbar();
             // Hide/collapse modes are intentionally session-only. Every reload
             // starts with the complete page visible so a stale mode can never
-            // strand the controls or the upper CyberChefZZX content off-screen.
+            // strand the controls or the upper ZZXCyberChef content off-screen.
             applyMode("normal");
 
             document.addEventListener("keydown", event => {
