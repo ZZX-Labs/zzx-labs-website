@@ -45,13 +45,6 @@
         node.className = state.className;
     }
 
-    function childAnchor(node) {
-        if (!node || !node.parentNode) return null;
-        const siblings = Array.from(node.parentNode.childNodes);
-        const idx = siblings.indexOf(node);
-        return idx >= 0 && idx + 1 < siblings.length ? siblings[idx + 1] : null;
-    }
-
     function captureNative(doc) {
         if (nativeSnapshot || !doc) return;
         const nodes = nodesFor(doc);
@@ -59,36 +52,16 @@
             root: snap(doc.documentElement),
             body: snap(doc.body),
             nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snap(node)])),
-            gutters: Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).map(node => ({
+            gutters: Array.from(doc.querySelectorAll("#workspace-wrapper > .gutter, #IO > .gutter")).map(node => ({
                 node,
                 state: snap(node)
-            })),
-            parents: {
-                input: {
-                    parent: nodes.input?.parentNode || null,
-                    next: childAnchor(nodes.input)
-                },
-                output: {
-                    parent: nodes.output?.parentNode || null,
-                    next: childAnchor(nodes.output)
-                }
-            }
+            }))
         };
-    }
-
-    function restoreChild(node, saved) {
-        if (!node || !saved?.parent) return;
-        const parent = saved.parent;
-        const next = saved.next;
-        if (next && next.parentNode === parent) parent.insertBefore(node, next);
-        else parent.appendChild(node);
     }
 
     function restoreNative(doc) {
         if (!doc || !nativeSnapshot) return;
         const nodes = nodesFor(doc);
-        restoreChild(nodes.input, nativeSnapshot.parents?.input);
-        restoreChild(nodes.output, nativeSnapshot.parents?.output);
         restoreNode(doc.documentElement, nativeSnapshot.root);
         restoreNode(doc.body, nativeSnapshot.body);
         Object.entries(nodes).forEach(([name, node]) => restoreNode(node, nativeSnapshot.nodes[name]));
@@ -158,14 +131,17 @@
         };
     }
 
-    function ensurePanePlacement(doc) {
-        const nodes = nodesFor(doc);
-        const { content, input, output, io } = nodes;
-        if (!content || !input || !output || !io) return false;
-
-        if (input.parentNode !== content) content.appendChild(input);
-        if (output.parentNode !== content) content.appendChild(output);
-        return true;
+    // Never reparent upstream CyberChef elements.  Split.js and operation
+    // handlers retain assumptions about #IO and its original child structure.
+    function nativePaneTree(nodes) {
+        return Boolean(nodes.workspace && nodes.content && nodes.operations &&
+            nodes.recipe && nodes.io && nodes.input && nodes.output &&
+            nodes.workspace.parentNode === nodes.content &&
+            nodes.operations.parentNode === nodes.workspace &&
+            nodes.recipe.parentNode === nodes.workspace &&
+            nodes.io.parentNode === nodes.workspace &&
+            nodes.input.parentNode === nodes.io &&
+            nodes.output.parentNode === nodes.io);
     }
 
     function resetGridItem(node, area, overflow = "hidden") {
@@ -193,9 +169,8 @@
         validateGeometry(preset);
         const nodes = nodesFor(doc);
         const { workspace, content, operations, recipe, io, input, output, banner } = nodes;
-        if (!workspace || !content || !operations || !recipe || !io || !input || !output) return false;
+        if (!nativePaneTree(nodes)) return false;
         captureNative(doc);
-        ensurePanePlacement(doc);
 
         const w = preset.workspace || {};
         const density = preset.density || {};
@@ -205,7 +180,10 @@
         const rows = w.rows.join(" ");
         const gap = `${Number(w.gap ?? 4)}px`;
         const padding = `${Number(w.padding ?? .16)}rem`;
-        const bannerHeight = Math.max(28, Number(density.bannerHeight ?? 36));
+        // The native status/notice toolbar wraps on narrow viewports.  Provide
+        // enough vertical space so its links and notices are never guillotined.
+        const bannerHeight = Math.max(isMobile() ? 82 : 46, Number(density.bannerHeight ?? 36));
+        const bezel = isMobile() ? 9 : 14;
         const root = doc.documentElement;
         const body = doc.body;
 
@@ -231,70 +209,82 @@
             important(body.style, "overflow", "hidden");
         }
 
+        // #content-wrapper owns the banner and the workspace.  It MUST NOT be
+        // turned into the four-pane grid.  Only #workspace-wrapper owns panes.
+        important(content.style, "position", "absolute");
+        important(content.style, "inset", "0");
+        important(content.style, "display", "block");
+        important(content.style, "width", "100%");
+        important(content.style, "height", "100%");
+        important(content.style, "min-width", "0");
+        important(content.style, "min-height", "0");
+        important(content.style, "box-sizing", "border-box");
+        important(content.style, "overflow", "hidden");
+        important(content.style, "padding", "0");
+
         if (banner) {
             important(banner.style, "position", "absolute");
-            important(banner.style, "left", "0");
-            important(banner.style, "right", "0");
-            important(banner.style, "top", "0");
+            important(banner.style, "left", `${bezel}px`);
+            important(banner.style, "right", `${bezel}px`);
+            important(banner.style, "top", `${bezel}px`);
+            important(banner.style, "width", "auto");
             important(banner.style, "height", `${bannerHeight}px`);
             important(banner.style, "min-height", `${bannerHeight}px`);
             important(banner.style, "max-height", `${bannerHeight}px`);
+            important(banner.style, "display", "flex");
+            important(banner.style, "align-items", "center");
+            important(banner.style, "flex-wrap", "wrap");
+            important(banner.style, "gap", "2px 6px");
+            important(banner.style, "margin", "0");
+            important(banner.style, "padding", "5px 10px");
             important(banner.style, "box-sizing", "border-box");
-            important(banner.style, "overflow", "hidden");
+            important(banner.style, "overflow", "auto");
+            important(banner.style, "border-radius", "7px");
             important(banner.style, "z-index", "30");
         }
 
         important(workspace.style, "position", "absolute");
-        important(workspace.style, "left", "0");
-        important(workspace.style, "right", "0");
-        important(workspace.style, "top", `${bannerHeight}px`);
-        important(workspace.style, "bottom", "0");
+        important(workspace.style, "left", `${bezel}px`);
+        important(workspace.style, "right", `${bezel}px`);
+        important(workspace.style, "top", `${bannerHeight + bezel * 2}px`);
+        important(workspace.style, "bottom", `${bezel}px`);
         important(workspace.style, "width", "auto");
         important(workspace.style, "height", "auto");
         important(workspace.style, "min-width", "0");
         important(workspace.style, "min-height", "0");
         important(workspace.style, "max-width", "none");
         important(workspace.style, "max-height", "none");
-        important(workspace.style, "overflow", "hidden");
         important(workspace.style, "box-sizing", "border-box");
-
-        important(content.style, "position", "absolute");
-        important(content.style, "inset", "0");
-        important(content.style, "display", "grid");
-        important(content.style, "grid-template-areas", areaTemplate(areas));
-        important(content.style, "grid-template-columns", columns);
-        important(content.style, "grid-template-rows", rows);
-        important(content.style, "gap", gap);
-        important(content.style, "padding", padding);
-        important(content.style, "width", "auto");
-        important(content.style, "height", "auto");
-        important(content.style, "min-width", "0");
-        important(content.style, "min-height", "0");
-        important(content.style, "max-width", "none");
-        important(content.style, "max-height", "none");
-        important(content.style, "box-sizing", "border-box");
-        important(content.style, "overflow", "hidden");
-        important(content.style, "align-items", "stretch");
-        important(content.style, "justify-items", "stretch");
+        important(workspace.style, "overflow", "hidden");
+        important(workspace.style, "display", "grid");
+        important(workspace.style, "grid-template-areas", areaTemplate(areas));
+        important(workspace.style, "grid-template-columns", columns);
+        important(workspace.style, "grid-template-rows", rows);
+        important(workspace.style, "gap", gap);
+        important(workspace.style, "padding", padding);
+        important(workspace.style, "align-items", "stretch");
+        important(workspace.style, "justify-items", "stretch");
 
         resetGridItem(operations, "ops", "auto");
         resetGridItem(recipe, "recipe", "auto");
 
-        important(io.style, "display", "block");
-        important(io.style, "position", "absolute");
-        important(io.style, "width", "0");
-        important(io.style, "height", "0");
+        // A boxless #IO preserves the native DOM hierarchy while exposing its
+        // input/output children as independent workspace grid items.  Unlike
+        // DOM reparenting, this does not invalidate CyberChef's event handlers.
+        important(io.style, "display", "contents");
+        important(io.style, "position", "static");
+        important(io.style, "width", "auto");
+        important(io.style, "height", "auto");
         important(io.style, "min-width", "0");
         important(io.style, "min-height", "0");
-        important(io.style, "overflow", "hidden");
-        important(io.style, "opacity", "0");
-        important(io.style, "pointer-events", "none");
-        important(io.style, "inset", "auto");
+        important(io.style, "opacity", "1");
+        important(io.style, "pointer-events", "auto");
+        important(io.style, "overflow", "visible");
 
         resetGridItem(input, "input", "hidden");
         resetGridItem(output, "output", "hidden");
 
-        Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).forEach(gutter => {
+        Array.from(doc.querySelectorAll("#workspace-wrapper > .gutter, #IO > .gutter")).forEach(gutter => {
             important(gutter.style, "display", "none");
             important(gutter.style, "width", "0");
             important(gutter.style, "height", "0");
@@ -440,33 +430,36 @@
             clearTimeout(reapplyTimer);
             reapplyTimer = setTimeout(() => {
                 const doc = M.Runtime?.document();
+                if (!doc) return;
                 const nodes = nodesFor(doc);
-                if (!nodes.content || !nodes.input || !nodes.output) return;
-                const needRepair = nodes.input.parentNode !== nodes.content || nodes.output.parentNode !== nodes.content;
-                if (needRepair) this.applyCurrent(false);
+                if (!nativePaneTree(nodes)) return;
+                const mobile = isMobile();
+                const style = doc.defaultView?.getComputedStyle(nodes.workspace);
+                if (this.lastMobile !== mobile || style?.display !== "grid") {
+                    this.lastMobile = mobile;
+                    this.applyCurrent(false);
+                }
             }, delay);
         },
 
         observe() {
             mutationObserver?.disconnect();
             frameResizeObserver?.disconnect();
+            this.lastMobile = isMobile();
 
             const doc = M.Runtime?.document();
-            const content = doc?.querySelector("#content-wrapper");
-            const io = doc?.querySelector("#IO");
-            if (window.MutationObserver && (content || io)) {
+            const workspace = doc?.querySelector("#workspace-wrapper");
+            if (workspace && window.MutationObserver) {
                 mutationObserver = new MutationObserver(mutations => {
                     if (applying || this.current()?.id === "native") return;
-                    const meaningful = mutations.some(m => m.type === "childList" || (m.target?.id === "content-wrapper" || m.target?.id === "IO"));
-                    if (meaningful) this.scheduleReapply(80);
+                    if (mutations.some(m => m.type === "childList")) this.scheduleReapply(120);
                 });
-                if (content) mutationObserver.observe(content, { childList: true, subtree: false });
-                if (io) mutationObserver.observe(io, { childList: true, subtree: false });
+                mutationObserver.observe(workspace, { childList: true, subtree: false });
             }
 
             const frame = M.Runtime?.frame?.();
             if (frame && window.ResizeObserver) {
-                frameResizeObserver = new ResizeObserver(() => this.scheduleReapply(90));
+                frameResizeObserver = new ResizeObserver(() => this.scheduleReapply(160));
                 frameResizeObserver.observe(frame);
             }
         },
@@ -477,6 +470,7 @@
             mutationObserver = null;
             frameResizeObserver = null;
             nativeSnapshot = null;
+            this.lastMobile = null;
             clearTimeout(reapplyTimer);
             applying = false;
             applySerial++;
