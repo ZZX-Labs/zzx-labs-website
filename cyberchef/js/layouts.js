@@ -10,7 +10,7 @@
     let catalogPromise = null;
     let nativeSnapshot = null;
     let mutationObserver = null;
-    let activeMobile = null;
+    let frameResizeObserver = null;
     let reapplyTimer = null;
     let applying = false;
     let applySerial = 0;
@@ -45,26 +45,50 @@
         node.className = state.className;
     }
 
+    function childAnchor(node) {
+        if (!node || !node.parentNode) return null;
+        const siblings = Array.from(node.parentNode.childNodes);
+        const idx = siblings.indexOf(node);
+        return idx >= 0 && idx + 1 < siblings.length ? siblings[idx + 1] : null;
+    }
+
     function captureNative(doc) {
-        if (!doc) return;
-        if (nativeSnapshot?.document === doc) return;
-        nativeSnapshot = null;
+        if (nativeSnapshot || !doc) return;
         const nodes = nodesFor(doc);
         nativeSnapshot = {
-            document: doc,
             root: snap(doc.documentElement),
             body: snap(doc.body),
             nodes: Object.fromEntries(Object.entries(nodes).map(([name, node]) => [name, snap(node)])),
             gutters: Array.from(doc.querySelectorAll("#content-wrapper > .gutter, #IO > .gutter")).map(node => ({
                 node,
                 state: snap(node)
-            }))
+            })),
+            parents: {
+                input: {
+                    parent: nodes.input?.parentNode || null,
+                    next: childAnchor(nodes.input)
+                },
+                output: {
+                    parent: nodes.output?.parentNode || null,
+                    next: childAnchor(nodes.output)
+                }
+            }
         };
     }
 
+    function restoreChild(node, saved) {
+        if (!node || !saved?.parent) return;
+        const parent = saved.parent;
+        const next = saved.next;
+        if (next && next.parentNode === parent) parent.insertBefore(node, next);
+        else parent.appendChild(node);
+    }
+
     function restoreNative(doc) {
-        if (!doc || nativeSnapshot?.document !== doc) return;
+        if (!doc || !nativeSnapshot) return;
         const nodes = nodesFor(doc);
+        restoreChild(nodes.input, nativeSnapshot.parents?.input);
+        restoreChild(nodes.output, nativeSnapshot.parents?.output);
         restoreNode(doc.documentElement, nativeSnapshot.root);
         restoreNode(doc.body, nativeSnapshot.body);
         Object.entries(nodes).forEach(([name, node]) => restoreNode(node, nativeSnapshot.nodes[name]));
@@ -134,14 +158,21 @@
         };
     }
 
+    function ensurePanePlacement(doc) {
+        const nodes = nodesFor(doc);
+        const { content, input, output, io } = nodes;
+        if (!content || !input || !output || !io) return false;
+
+        if (input.parentNode !== content) content.appendChild(input);
+        if (output.parentNode !== content) content.appendChild(output);
+        return true;
+    }
+
     function resetGridItem(node, area, overflow = "hidden") {
+        if (!node) return;
         important(node.style, "grid-area", area);
         important(node.style, "position", "relative");
         important(node.style, "inset", "auto");
-        important(node.style, "left", "auto");
-        important(node.style, "right", "auto");
-        important(node.style, "top", "auto");
-        important(node.style, "bottom", "auto");
         important(node.style, "float", "none");
         important(node.style, "display", "block");
         important(node.style, "width", "100%");
@@ -164,6 +195,7 @@
         const { workspace, content, operations, recipe, io, input, output, banner } = nodes;
         if (!workspace || !content || !operations || !recipe || !io || !input || !output) return false;
         captureNative(doc);
+        ensurePanePlacement(doc);
 
         const w = preset.workspace || {};
         const density = preset.density || {};
@@ -248,17 +280,16 @@
         resetGridItem(operations, "ops", "auto");
         resetGridItem(recipe, "recipe", "auto");
 
-        /* #IO remains in the DOM for upstream code, but stops creating its own
-           box.  Input and Output therefore become real grid items of
-           #content-wrapper without reparenting or touching upstream files. */
-        important(io.style, "display", "contents");
-        important(io.style, "position", "static");
-        important(io.style, "width", "auto");
-        important(io.style, "height", "auto");
+        important(io.style, "display", "block");
+        important(io.style, "position", "absolute");
+        important(io.style, "width", "0");
+        important(io.style, "height", "0");
         important(io.style, "min-width", "0");
         important(io.style, "min-height", "0");
-        important(io.style, "overflow", "visible");
-        important(io.style, "transform", "none");
+        important(io.style, "overflow", "hidden");
+        important(io.style, "opacity", "0");
+        important(io.style, "pointer-events", "none");
+        important(io.style, "inset", "auto");
 
         resetGridItem(input, "input", "hidden");
         resetGridItem(output, "output", "hidden");
@@ -396,50 +427,55 @@
         },
 
         preloadNeighbors() {
-            if (!this.presets.length || isMobile() || navigator.connection?.saveData) return;
-            const atIndex = this.index;
-            const work = () => {
-                if (atIndex !== this.index) return;
-                [-1, 1].forEach(offset => {
-                    const meta = this.presets[wrap(this.index + offset, this.presets.length)];
-                    if (meta && !cache.has(meta.id)) void this.resolve(meta).catch(() => {});
-                });
-            };
-            if ("requestIdleCallback" in window) requestIdleCallback(work, { timeout: 2000 });
-            else setTimeout(work, 500);
+            if (!this.presets.length) return;
+            [-1, 1].forEach(offset => {
+                const i = wrap(this.index + offset, this.presets.length);
+                const meta = this.presets[i];
+                if (meta && !cache.has(meta.id)) void this.resolve(meta).catch(() => {});
+            });
         },
 
         scheduleReapply(delay = 90) {
             if (applying || this.current()?.id === "native" || M.Runtime?.mode() !== "modified") return;
             clearTimeout(reapplyTimer);
-            reapplyTimer = setTimeout(() => this.applyCurrent(false), delay);
+            reapplyTimer = setTimeout(() => {
+                const doc = M.Runtime?.document();
+                const nodes = nodesFor(doc);
+                if (!nodes.content || !nodes.input || !nodes.output) return;
+                const needRepair = nodes.input.parentNode !== nodes.content || nodes.output.parentNode !== nodes.content;
+                if (needRepair) this.applyCurrent(false);
+            }, delay);
         },
 
         observe() {
             mutationObserver?.disconnect();
-            activeMobile = isMobile();
+            frameResizeObserver?.disconnect();
+
             const doc = M.Runtime?.document();
             const content = doc?.querySelector("#content-wrapper");
-            if (content && window.MutationObserver) {
-                // Ignore style/class writes from upstream Split.js and our own shim.
-                // Their old feedback loop could reapply 200+ inline declarations
-                // indefinitely, saturating Firefox and Android's main thread.
+            const io = doc?.querySelector("#IO");
+            if (window.MutationObserver && (content || io)) {
                 mutationObserver = new MutationObserver(mutations => {
                     if (applying || this.current()?.id === "native") return;
-                    if (mutations.some(m => Array.from(m.addedNodes).some(n => n.nodeType === 1 &&
-                            (n.matches?.("#operations,#recipe,#IO,#input,#output") ||
-                             n.querySelector?.("#operations,#recipe,#IO,#input,#output"))))) {
-                        this.scheduleReapply(250);
-                    }
+                    const meaningful = mutations.some(m => m.type === "childList" || (m.target?.id === "content-wrapper" || m.target?.id === "IO"));
+                    if (meaningful) this.scheduleReapply(80);
                 });
-                mutationObserver.observe(content, { childList: true, subtree: false });
+                if (content) mutationObserver.observe(content, { childList: true, subtree: false });
+                if (io) mutationObserver.observe(io, { childList: true, subtree: false });
+            }
+
+            const frame = M.Runtime?.frame?.();
+            if (frame && window.ResizeObserver) {
+                frameResizeObserver = new ResizeObserver(() => this.scheduleReapply(90));
+                frameResizeObserver.observe(frame);
             }
         },
 
         reset() {
             mutationObserver?.disconnect();
+            frameResizeObserver?.disconnect();
             mutationObserver = null;
-            activeMobile = null;
+            frameResizeObserver = null;
             nativeSnapshot = null;
             clearTimeout(reapplyTimer);
             applying = false;
@@ -455,14 +491,8 @@
         setTimeout(() => {
             Layouts.applyCurrent(false);
             Layouts.observe();
-        }, 160);
+        }, 180);
     });
 
-    window.addEventListener("resize", () => {
-        const mobile = isMobile();
-        if (activeMobile !== null && activeMobile !== mobile) {
-            activeMobile = mobile;
-            Layouts.scheduleReapply(120);
-        }
-    }, { passive: true });
+    window.addEventListener("resize", () => Layouts.scheduleReapply(100), { passive: true });
 })();
