@@ -1,0 +1,86 @@
+/* ZZXCyberChef standalone mobile compatibility shim for original CyberChef v11.5.0.
+   App assets/main.js and main.css remain unmodified.  This stylesheet is
+   activated ONLY when app/index.html is opened as a top-level mobile page. */
+@media (max-width:760px) {
+  html.zzx-app-mobile-standalone,
+  html.zzx-app-mobile-standalone body {
+    width:100%!important;
+    min-height:100%!important;
+    height:auto!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-text-size-adjust:100%;
+  }
+  html.zzx-app-mobile-standalone *,
+  html.zzx-app-mobile-standalone *::before,
+  html.zzx-app-mobile-standalone *::after { box-sizing:border-box; }
+  html.zzx-app-mobile-standalone #content-wrapper {
+    position:relative!important;
+    top:auto!important;left:auto!important;
+    width:100%!important;height:auto!important;
+    min-width:0!important;overflow:visible!important;
+  }
+  html.zzx-app-mobile-standalone #banner {
+    position:relative!important;
+    width:100%!important;height:auto!important;
+    min-height:64px!important;
+    line-height:1.5!important;
+    margin:0!important;padding:.5rem .65rem!important;
+    display:flex!important;flex-wrap:wrap!important;
+    align-items:center;gap:.25rem;
+    overflow-wrap:anywhere;
+  }
+  html.zzx-app-mobile-standalone #banner > .col,
+  html.zzx-app-mobile-standalone #banner > .col-md-6 {
+    flex:1 1 110px!important;
+    max-width:100%!important;min-width:0!important;
+    padding:0!important;text-align:left!important;
+  }
+  html.zzx-app-mobile-standalone #workspace-wrapper {
+    position:relative!important;
+    top:auto!important;bottom:auto!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-areas:"ops" "recipe" "input" "output"!important;
+    grid-template-rows:repeat(4,minmax(320px,54svh))!important;
+    gap:8px!important;
+    padding:8px!important;
+    width:100%!important;height:auto!important;
+    min-width:0!important;overflow:visible!important;
+    align-items:stretch!important;
+  }
+  html.zzx-app-mobile-standalone #IO {
+    display:contents!important;
+    width:auto!important;height:auto!important;
+  }
+  html.zzx-app-mobile-standalone #operations {grid-area:ops!important;}
+  html.zzx-app-mobile-standalone #recipe {grid-area:recipe!important;}
+  html.zzx-app-mobile-standalone #input {grid-area:input!important;}
+  html.zzx-app-mobile-standalone #output {grid-area:output!important;}
+  html.zzx-app-mobile-standalone #operations,
+  html.zzx-app-mobile-standalone #recipe,
+  html.zzx-app-mobile-standalone #input,
+  html.zzx-app-mobile-standalone #output {
+    display:block!important;
+    position:relative!important;
+    float:none!important;
+    width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;
+    flex:none!important;flex-basis:auto!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+    touch-action:pan-y;
+    border:1px solid rgba(120,130,122,.65);
+    border-radius:5px;
+  }
+  html.zzx-app-mobile-standalone #operations,
+  html.zzx-app-mobile-standalone #recipe {overflow-y:auto!important;}
+  html.zzx-app-mobile-standalone #workspace-wrapper > .gutter,
+  html.zzx-app-mobile-standalone #IO > .gutter {display:none!important;width:0!important;height:0!important;}
+  html.zzx-app-mobile-standalone #edit-favourites {position:fixed!important;z-index:50;}
+  html.zzx-app-mobile-standalone .modal-dialog {width:calc(100% - 16px)!important;max-width:calc(100% - 16px)!important;margin:8px!important;}
+  html.zzx-app-mobile-standalone .pane-controls {max-width:100%;}
+}
+@media (max-width:360px){
+  html.zzx-app-mobile-standalone #workspace-wrapper{grid-template-rows:repeat(4,minmax(350px,64svh))!important;}
+}
