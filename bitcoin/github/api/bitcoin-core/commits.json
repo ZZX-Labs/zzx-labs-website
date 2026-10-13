@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-13T05:06:24.291001Z",
+  "generated_at": "2026-10-13T12:39:23.799372Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "3b07eeeae08aa395a5ab9ec704e533518ad466c1",
+      "node_id": "C_kwDOABII59oAKDNiMDdlZWVhZTA4YWEzOTVhNWFiOWVjNzA0ZTUzMzUxOGFkNDY2YzE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-13T07:59:16Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-13T07:59:16Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36294: mempool: Remove -persistmempoolv1 option\n\n731b89c09bbc286801eebf5061b161c3d5091150 test: Check that importmempool fails on a malformed mempool.dat (Fabian Jahr)\n4c01625f798b4017ab83f86ab8815d56b4d18042 doc: Add release note for -persistmempoolv1 removal (Fabian Jahr)\nd1dfdf827619bd06ff9c52e42f2c370e6e70504f mempool: Remove -persistmempoolv1 option (Fabian Jahr)\n86a31b93d0db7f01e5c1a61fb014b89b2506fe54 test: Use v31.0 as old node in mempool_compatibility.py (Fabian Jahr)\n\nPull request description:\n\n  `-persistmempoolv1` was added in #28207 as a temporary option to allow downgrading to v26 and earlier, which can't read the XOR'ed `mempool.dat`. v26 has now been EOL for a while. So any version this option could help downgrade to is unsupported now. It seems ready for removal. I don't think this requires an additional deprecation cycle since the feature is useless for any maintained version and docs have always stated that this was a \"temporary option that will be removed in the future\".\n\n  Reading v1 files is still supported, so upgrading directly from an old version keeps the persisted mempool.\n\n  `mempool_compatibility.py` now uses v28.2 as the old node, the oldest release in `get_previous_releases.py` that writes the current format.\n\nACKs for top commit:\n  maflcko:\n    review ACK 731b89c09bbc286801eebf5061b161c3d5091150 \ud83d\udc0b\n  ismaelsadeeq:\n    ACK 731b89c09bbc286801eebf5061b161c3d5091150\n\nTree-SHA512: 6a61812ef722033f883143a2e9f456bd5c1b348d6e90376220ca13799a1545a5210803dd33f7d6a3da1dac77361f6961f07f5c55cb4a972ddecf80578e0394f0",
+        "tree": {
+          "sha": "b4cbec8a0dc8c8d3971ff050ba97852e9ce66af4",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b4cbec8a0dc8c8d3971ff050ba97852e9ce66af4"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/3b07eeeae08aa395a5ab9ec704e533518ad466c1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrN5NUbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBZOgP/27yBt7TzRExCT7qDsxu\nf8lEjqiJ6C3WZjOhoBkFFct9s6s5UFXe6t7eEofEniC6Z5Fw4wjBmX5i/0tRyWoP\ntn8NUSpp23HoS/8V7BSJyOJVlsZJXiqexa3sOEz34gkO3ZcWIEy+kezC1NpgvLCf\naCUB+nZKUw6aKocUMyWOnU/DSatm4pGFIySUCbuZE7CV9LMz8TmId4qfxdAeYlIy\nAoaghMSeg4qdJpi1bvoRN1aXMP1DwfJNVooSsRupS5S8Ea50HKGz6W7VnGRLH+oi\nD2n82DIHFIrN2+9/Bfc/KqTzQWEZ6yuQCazQpQCfSggb3ht+LjPrI3oUTJe+QlUa\nx1FBc3VSh4BFuG00tRcggoEHHFZ0DoOKgsif10kenKd7JxQjEhFFHilcW83puT+d\nyzh5DNNzcu9w73TrULgjtiowi3J83PBmx4Yphyk04y9CjPqC6kO8NPbtZf7BjTFi\nWYtlZaqQQiy0DEO1Sn4fn3nuw7YDc7pNWkitQJf5OA4Ql9dUODvyktT7rWgIfMhP\n/ncAvFC4q+Pq5fHsg7Bv2egvJHhDZuC7xelyMmdHVkhFExoSLxkhVvoEm9BbEt2t\nEFmiO3+dlT4K44zfNiqo7DL3+bMkM51qfR0aoccWTVgRy7oNXD/qxHuadTjhcU4H\n6I1tEPSBgGqsH5IXFHpxeNlb\n=Ghdq\n-----END PGP SIGNATURE-----",
+          "payload": "tree b4cbec8a0dc8c8d3971ff050ba97852e9ce66af4\nparent 1605d8873e8e16db0d59eb839b64c0a0b41f9512\nparent 731b89c09bbc286801eebf5061b161c3d5091150\nauthor merge-script <fanquake@gmail.com> 1791878356 +0900\ncommitter merge-script <fanquake@gmail.com> 1791878356 +0900\n\nMerge bitcoin/bitcoin#36294: mempool: Remove -persistmempoolv1 option\n\n731b89c09bbc286801eebf5061b161c3d5091150 test: Check that importmempool fails on a malformed mempool.dat (Fabian Jahr)\n4c01625f798b4017ab83f86ab8815d56b4d18042 doc: Add release note for -persistmempoolv1 removal (Fabian Jahr)\nd1dfdf827619bd06ff9c52e42f2c370e6e70504f mempool: Remove -persistmempoolv1 option (Fabian Jahr)\n86a31b93d0db7f01e5c1a61fb014b89b2506fe54 test: Use v31.0 as old node in mempool_compatibility.py (Fabian Jahr)\n\nPull request description:\n\n  `-persistmempoolv1` was added in #28207 as a temporary option to allow downgrading to v26 and earlier, which can't read the XOR'ed `mempool.dat`. v26 has now been EOL for a while. So any version this option could help downgrade to is unsupported now. It seems ready for removal. I don't think this requires an additional deprecation cycle since the feature is useless for any maintained version and docs have always stated that this was a \"temporary option that will be removed in the future\".\n\n  Reading v1 files is still supported, so upgrading directly from an old version keeps the persisted mempool.\n\n  `mempool_compatibility.py` now uses v28.2 as the old node, the oldest release in `get_previous_releases.py` that writes the current format.\n\nACKs for top commit:\n  maflcko:\n    review ACK 731b89c09bbc286801eebf5061b161c3d5091150 \ud83d\udc0b\n  ismaelsadeeq:\n    ACK 731b89c09bbc286801eebf5061b161c3d5091150\n\nTree-SHA512: 6a61812ef722033f883143a2e9f456bd5c1b348d6e90376220ca13799a1545a5210803dd33f7d6a3da1dac77361f6961f07f5c55cb4a972ddecf80578e0394f0\n",
+          "verified_at": "2026-10-13T07:59:25Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3b07eeeae08aa395a5ab9ec704e533518ad466c1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/3b07eeeae08aa395a5ab9ec704e533518ad466c1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3b07eeeae08aa395a5ab9ec704e533518ad466c1/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "1605d8873e8e16db0d59eb839b64c0a0b41f9512",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/1605d8873e8e16db0d59eb839b64c0a0b41f9512",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/1605d8873e8e16db0d59eb839b64c0a0b41f9512"
+        },
+        {
+          "sha": "731b89c09bbc286801eebf5061b161c3d5091150",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/731b89c09bbc286801eebf5061b161c3d5091150",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/731b89c09bbc286801eebf5061b161c3d5091150"
+        }
+      ]
+    },
     {
       "sha": "1605d8873e8e16db0d59eb839b64c0a0b41f9512",
       "node_id": "C_kwDOABII59oAKDE2MDVkODg3M2U4ZTE2ZGIwZDU5ZWI4MzliNjRjMGEwYjQxZjk1MTI",
@@ -7613,88 +7700,6 @@
           "sha": "7988380da987c0b860885853ace8149b84ac2ee8",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/7988380da987c0b860885853ace8149b84ac2ee8",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/7988380da987c0b860885853ace8149b84ac2ee8"
-        }
-      ]
-    },
-    {
-      "sha": "00c1b52ee56b9a2f067befc56c171eef27efda41",
-      "node_id": "C_kwDOABII59oAKDAwYzFiNTJlZTU2YjlhMmYwNjdiZWZjNTZjMTcxZWVmMjdlZmRhNDE",
-      "commit": {
-        "author": {
-          "name": "Andrew Toth",
-          "email": "andrewstoth@gmail.com",
-          "date": "2026-09-20T18:29:36Z"
-        },
-        "committer": {
-          "name": "Andrew Toth",
-          "email": "andrewstoth@gmail.com",
-          "date": "2026-10-01T15:07:00Z"
-        },
-        "message": "net: remove PrivateBroadcast::DidNodeConfirmReception\n\nThis method is no longer called in production.",
-        "tree": {
-          "sha": "8a63a8160dc7a3a556c257bc2e554460e4fe0ad3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8a63a8160dc7a3a556c257bc2e554460e4fe0ad3"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/00c1b52ee56b9a2f067befc56c171eef27efda41",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEISytpz6vNK/yCogaYAB6/Ik4sBgFAmq+dxQACgkQYAB6/Ik4\nsBjn2RAAmgKe6Qgs6GMb/4YgKH6ZG97lrUeFAnI/Vkj8RTkPZmxMNj+B5YuZMSa2\nbYRHiHvJvVkFatSSPsdhAL+bmWKGt06Kmu+4YgswWhR6Much+JUYxNK1lcaNISrq\nX7VdlEOwBzsNnd5CBk/5xkouuwU4wW+tviLFsDcqDGiDciPf0KuZqXilKGSn+wGd\nc5edbs20gUvxheYIG52Khc7R9f2ur3SHF5/YFifqu65jLzFqnBOkKeGz9AdND0VD\ncDgtYu21GI8Z+cwRa2WCh021rJbbskNMfmFnTmugBhnBbVRh5Sn7TBg53GqVHjzS\nwE2EQmvg4+M5qdGg9r8vH6iNIqgBJYVKhtTw25eQpSSi73Uyo6RL9YD+9c+Sj3ux\nlVT99foH7H707BYdbjMnfH4HoLl5Vqm92XixdoQTT2JlJ2/XPk4RhD4NxVY1efpu\nkDGq2VgoprBkpripGk4BJiJLXUrlHRZYqryEpmAeg29Ba+ed8cZHVw3WPm7eK3Ud\nxcpHrQ8SMspT+OtGzET5YZRwOTzrXocS6cuIFTmP0/lAnhBVw0DVR2u7TOYc3j0Y\nEkw5MaGswkyczGoWQiSHdpIiPzynpbLvhWNXroQcKPm+cKwhviUUY9lXy8Ng3+CB\neOb9O0gMWaRLyI81Kh78SqEJHc4F4ngx67ioi3vQ1h4okigvOwM=\n=1nWL\n-----END PGP SIGNATURE-----",
-          "payload": "tree 8a63a8160dc7a3a556c257bc2e554460e4fe0ad3\nparent dc95a705d402d44b7092150878e33c75383a4d47\nauthor Andrew Toth <andrewstoth@gmail.com> 1789928976 -0400\ncommitter Andrew Toth <andrewstoth@gmail.com> 1790867220 -0400\n\nnet: remove PrivateBroadcast::DidNodeConfirmReception\n\nThis method is no longer called in production.\n",
-          "verified_at": "2026-10-01T15:09:13Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/00c1b52ee56b9a2f067befc56c171eef27efda41",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/00c1b52ee56b9a2f067befc56c171eef27efda41",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/00c1b52ee56b9a2f067befc56c171eef27efda41/comments",
-      "author": {
-        "login": "andrewtoth",
-        "id": 237213,
-        "node_id": "MDQ6VXNlcjIzNzIxMw==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/237213?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/andrewtoth",
-        "html_url": "https://github.com/andrewtoth",
-        "followers_url": "https://api.github.com/users/andrewtoth/followers",
-        "following_url": "https://api.github.com/users/andrewtoth/following{/other_user}",
-        "gists_url": "https://api.github.com/users/andrewtoth/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/andrewtoth/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/andrewtoth/subscriptions",
-        "organizations_url": "https://api.github.com/users/andrewtoth/orgs",
-        "repos_url": "https://api.github.com/users/andrewtoth/repos",
-        "events_url": "https://api.github.com/users/andrewtoth/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/andrewtoth/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "andrewtoth",
-        "id": 237213,
-        "node_id": "MDQ6VXNlcjIzNzIxMw==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/237213?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/andrewtoth",
-        "html_url": "https://github.com/andrewtoth",
-        "followers_url": "https://api.github.com/users/andrewtoth/followers",
-        "following_url": "https://api.github.com/users/andrewtoth/following{/other_user}",
-        "gists_url": "https://api.github.com/users/andrewtoth/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/andrewtoth/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/andrewtoth/subscriptions",
-        "organizations_url": "https://api.github.com/users/andrewtoth/orgs",
-        "repos_url": "https://api.github.com/users/andrewtoth/repos",
-        "events_url": "https://api.github.com/users/andrewtoth/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/andrewtoth/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "dc95a705d402d44b7092150878e33c75383a4d47",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/dc95a705d402d44b7092150878e33c75383a4d47",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/dc95a705d402d44b7092150878e33c75383a4d47"
         }
       ]
     }
