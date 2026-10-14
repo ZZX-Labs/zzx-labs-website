@@ -1,8 +1,182 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-14T05:19:59.143607Z",
+  "generated_at": "2026-10-14T10:31:18.370136Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "f13ae519de94394314cd63a27924b0998ac65d45",
+      "node_id": "C_kwDOABII59oAKGYxM2FlNTE5ZGU5NDM5NDMxNGNkNjNhMjc5MjRiMDk5OGFjNjVkNDU",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-14T08:07:02Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "seb.kung@gmail.com",
+          "date": "2026-10-14T08:07:02Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36469: refactor: deduplicate block validation state catcher\n\nc9cccf6d68c682e533876b4450f5ad7044a79f10 refactor: deduplicate block validation state catcher (Enoch Azariah)\n\nPull request description:\n\n  As mentioned in https://github.com/bitcoin/bitcoin/pull/34644#discussion_r2889315162 and https://github.com/bitcoin/bitcoin/pull/35675#discussion_r360301816, the validation state catchers were defined in the block template manager, `submitblock` rpc and mining test helpers, even though they do the same thing.\n\n  Moved this helper into `node/block_validation_state_catcher.h` and reuse it across all three callers. An optional validation state replaces the separate `found` flag where used, preserving each caller's registration and result handling\n\n  Replaces #36389 with the same commit on a dedicated branch.\n\nACKs for top commit:\n  maflcko:\n    review ACK c9cccf6d68c682e533876b4450f5ad7044a79f1 🖋\n  ismaelsadeeq:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n  sedited:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n  w0xlt:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n\nTree-SHA512: ae4bea2f2da9df4350099e5787e7743d07d86acf2c6e6150a9d7b9b659c14c217a07bfd3a0c8c6ee9a75043ff458aec0ea1d01ca86f89f6818866cca377e2318",
+        "tree": {
+          "sha": "b4fef59786ca6e6f9e1380fe10f17b4c1cafb983",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b4fef59786ca6e6f9e1380fe10f17b4c1cafb983"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/f13ae519de94394314cd63a27924b0998ac65d45",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCAAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrPOCYACgkQm3m0VpHb\nQXP5DxAAgaR9sQfQhyBTYfQ9l7WeF0xFNpxdYxDPKlcSPeGRHzn/6StQ/JlVHCZw\nYZzH0jpOTltb5lKMHIvovDL9E4C2RvJKPbj/fhMrVFs7vENG4d5UxEisgLaTrmzZ\nlb/nqV8dmTAyUYHRlzp54CuxE7yhyWoXgBRTog3yHKeRe0tuJ3ldkkv2FWa2fgXr\nydO/HBWxTH+TzfiXABL9fyYJfZn0m8JcmeDEV0UIEWneCw4qCxaQ8IlYH24GoonM\nfMhTfq1bD4GluoamG/sQ2t2c/E1B+P5j+xEZHYLxnF/NdCXrv7xIxqexE6xqzDvI\nU/hvuZjUiQ+zx8lOxOKlVCXYMK1Z+tFXzjDppYTl2w3brZZveuEK1eyp3Ra6hFRn\n9s42PU1XbYnmvZQ4mo2G8U+q4v0a8/HFZps+mOFKeZ/vvBc8ZrUyUqMhgWUDt72f\nCXOJwNT3hMz/28HlX7+47tJFVBr9j1Q2mRsCATUrbejfXBkZ69seA3g4xs7Cv//S\nwVJTLkf+tAwx+kuq5QIq5cgicpmud9NIh0lyDAkpmunGFUtArAszNWlUO7tqv2bv\nnJvuNdll9fAbUsJfBqjgl0mLwD6EDNfsi1ACrv5HDuJ7p3gk/5kPGWuXcZXXkHP0\n15LHmeqpCFjilg34wCFzWvjUMYWO5P6fSDriy5danqAUuRaGdXg=\n=j6We\n-----END PGP SIGNATURE-----",
+          "payload": "tree b4fef59786ca6e6f9e1380fe10f17b4c1cafb983\nparent 60ebd98c79043e99c582bcbaf412bc424c8daf9b\nparent c9cccf6d68c682e533876b4450f5ad7044a79f10\nauthor merge-script <seb.kung@gmail.com> 1791965222 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791965222 +0200\n\nMerge bitcoin/bitcoin#36469: refactor: deduplicate block validation state catcher\n\nc9cccf6d68c682e533876b4450f5ad7044a79f10 refactor: deduplicate block validation state catcher (Enoch Azariah)\n\nPull request description:\n\n  As mentioned in https://github.com/bitcoin/bitcoin/pull/34644#discussion_r2889315162 and https://github.com/bitcoin/bitcoin/pull/35675#discussion_r360301816, the validation state catchers were defined in the block template manager, `submitblock` rpc and mining test helpers, even though they do the same thing.\n\n  Moved this helper into `node/block_validation_state_catcher.h` and reuse it across all three callers. An optional validation state replaces the separate `found` flag where used, preserving each caller's registration and result handling\n\n  Replaces #36389 with the same commit on a dedicated branch.\n\nACKs for top commit:\n  maflcko:\n    review ACK c9cccf6d68c682e533876b4450f5ad7044a79f1 🖋\n  ismaelsadeeq:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n  sedited:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n  w0xlt:\n    ACK c9cccf6d68c682e533876b4450f5ad7044a79f10\n\nTree-SHA512: ae4bea2f2da9df4350099e5787e7743d07d86acf2c6e6150a9d7b9b659c14c217a07bfd3a0c8c6ee9a75043ff458aec0ea1d01ca86f89f6818866cca377e2318\n",
+          "verified_at": "2026-10-14T08:07:54Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f13ae519de94394314cd63a27924b0998ac65d45",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/f13ae519de94394314cd63a27924b0998ac65d45",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f13ae519de94394314cd63a27924b0998ac65d45/comments",
+      "author": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "sedited",
+        "id": 8421793,
+        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sedited",
+        "html_url": "https://github.com/sedited",
+        "followers_url": "https://api.github.com/users/sedited/followers",
+        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
+        "organizations_url": "https://api.github.com/users/sedited/orgs",
+        "repos_url": "https://api.github.com/users/sedited/repos",
+        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sedited/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/60ebd98c79043e99c582bcbaf412bc424c8daf9b"
+        },
+        {
+          "sha": "c9cccf6d68c682e533876b4450f5ad7044a79f10",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c9cccf6d68c682e533876b4450f5ad7044a79f10",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c9cccf6d68c682e533876b4450f5ad7044a79f10"
+        }
+      ]
+    },
+    {
+      "sha": "60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+      "node_id": "C_kwDOABII59oAKDYwZWJkOThjNzkwNDNlOTljNTgyYmNiYWY0MTJiYzQyNGM4ZGFmOWI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-14T07:45:34Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-14T07:45:34Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36425: guix: declare python-setuptools in codesign manifest\n\nc04e968b2b8b7c8778910f907ed8c26ba59edd85 guix: update certvalidator for Python 3.12 (will)\n11977b42acc54e2abcd8e06272a8f44865cf40a4 guix: declare python-setuptools (will)\n\nPull request description:\n\n  Since we bumped to python 3.12, `setuptools` is no longer provided by default: https://docs.python.org/3.12/whatsnew/3.12.html#ensurepip Declare this explicitly.\n\n  Also bypass `certvalidator`'s custom test loader using `unittest`, until [this upstream patch](https://github.com/LRGH/elfesteem/commit/000d6bbcd3a4b3d132ad6d932eedb3158b3313e9)  makes it into our Guix time machine commit.\n\n  Commits split to allow easy reversion of only the `imp` test loader patch.\n\n  Fixes: #36421\n\nACKs for top commit:\n  hebasto:\n    ACK c04e968b2b8b7c8778910f907ed8c26ba59edd85.\n  pinheadmz:\n    ACK c04e968b2b8b7c8778910f907ed8c26ba59edd85\n\nTree-SHA512: 8068f62e403ced160aa9fedf673f65c43327e58d148e2cf14332e2e563a99ac649b3b337be5dc4c1b46b414d3dc1c865f57b619f9e195393d0ba7ebc6377454c",
+        "tree": {
+          "sha": "9c3596a4c47c51c25242b56355351c89046fd4c8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/9c3596a4c47c51c25242b56355351c89046fd4c8"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrPMx4bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBwH8P/3aEiZJay2lwUzkDiX5B\nAvtRJYpPFd2bgpmsdHS8NvqZ+abWFkC52F+ET04Y4Qbr79NhZXhj8voJ7YngyVk6\nxYim2FYHLo1xOs5+TxnCWGOMgyuHl+SemeimEbZ2ki27rL2iLDUMO0dZNw1xzmPO\nkotF/Og/8xGlB1pEBIxHmHLspQ6dKg5CdEC6hexXCdboydYxmc5B0GMcQz9bY11C\nocB0zvRBpXxhPPnAzkiXJa3Vhrkp2CKZnAriAjrhKyJ1ubY2mnoMLQZk8AZcd4Xs\nmKbMTSOV1zb3Dm1Ml8AwyEi+nSNdNQXBV3y3OMoUz0265vXtbQ0D0uMnOR1ne8zL\nsJFmEdZ1NTskWS1QbZ8g84NbPEaSiZDPs7fMy/6BXeCJRxu++QMn3o6H8NkyH9uj\n3Gl0gc5LoxpNrvFGofA+jusom93olQ1MiWrAk11jPHNhiVLs/v8vGHByA5zMqhkG\niiMX3zkQx84Xa1PhRhzvoCWBQqeLL8J4dWLSkms2nDqH9XdiS/aIKJyv3UJ2Gon1\nph3TXPN1r3AZ/RPbauOcA2eKknwzStiO+OwyJBSCyvjNdf/7HK99tpbIbTG4h1F2\nHQGjBBlbkJ7TH76bqTxYX+3i+XXFEgwqrY4stNGqkgx4+Yar9hOTv+krI7wgmLWw\nDKgLJQLb1uirE988ybVUuW1X\n=LTBe\n-----END PGP SIGNATURE-----",
+          "payload": "tree 9c3596a4c47c51c25242b56355351c89046fd4c8\nparent 173ec9a06cf6a1619a1d62cbace6520c1ada0201\nparent c04e968b2b8b7c8778910f907ed8c26ba59edd85\nauthor merge-script <fanquake@gmail.com> 1791963934 +0900\ncommitter merge-script <fanquake@gmail.com> 1791963934 +0900\n\nMerge bitcoin/bitcoin#36425: guix: declare python-setuptools in codesign manifest\n\nc04e968b2b8b7c8778910f907ed8c26ba59edd85 guix: update certvalidator for Python 3.12 (will)\n11977b42acc54e2abcd8e06272a8f44865cf40a4 guix: declare python-setuptools (will)\n\nPull request description:\n\n  Since we bumped to python 3.12, `setuptools` is no longer provided by default: https://docs.python.org/3.12/whatsnew/3.12.html#ensurepip Declare this explicitly.\n\n  Also bypass `certvalidator`'s custom test loader using `unittest`, until [this upstream patch](https://github.com/LRGH/elfesteem/commit/000d6bbcd3a4b3d132ad6d932eedb3158b3313e9)  makes it into our Guix time machine commit.\n\n  Commits split to allow easy reversion of only the `imp` test loader patch.\n\n  Fixes: #36421\n\nACKs for top commit:\n  hebasto:\n    ACK c04e968b2b8b7c8778910f907ed8c26ba59edd85.\n  pinheadmz:\n    ACK c04e968b2b8b7c8778910f907ed8c26ba59edd85\n\nTree-SHA512: 8068f62e403ced160aa9fedf673f65c43327e58d148e2cf14332e2e563a99ac649b3b337be5dc4c1b46b414d3dc1c865f57b619f9e195393d0ba7ebc6377454c\n",
+          "verified_at": "2026-10-14T07:45:43Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/60ebd98c79043e99c582bcbaf412bc424c8daf9b",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/60ebd98c79043e99c582bcbaf412bc424c8daf9b/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "173ec9a06cf6a1619a1d62cbace6520c1ada0201",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/173ec9a06cf6a1619a1d62cbace6520c1ada0201",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/173ec9a06cf6a1619a1d62cbace6520c1ada0201"
+        },
+        {
+          "sha": "c04e968b2b8b7c8778910f907ed8c26ba59edd85",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c04e968b2b8b7c8778910f907ed8c26ba59edd85",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c04e968b2b8b7c8778910f907ed8c26ba59edd85"
+        }
+      ]
+    },
     {
       "sha": "173ec9a06cf6a1619a1d62cbace6520c1ada0201",
       "node_id": "C_kwDOABII59oAKDE3M2VjOWEwNmNmNmExNjE5YTFkNjJjYmFjZTY1MjBjMWFkYTAyMDE",
@@ -1416,180 +1590,6 @@
           "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26"
-        }
-      ]
-    },
-    {
-      "sha": "f739c7876b81304bdc72e7eaa307702da269ac31",
-      "node_id": "C_kwDOABII59oAKGY3MzljNzg3NmI4MTMwNGJkYzcyZTdlYWEzMDc3MDJkYTI2OWFjMzE",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-08T15:24:12Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-08T15:24:12Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36450: test: Use timeout_factor for drain timeout in check_slow_read_throttle\n\nfa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce test: Use timeout_factor for drain timeout in check_slow_read_throttle (MarcoFalke)\n\nPull request description:\n\n  The `check_slow_read_throttle` functional test may intermittently fail on slow build configs (like sanitizers+debug+no-opt). This is fine, but it would be nice if it passed.\n\n  To reproduce the failure, add a long sleep for the big json requests:\n\n  ```diff\n  diff --git a/src/httpserver.cpp b/src/httpserver.cpp\n  index 0c25ebbba5..42c54c2cdf 100644\n  --- a/src/httpserver.cpp\n  +++ b/src/httpserver.cpp\n  @@ -614,2 +614,3 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n       bool send_buffer_was_empty{false};\n  +    bool send_buffer_over_limit{false};\n       // Fill the send buffer with the complete serialized response headers + body\n  @@ -634,2 +635,4 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n           if (!send_buffer_was_empty) m_send_ready = true;\n  +\n  +        send_buffer_over_limit = m_send_buffer.size() > MAX_BODY_SIZE;\n       }\n  @@ -652,2 +655,11 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n\n  +    // TEST-ONLY: Widen the interval between queueing a throttling-sized response\n  +    // and allowing the next pipelined request to be dispatched. This reproduces\n  +    // the slow-worker scheduling window exercised by interface_http.py.\n  +    if (send_buffer_over_limit) {\n  +    // The functional test waits twice for five seconds before it starts\n  +    // its own ten-second recv() timeout, so this must cover both phases.\n  +    std::this_thread::sleep_for(30s);\n  +    }\n  +\n       // Signal to the I/O loop that we are ready to handle the next request.\n  ```\n\n  Then, on master (or on this pull with `--timeout-factor=1`), it will fail and with `--timeout-factor=3` it will pass:\n\n  ```\n  ./bld-cmake/test/functional/interface_http.py --test_methods check_slow_read_throttle --loglevel=DEBUG --timeout-factor 3\n  ```\n\nACKs for top commit:\n  pinheadmz:\n    untested, LGTM ACK fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce\n  l0rinc:\n    code review ACK fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce\n\nTree-SHA512: a4ca656d6329d16ac0459aec7ce03cd1e06ee05c7f868d9f3764fbe187d86e343b1d3c23da949d09f90dbb4cc7e05286ce27e1d3a6f0cd7f0b5b21f5492d339a",
-        "tree": {
-          "sha": "ecda48fc4564756b52d55eeb522577eaf75ec8f8",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ecda48fc4564756b52d55eeb522577eaf75ec8f8"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/f739c7876b81304bdc72e7eaa307702da269ac31",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrHtZwACgkQm3m0VpHb\nQXMt1RAArb7zujXkACnIXD+Gi+cw/IR3jE9k6Qf8C58s9JpnM6xuzu0ReB4xSWdi\n3Pxka0ZMydbjZxaFKRP5Layiiz+bMj3JyV90LtYiOEhct3tyjc4t8v5Fr+P0rh/X\nI2lDPFLVZuody4MMm/XI0J/xzGT8Ua8vMJDzGomugRsQwQvttxhalLW+2gSmZJK+\nH9fATPEHUNO/3lO7JIo15hGf1DmH00H0ssm+fqEZKoHCcTgFuHNP3avMZmQ6BnP1\ndgy7SX9F3MBs4WE4PzOkKfFw0gF6Ff2dQ/974FVZ60ZlDkqU5/WgApbiBr+4bZAe\n4eSSWSUFCiVMP2zIPvkkq6hXj9siLZFw4P7chA5dGYuxZBGewNpvfIOKFQqtz+U+\nbZhIhyv7l3UWiuyMsfkvjsfdqpeMntqKaMmIebVQxOHDixxWOiDE6HQxEpC3kvix\nAa3xvW5v0TVs2LjpuUXHtW5mxpygXAphnIKShwijPy6Sh6fFetHvfdGb7fL7NXjE\nNLjIfOumF1mCpsQVd1FwCTYu7vJFhFzOE45rOnujT3x7GlXfmdJznWxA7L9BxjDp\ni20mD0C0JDl7J/xRJbyqAE8QafnPBrZbrYZ10PaxY7k91a5w81uTdJ9rX45fX2Pp\ne3J76DzYfF+SyHoqGmQ6sUm8SYTWhQb86lUNVXdIiCgRBItF+F4=\n=n1jZ\n-----END PGP SIGNATURE-----",
-          "payload": "tree ecda48fc4564756b52d55eeb522577eaf75ec8f8\nparent 8ad7e25d1fffb086692c0e17ed168838dde6e66f\nparent fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce\nauthor merge-script <seb.kung@gmail.com> 1791473052 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791473052 +0200\n\nMerge bitcoin/bitcoin#36450: test: Use timeout_factor for drain timeout in check_slow_read_throttle\n\nfa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce test: Use timeout_factor for drain timeout in check_slow_read_throttle (MarcoFalke)\n\nPull request description:\n\n  The `check_slow_read_throttle` functional test may intermittently fail on slow build configs (like sanitizers+debug+no-opt). This is fine, but it would be nice if it passed.\n\n  To reproduce the failure, add a long sleep for the big json requests:\n\n  ```diff\n  diff --git a/src/httpserver.cpp b/src/httpserver.cpp\n  index 0c25ebbba5..42c54c2cdf 100644\n  --- a/src/httpserver.cpp\n  +++ b/src/httpserver.cpp\n  @@ -614,2 +614,3 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n       bool send_buffer_was_empty{false};\n  +    bool send_buffer_over_limit{false};\n       // Fill the send buffer with the complete serialized response headers + body\n  @@ -634,2 +635,4 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n           if (!send_buffer_was_empty) m_send_ready = true;\n  +\n  +        send_buffer_over_limit = m_send_buffer.size() > MAX_BODY_SIZE;\n       }\n  @@ -652,2 +655,11 @@ void HTTPRemoteClient::Send(const HTTPResponse& res, std::span<const std::byte>\n\n  +    // TEST-ONLY: Widen the interval between queueing a throttling-sized response\n  +    // and allowing the next pipelined request to be dispatched. This reproduces\n  +    // the slow-worker scheduling window exercised by interface_http.py.\n  +    if (send_buffer_over_limit) {\n  +    // The functional test waits twice for five seconds before it starts\n  +    // its own ten-second recv() timeout, so this must cover both phases.\n  +    std::this_thread::sleep_for(30s);\n  +    }\n  +\n       // Signal to the I/O loop that we are ready to handle the next request.\n  ```\n\n  Then, on master (or on this pull with `--timeout-factor=1`), it will fail and with `--timeout-factor=3` it will pass:\n\n  ```\n  ./bld-cmake/test/functional/interface_http.py --test_methods check_slow_read_throttle --loglevel=DEBUG --timeout-factor 3\n  ```\n\nACKs for top commit:\n  pinheadmz:\n    untested, LGTM ACK fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce\n  l0rinc:\n    code review ACK fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce\n\nTree-SHA512: a4ca656d6329d16ac0459aec7ce03cd1e06ee05c7f868d9f3764fbe187d86e343b1d3c23da949d09f90dbb4cc7e05286ce27e1d3a6f0cd7f0b5b21f5492d339a\n",
-          "verified_at": "2026-10-08T15:24:54Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f739c7876b81304bdc72e7eaa307702da269ac31",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/f739c7876b81304bdc72e7eaa307702da269ac31",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f739c7876b81304bdc72e7eaa307702da269ac31/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/8ad7e25d1fffb086692c0e17ed168838dde6e66f"
-        },
-        {
-          "sha": "fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa845f76d5c6d9c4aba46e03eb9b77a6e1f5ddce"
-        }
-      ]
-    },
-    {
-      "sha": "8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-      "node_id": "C_kwDOABII59oAKDhhZDdlMjVkMWZmZmIwODY2OTJjMGUxN2VkMTY4ODM4ZGRlNmU2NmY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-08T15:01:31Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-08T15:01:31Z"
-        },
-        "message": "Merge bitcoin/bitcoin#34374: kernel: use struct-based logging and simplify logging interface\n\neb086540b680cfed42ab7f9498c1ade459828808 kernel: make logging struct-based and simplify configuration (stickies-v)\n0c327a34748a3d882d88fe0034187ddee0c7d59a kernel: add KernelLogger (stickies-v)\n3d976f464d5a5dbb0b867783c472b31ba871900a kernel: remove API to format and disable logging (stickies-v)\n4ec80a5d4fa3ff567356d946d45699a3c407c77f kernel: add log level and category name helpers to wrapper (stickies-v)\n2ce6cd3d906da00c2b12c00a9437ed68dc5c4f14 kernel: expose btck_LogEntry (stickies-v)\n694eaad2eb287ca8c862d766cde22cb39667fed8 kernel: add missing log levels and categories (stickies-v)\n\nPull request description:\n\n  tl;dr: kernel logging is cumbersome. This PR delivers log entries as a struct instead of a formatted string, and simplifies the kernel logging interface. Closes #34062.\n\n  ## Motivation\n\n  The `bitcoinkernel` library (#27587) [exposes](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L698-L778) functionality to interface with the kernel logging. This includes registering callbacks for log statements, level/category filtering, string formatting options, and more.\n\n  Kernel logging has a few problems:\n  - [callbacks](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L304) operate on formatted strings, so users need to parse the string to get the timestamp, category, level, ... based on which options are set. This is cumbersome, brittle, and inefficient.\n  - the [filtering interface](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L737) is not really intuitive, requiring users to call combinations of `btck_logging_set_level_category` and `btck_logging_enable_category` when they want to produce `debug` or `trace` logs. The level/category system makes sense for node, because it directly controls what gets written to disk and stdout, and there are quite a lot more categories producing logs. Kernel doesn't really need this - users control what happens to the logs, and can do any filtering/manipulation in the callback they provide.\n  - the node logging infrastructure has quite a bit more functionality than is necessary for a library, including ratelimiting, log formatting, outputting, buffering, ... This introduces unnecessary code and interface complexity.\n\n  ## Approach\n\n  Log generation (`util/log.h`: macros, `util::log::Entry`, and the `ShouldDebugLog`/`ShouldTraceLog`/`Log` hooks an application must provide) was already separated from log handling (`logging.h`) in #34465 and subsequent PRs. This PR gives `bitcoinkernel` its own implementation of those hooks, so it no longer depends on `logging.cpp`, and upgrades the C API to deliver struct-based entries. Node logging is not changed.\n\n  1. **Preparatory work**: expose the missing levels and categories (`WARNING`, `ERROR`, `TXPACKAGES`, `LOCK`) and the `btck_LogEntry` struct, add `Name()` helpers to the C++ wrapper, and remove `btck_logging_set_options` and `btck_logging_disable` (with struct-based entries there is no kernel-side format to configure, and without buffering there is nothing to disable).\n  2. **Add `KernelLogger`**: a kernel-owned backend that holds the registered callbacks and the minimum level, and converts each `util::log::Entry` into a `btck_LogEntry`. Introduced in a separate commit to keep the scope of the behaviour-changing commit smaller.\n  3. **Update the bitcoinkernel C API**: `btck_LogCallback` receives a `btck_LogEntry` instead of a string, the `util::log` hooks are implemented on `KernelLogger`, `logging.cpp` is dropped from the kernel build, and the logging configuration interface is reduced to `btck_logging_set_min_level()`.\n\n  Behaviour changes for consumers (also described in each commit message):\n  - Logging callbacks deliver structs instead of formatted strings, and the entire logging interface is simplified.\n  - Filtering is levels-based only and can also filter `Info` and above. `Debug`/`Trace` apply to all categories, consumers can filter on `btck_LogEntry::category` (but string formatting is done for the entire level, instead of per enabled category).\n  - Entries logged before the first connection are dropped instead of buffered.\n  - Messages are delivered unescaped and without a trailing newline.\n\n  ## Appendix\n\n  ### `bitcoinkernel` C logging interface\n\n  ```c\n  typedef struct {\n      const char* message;    //! Log message text.\n      size_t message_len;\n      const char* thread_name;    //! Name of the thread that produced the log message.\n      size_t thread_name_len;\n      int64_t timestamp_ns;    //! Wall-clock time when the entry was logged, in nanoseconds since the Unix epoch.\n      int64_t mocktime_s;    //! Mock time in effect when the entry was logged, in seconds since the Unix epoch, or 0 if no mock time is set (see btck_set_mock_time).\n      const char* file_name;    //! Name of the source file that produced the log statement.\n      size_t file_name_len;\n      const char* function_name;    //! Name of the function that produced the log message.\n      size_t function_name_len;\n      uint32_t line;    //! Line number of the source code that produced the log statement.\n      btck_LogLevel level;    //! Log severity level.\n      btck_LogCategory category;    //! Log category.\n  } btck_LogEntry;\n\n  typedef void (*btck_LogCallback)(void* user_data, const btck_LogEntry* entry);\n\n  BITCOINKERNEL_API void btck_logging_set_min_level(btck_LogLevel level);\n\n  BITCOINKERNEL_API btck_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT btck_logging_connection_create(\n      btck_LogCallback log_callback,\n      void* user_data,\n      btck_DestroyCallback user_data_destroy_callback) BITCOINKERNEL_ARG_NONNULL(1);\n\n  BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* logging_connection);\n  ```\n\nACKs for top commit:\n  w0xlt:\n    ACK eb086540b680cfed42ab7f9498c1ade459828808\n  musaHaruna:\n    Code Review ACK [eb08654](https://github.com/bitcoin/bitcoin/commit/eb086540b680cfed42ab7f9498c1ade459828808)\n  sedited:\n    Nice, ACK eb086540b680cfed42ab7f9498c1ade459828808\n\nTree-SHA512: 301a388253ead2176d75cb69935839a103bc125cac064eba787a643449047bd1f2d32d9dd11828f4ab59ce66976827ab61490b0533705a80b5c86316a1cfadae",
-        "tree": {
-          "sha": "cafba0f9a5a1cfa01cae642ee0add907a82fcd2f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/cafba0f9a5a1cfa01cae642ee0add907a82fcd2f"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrHsEsACgkQm3m0VpHb\nQXOskhAApnDiHC7L0943GXGgc3BVEPUTK/vCOYtxDlhUG06+QOfZTeaw6obr0ej8\nDsqTIpvsXW8cq4/FdukE6dFX7iTQZTJhX+WhQzwbjeuU9geToM4XkZuSOFTW2WK4\n9nDhPlDTsobqDOp2IQXMchN4+aR6pNXlzetRd0NIHdGAfzsXulzMrolBS7GNNZrw\ni6wJX2rGyJZcaX63YjaHpf7RZXuuKmnXHdy4CmpG8QUoPz1iPC3jMS0pSG7Praof\noDP3wvTGzEqjASGnuDf5HMMbCMJCHmFuhmnxuiEe1RIJZEWw7VFYu1Qj4rEuVkXi\nkr0HJBNVtjiIBfMzINvgnf4SlUd/BSdYjwWfRif6rzP4HHDJ6h4NdvNxBSg8mQ3N\nYVr8lo86osIHsoC6lzBiF6TP2Yu/zzzrD1hleMnAIttT2y+1Y8ODn4SO4M8OSbnL\n/UvTVCUwc409762DRq49BVoLS8PVUqTuPGjuu9Frw8AbH7/MTLKo7w6R+IFcxFdq\nDYeHqD4h8KxS3wxDH++GH5mWhBtmWJ4P3DAwlPEhHXtTgHSIbYb4BG3r9sDrlNxh\nANTyCktPDCdyqCFQ40GI2xsFz2OdCVxMIzfLHA/w6kudbRqNh1HUsIHlB4Au2SLQ\nRycr9znQo9Tb0zgl4hR2Mg6dhcQQgfOiGFSFYf/BdYHhJ43xELU=\n=gJp2\n-----END PGP SIGNATURE-----",
-          "payload": "tree cafba0f9a5a1cfa01cae642ee0add907a82fcd2f\nparent 442884f5f3bd82189117f83ed50cb39368afe6b7\nparent eb086540b680cfed42ab7f9498c1ade459828808\nauthor merge-script <seb.kung@gmail.com> 1791471691 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791471691 +0200\n\nMerge bitcoin/bitcoin#34374: kernel: use struct-based logging and simplify logging interface\n\neb086540b680cfed42ab7f9498c1ade459828808 kernel: make logging struct-based and simplify configuration (stickies-v)\n0c327a34748a3d882d88fe0034187ddee0c7d59a kernel: add KernelLogger (stickies-v)\n3d976f464d5a5dbb0b867783c472b31ba871900a kernel: remove API to format and disable logging (stickies-v)\n4ec80a5d4fa3ff567356d946d45699a3c407c77f kernel: add log level and category name helpers to wrapper (stickies-v)\n2ce6cd3d906da00c2b12c00a9437ed68dc5c4f14 kernel: expose btck_LogEntry (stickies-v)\n694eaad2eb287ca8c862d766cde22cb39667fed8 kernel: add missing log levels and categories (stickies-v)\n\nPull request description:\n\n  tl;dr: kernel logging is cumbersome. This PR delivers log entries as a struct instead of a formatted string, and simplifies the kernel logging interface. Closes #34062.\n\n  ## Motivation\n\n  The `bitcoinkernel` library (#27587) [exposes](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L698-L778) functionality to interface with the kernel logging. This includes registering callbacks for log statements, level/category filtering, string formatting options, and more.\n\n  Kernel logging has a few problems:\n  - [callbacks](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L304) operate on formatted strings, so users need to parse the string to get the timestamp, category, level, ... based on which options are set. This is cumbersome, brittle, and inefficient.\n  - the [filtering interface](https://github.com/bitcoin/bitcoin/blob/b26762bdcb941096ccc6f53c3fb5a7786ad735e7/src/kernel/bitcoinkernel.h#L737) is not really intuitive, requiring users to call combinations of `btck_logging_set_level_category` and `btck_logging_enable_category` when they want to produce `debug` or `trace` logs. The level/category system makes sense for node, because it directly controls what gets written to disk and stdout, and there are quite a lot more categories producing logs. Kernel doesn't really need this - users control what happens to the logs, and can do any filtering/manipulation in the callback they provide.\n  - the node logging infrastructure has quite a bit more functionality than is necessary for a library, including ratelimiting, log formatting, outputting, buffering, ... This introduces unnecessary code and interface complexity.\n\n  ## Approach\n\n  Log generation (`util/log.h`: macros, `util::log::Entry`, and the `ShouldDebugLog`/`ShouldTraceLog`/`Log` hooks an application must provide) was already separated from log handling (`logging.h`) in #34465 and subsequent PRs. This PR gives `bitcoinkernel` its own implementation of those hooks, so it no longer depends on `logging.cpp`, and upgrades the C API to deliver struct-based entries. Node logging is not changed.\n\n  1. **Preparatory work**: expose the missing levels and categories (`WARNING`, `ERROR`, `TXPACKAGES`, `LOCK`) and the `btck_LogEntry` struct, add `Name()` helpers to the C++ wrapper, and remove `btck_logging_set_options` and `btck_logging_disable` (with struct-based entries there is no kernel-side format to configure, and without buffering there is nothing to disable).\n  2. **Add `KernelLogger`**: a kernel-owned backend that holds the registered callbacks and the minimum level, and converts each `util::log::Entry` into a `btck_LogEntry`. Introduced in a separate commit to keep the scope of the behaviour-changing commit smaller.\n  3. **Update the bitcoinkernel C API**: `btck_LogCallback` receives a `btck_LogEntry` instead of a string, the `util::log` hooks are implemented on `KernelLogger`, `logging.cpp` is dropped from the kernel build, and the logging configuration interface is reduced to `btck_logging_set_min_level()`.\n\n  Behaviour changes for consumers (also described in each commit message):\n  - Logging callbacks deliver structs instead of formatted strings, and the entire logging interface is simplified.\n  - Filtering is levels-based only and can also filter `Info` and above. `Debug`/`Trace` apply to all categories, consumers can filter on `btck_LogEntry::category` (but string formatting is done for the entire level, instead of per enabled category).\n  - Entries logged before the first connection are dropped instead of buffered.\n  - Messages are delivered unescaped and without a trailing newline.\n\n  ## Appendix\n\n  ### `bitcoinkernel` C logging interface\n\n  ```c\n  typedef struct {\n      const char* message;    //! Log message text.\n      size_t message_len;\n      const char* thread_name;    //! Name of the thread that produced the log message.\n      size_t thread_name_len;\n      int64_t timestamp_ns;    //! Wall-clock time when the entry was logged, in nanoseconds since the Unix epoch.\n      int64_t mocktime_s;    //! Mock time in effect when the entry was logged, in seconds since the Unix epoch, or 0 if no mock time is set (see btck_set_mock_time).\n      const char* file_name;    //! Name of the source file that produced the log statement.\n      size_t file_name_len;\n      const char* function_name;    //! Name of the function that produced the log message.\n      size_t function_name_len;\n      uint32_t line;    //! Line number of the source code that produced the log statement.\n      btck_LogLevel level;    //! Log severity level.\n      btck_LogCategory category;    //! Log category.\n  } btck_LogEntry;\n\n  typedef void (*btck_LogCallback)(void* user_data, const btck_LogEntry* entry);\n\n  BITCOINKERNEL_API void btck_logging_set_min_level(btck_LogLevel level);\n\n  BITCOINKERNEL_API btck_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT btck_logging_connection_create(\n      btck_LogCallback log_callback,\n      void* user_data,\n      btck_DestroyCallback user_data_destroy_callback) BITCOINKERNEL_ARG_NONNULL(1);\n\n  BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* logging_connection);\n  ```\n\nACKs for top commit:\n  w0xlt:\n    ACK eb086540b680cfed42ab7f9498c1ade459828808\n  musaHaruna:\n    Code Review ACK [eb08654](https://github.com/bitcoin/bitcoin/commit/eb086540b680cfed42ab7f9498c1ade459828808)\n  sedited:\n    Nice, ACK eb086540b680cfed42ab7f9498c1ade459828808\n\nTree-SHA512: 301a388253ead2176d75cb69935839a103bc125cac064eba787a643449047bd1f2d32d9dd11828f4ab59ce66976827ab61490b0533705a80b5c86316a1cfadae\n",
-          "verified_at": "2026-10-08T15:02:36Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/8ad7e25d1fffb086692c0e17ed168838dde6e66f",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8ad7e25d1fffb086692c0e17ed168838dde6e66f/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "442884f5f3bd82189117f83ed50cb39368afe6b7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/442884f5f3bd82189117f83ed50cb39368afe6b7",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/442884f5f3bd82189117f83ed50cb39368afe6b7"
-        },
-        {
-          "sha": "eb086540b680cfed42ab7f9498c1ade459828808",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/eb086540b680cfed42ab7f9498c1ade459828808",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/eb086540b680cfed42ab7f9498c1ade459828808"
         }
       ]
     }
