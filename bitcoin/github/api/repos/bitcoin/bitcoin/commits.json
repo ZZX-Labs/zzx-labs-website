@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-14T23:04:35.721726Z",
+  "generated_at": "2026-10-15T01:23:17.014732Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "3c30b8ae4fe528a791f4657e2b1184bb5ddc2415",
+      "node_id": "C_kwDOABII59oAKDNjMzBiOGFlNGZlNTI4YTc5MWY0NjU3ZTJiMTE4NGJiNWRkYzI0MTU",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-15T01:05:41Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-15T01:05:41Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36446: test: remove some avoidable test waits\n\nce1d88b2632cc3950f47d8b191bdd74b806eb3ae test: avoid unused wallet test chains (will)\n40619d068741ec609ddd3148f13234cbdc54161c bench: honor configured wallet epochs (will)\n79bb94f09244ef5745d3c83a8839eec3fcbf2f74 test: cap expected IPC timeouts (will)\n06cb869112da6bb1c43f938b2e5a9794f825ff92 test: shorten network limited negative wait (will)\n\nPull request description:\n\n  A few of our longer-running tests have some unnecessary waits and timeouts in them. Reduce or replace them to shorten test times:\n\n  - in `p2p_node_network_limited` replace the expected sync timeout with header/ping barriers and a bounded negative check. At CI timeout factor 40, saves roughly 195 seconds per transport.\n  - in `interface_ipc_mining` cap three expected no-event waits at five seconds, saving roughly 105 seconds at factor 40 in CI.\n  - in `WalletLoadingDescriptors` honor sanity mode’s single epoch, avoiding four unnecessary wallet unload/load cycles.\n  - two wallet unit tests switch to `BasicTestingSetup` avoiding construction of two unused 100-block chains.\n\n  The timeout changes alone save approximately eight minutes of accumulated test-worker time on CI jobs running both transports and IPC mining. Wall-clock savings depend on parallel scheduling, CPU etc.\n\nACKs for top commit:\n  Ayoazeez26:\n    tACK ce1d88b263\n  maflcko:\n    review ACK ce1d88b2632cc3950f47d8b191bdd74b806eb3ae 🐠\n  ViniciusCestarii:\n    ACK ce1d88b2632cc3950f47d8b191bdd74b806eb3ae\n\nTree-SHA512: 77a78ff05327cf08273618ed3f1601d60a0d8533459e3beecd56ed36f0f743ee4cdb6c227d9eee2a48c46831f92b0ab64e74faa536e56a28c5281c7e1eacdae2",
+        "tree": {
+          "sha": "0b588a00216de210477fddd7f06f02c738c56197",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0b588a00216de210477fddd7f06f02c738c56197"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/3c30b8ae4fe528a791f4657e2b1184bb5ddc2415",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrQJuUbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBQpMP/j4r0Cqovx50jlJ9GOvh\nuHSkXQnAHGmrEYqEURERyO7anmSxDnn4JWeDyYFlw5Xz0sDxDtQLoN/SIitefAIO\nrNB3uJCTECb9zoGGYaljEO3RAdMYXXyogOVKFBRX8EKoI+MRHPIg+3mlyMm8eYv5\n8GVPCBfGqd7y3yiRwGGBPWuGJ5WMVlh3PbtiA/xJWYRGQ4VQr4V/Bh/mLCRE4zUS\n0qyWkonVBtwAnXVfIM64QSZms0On2XOPTF7KlxnyL/u4Nosfetlzf0M8iC5JyfHa\nQ86E0mg+rtUUSDV6QII3/bANYb9eU2YV9I9afCOkg23ZgPcfA6j2pX/WrCCLE/Se\nCpWDwUbuNb24w8v6hW883ok1i1hnzJuS46ScAesjgbturdKtZ9YeMLu0JwBh5Yor\nAN+H7MvjrYMhUUC5NHTl4Bwa8Jnuk6aTcgKEuMzAWO2F97E2H1j8CNPLJHLcexJa\nW4FdOHUltt0EcOjxJY+bV4C9Lyv7eHpWZ5H1CUq5YAPsjJI6qGfu+HVoA9Arws6w\nWRRgqa6utgx6wOdtzNyLYGzpOjCTrABPlNfH0WJuQ1qWnybyGl4LAWdTrftVMMGZ\nWfmFtF9FZwiGBwwnbNNLSJyWpTP4OAcBkXGkAfugv2NxHUhiUbftj0AOGfrUFRlO\nErvH/ZjrDpzFoKCnG6G43kT6\n=6V4j\n-----END PGP SIGNATURE-----",
+          "payload": "tree 0b588a00216de210477fddd7f06f02c738c56197\nparent f13ae519de94394314cd63a27924b0998ac65d45\nparent ce1d88b2632cc3950f47d8b191bdd74b806eb3ae\nauthor merge-script <fanquake@gmail.com> 1792026341 +0900\ncommitter merge-script <fanquake@gmail.com> 1792026341 +0900\n\nMerge bitcoin/bitcoin#36446: test: remove some avoidable test waits\n\nce1d88b2632cc3950f47d8b191bdd74b806eb3ae test: avoid unused wallet test chains (will)\n40619d068741ec609ddd3148f13234cbdc54161c bench: honor configured wallet epochs (will)\n79bb94f09244ef5745d3c83a8839eec3fcbf2f74 test: cap expected IPC timeouts (will)\n06cb869112da6bb1c43f938b2e5a9794f825ff92 test: shorten network limited negative wait (will)\n\nPull request description:\n\n  A few of our longer-running tests have some unnecessary waits and timeouts in them. Reduce or replace them to shorten test times:\n\n  - in `p2p_node_network_limited` replace the expected sync timeout with header/ping barriers and a bounded negative check. At CI timeout factor 40, saves roughly 195 seconds per transport.\n  - in `interface_ipc_mining` cap three expected no-event waits at five seconds, saving roughly 105 seconds at factor 40 in CI.\n  - in `WalletLoadingDescriptors` honor sanity mode’s single epoch, avoiding four unnecessary wallet unload/load cycles.\n  - two wallet unit tests switch to `BasicTestingSetup` avoiding construction of two unused 100-block chains.\n\n  The timeout changes alone save approximately eight minutes of accumulated test-worker time on CI jobs running both transports and IPC mining. Wall-clock savings depend on parallel scheduling, CPU etc.\n\nACKs for top commit:\n  Ayoazeez26:\n    tACK ce1d88b263\n  maflcko:\n    review ACK ce1d88b2632cc3950f47d8b191bdd74b806eb3ae 🐠\n  ViniciusCestarii:\n    ACK ce1d88b2632cc3950f47d8b191bdd74b806eb3ae\n\nTree-SHA512: 77a78ff05327cf08273618ed3f1601d60a0d8533459e3beecd56ed36f0f743ee4cdb6c227d9eee2a48c46831f92b0ab64e74faa536e56a28c5281c7e1eacdae2\n",
+          "verified_at": "2026-10-15T01:05:52Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3c30b8ae4fe528a791f4657e2b1184bb5ddc2415",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/3c30b8ae4fe528a791f4657e2b1184bb5ddc2415",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3c30b8ae4fe528a791f4657e2b1184bb5ddc2415/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "f13ae519de94394314cd63a27924b0998ac65d45",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f13ae519de94394314cd63a27924b0998ac65d45",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/f13ae519de94394314cd63a27924b0998ac65d45"
+        },
+        {
+          "sha": "ce1d88b2632cc3950f47d8b191bdd74b806eb3ae",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ce1d88b2632cc3950f47d8b191bdd74b806eb3ae",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/ce1d88b2632cc3950f47d8b191bdd74b806eb3ae"
+        }
+      ]
+    },
     {
       "sha": "f13ae519de94394314cd63a27924b0998ac65d45",
       "node_id": "C_kwDOABII59oAKGYxM2FlNTE5ZGU5NDM5NDMxNGNkNjNhMjc5MjRiMDk5OGFjNjVkNDU",
@@ -1508,88 +1595,6 @@
           "sha": "10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/10cfeb33357c937ddd9f588a35e0f8f33abd6ece"
-        }
-      ]
-    },
-    {
-      "sha": "10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
-      "node_id": "C_kwDOABII59oAKDEwY2ZlYjMzMzU3YzkzN2RkZDlmNTg4YTM1ZTBmOGYzM2FiZDZlY2U",
-      "commit": {
-        "author": {
-          "name": "ViniciusCestarii",
-          "email": "viniciuscestari01@gmail.com",
-          "date": "2026-10-05T19:53:11Z"
-        },
-        "committer": {
-          "name": "ViniciusCestarii",
-          "email": "viniciuscestari01@gmail.com",
-          "date": "2026-10-08T16:51:53Z"
-        },
-        "message": "test: set noban_tx_relay to speed up slow tx relay tests",
-        "tree": {
-          "sha": "888bc5a123a3161287d011c45576d2312c4fe56b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/888bc5a123a3161287d011c45576d2312c4fe56b"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgY7NROixtPE3hjThUiBvdMFhx+5\nJyj1M7a6RXrjRGqmMAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQFZgmw3PDoZo9Dcdy/D6xy/qMK7mk/UqhmO2R+20D3Vcc1GdNw7Z9+mExNFg1SFc9O\n7lFLcVDTzAQ0r1R0NoEAw=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 888bc5a123a3161287d011c45576d2312c4fe56b\nparent 0036d5f1fa09080b2b3cb1c1e33c542be9f75c26\nauthor ViniciusCestarii <viniciuscestari01@gmail.com> 1791229991 -0300\ncommitter ViniciusCestarii <viniciuscestari01@gmail.com> 1791478313 -0300\n\ntest: set noban_tx_relay to speed up slow tx relay tests\n",
-          "verified_at": "2026-10-08T17:10:38Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/10cfeb33357c937ddd9f588a35e0f8f33abd6ece",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/10cfeb33357c937ddd9f588a35e0f8f33abd6ece/comments",
-      "author": {
-        "login": "ViniciusCestarii",
-        "id": 124843824,
-        "node_id": "U_kgDOB3D3MA",
-        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/ViniciusCestarii",
-        "html_url": "https://github.com/ViniciusCestarii",
-        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
-        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
-        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
-        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
-        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "ViniciusCestarii",
-        "id": 124843824,
-        "node_id": "U_kgDOB3D3MA",
-        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/ViniciusCestarii",
-        "html_url": "https://github.com/ViniciusCestarii",
-        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
-        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
-        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
-        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
-        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26"
         }
       ]
     }
