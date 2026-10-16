@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-16T06:13:28.256797Z",
+  "generated_at": "2026-10-16T11:50:32.887033Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "b13ba1a7d3a126471f970b96ee892705aea96b8b",
+      "node_id": "C_kwDOABII59oAKGIxM2JhMWE3ZDNhMTI2NDcxZjk3MGI5NmVlODkyNzA1YWVhOTZiOGI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-16T06:37:33Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-16T06:37:33Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36439: test: poll more frequently in sync helpers and RPC connection wait\n\n8898f832d9d86d5a6a8ad8719e1009c702bbf4bd test: poll more frequently in sync helpers and RPC connection wait (ViniciusCestarii)\n\nPull request description:\n\n  Tested on  my x86-64 machine:\n\n  - Wall time (-j=18): 110.8s to 96.4s (−13%)\n  - Accumulated: 1715s to 1369s (−20%)\n\n  Also compared the CI on my fork (time for test_runner.py runtime):\n\n  - macOS native: [1287s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264512#step:9:4745) to [1175s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769239#step:9:4744) (-9%)\n  - 32 bit ARM: [776s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264778#step:10:6336) to [690s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769348#step:10:5806) (-11%)\n  - Windows native, VS: [1456s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264639#step:14:1486) to [1252s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791768933#step:14:1486) (-14%)\n  - previous releases: [930s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264815#step:10:5510) to [786s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769195#step:10:6016) (-15%)\n  - No wallet: [614s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264997#step:10:5421) to [572s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769524#step:10:5813) (-7%)\n  - Alpine (musl): [1958s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758265011#step:10:5041) to [1970s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769871#step:10:5489) (+0.6%)\n\n  Sanitizer jobs are left out because they vary too much between runs.\n\n  Alpine (musl) uses --usecli, so more frequent poll creates a new bitcoin-cli process each time, making it not faster with these changes. Also tried locally with --usecli: from 2060s to 2051s accumulated.\n\nACKs for top commit:\n  maflcko:\n    review ACK 8898f832d9d86d5a6a8ad8719e1009c702bbf4bd 👪\n\nTree-SHA512: f27f7636c5e6d678f9105189a910a2653fac9b5ca4dfdb132eec70cec5eea6489a8f7b8ced122fe95a080a57f325eb0ba230f6e6a21af3db8a402b117e77619a",
+        "tree": {
+          "sha": "0f637dfa3ea373b0b11f73d0f4a5d6cc8b744ea7",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/0f637dfa3ea373b0b11f73d0f4a5d6cc8b744ea7"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b13ba1a7d3a126471f970b96ee892705aea96b8b",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrRxi0bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBqgoP/jAxn3fapJGyZ6lJdEiq\nwqtAhFJC3ahF3NR0QB/cLmgve2LXL7U0YljZWD9zm852XRG9osJkxlFlRn2UAZLK\nfVo0v4fj3B1v52yfyw69VYWTdbbH2uiomncGoXfME83j1cI4BduPSqj+KCGfaeRk\nRavJc7SHci/p8FjGzUmwoztqVXv/aBe9KDPNcB6LwGNCSJwMXemREvscuFS0cO3Z\nmmKcXjNf6qsWEW7PXOGQPeLFVs/EtuBmE1TAXk1wW+6RibNElibfb8MIzNPlGGFV\nmO6FUybNJ/Sa/MufhnPYOlEQ11+zCWPrbHYPJ0PpdvuRNDFtH1xedEgSr/QeOvRc\nYdCcsCUELSN5VfN+WaKlLf0yjnzyW4jFM4clu5VmIxvAXjUVBcDwrfEz18HWKpxT\nl14qqNP8+9S2DHvsf9pPiShm1OZrdXfK7UTm0KsMHVsZQHgyFha+qsvoonMBwEgt\nie3+KihdbDNF8hLpnka8v98nqF7gTFodtIKRJ1PbaQuMYhBwZSUY91FwG1BFQ9z9\noIF5uxp8LMAeaQ7OGmk3t+0EAbMNRxFH0Mk4XAB9mIKsRk3sbf+3a6Pr1S+ZiRxg\nYeKlqP+nIZXC08ADYv8usn+fUtJH4dkT7kaPksBfyzJrbjvMUgk+7T4wHoc4+sLZ\nEajbComRzDsjSQ78r9rBfUxZ\n=oIsO\n-----END PGP SIGNATURE-----",
+          "payload": "tree 0f637dfa3ea373b0b11f73d0f4a5d6cc8b744ea7\nparent 89a3a13c44e85c6e32ac54444fdf5e07886842e8\nparent 8898f832d9d86d5a6a8ad8719e1009c702bbf4bd\nauthor merge-script <fanquake@gmail.com> 1792132653 +0900\ncommitter merge-script <fanquake@gmail.com> 1792132653 +0900\n\nMerge bitcoin/bitcoin#36439: test: poll more frequently in sync helpers and RPC connection wait\n\n8898f832d9d86d5a6a8ad8719e1009c702bbf4bd test: poll more frequently in sync helpers and RPC connection wait (ViniciusCestarii)\n\nPull request description:\n\n  Tested on  my x86-64 machine:\n\n  - Wall time (-j=18): 110.8s to 96.4s (−13%)\n  - Accumulated: 1715s to 1369s (−20%)\n\n  Also compared the CI on my fork (time for test_runner.py runtime):\n\n  - macOS native: [1287s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264512#step:9:4745) to [1175s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769239#step:9:4744) (-9%)\n  - 32 bit ARM: [776s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264778#step:10:6336) to [690s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769348#step:10:5806) (-11%)\n  - Windows native, VS: [1456s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264639#step:14:1486) to [1252s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791768933#step:14:1486) (-14%)\n  - previous releases: [930s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264815#step:10:5510) to [786s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769195#step:10:6016) (-15%)\n  - No wallet: [614s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758264997#step:10:5421) to [572s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769524#step:10:5813) (-7%)\n  - Alpine (musl): [1958s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37308619216/job/111758265011#step:10:5041) to [1970s](https://github.com/ViniciusCestarii/bitcoin/actions/runs/37318654530/job/111791769871#step:10:5489) (+0.6%)\n\n  Sanitizer jobs are left out because they vary too much between runs.\n\n  Alpine (musl) uses --usecli, so more frequent poll creates a new bitcoin-cli process each time, making it not faster with these changes. Also tried locally with --usecli: from 2060s to 2051s accumulated.\n\nACKs for top commit:\n  maflcko:\n    review ACK 8898f832d9d86d5a6a8ad8719e1009c702bbf4bd 👪\n\nTree-SHA512: f27f7636c5e6d678f9105189a910a2653fac9b5ca4dfdb132eec70cec5eea6489a8f7b8ced122fe95a080a57f325eb0ba230f6e6a21af3db8a402b117e77619a\n",
+          "verified_at": "2026-10-16T06:37:40Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b13ba1a7d3a126471f970b96ee892705aea96b8b",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b13ba1a7d3a126471f970b96ee892705aea96b8b",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b13ba1a7d3a126471f970b96ee892705aea96b8b/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "89a3a13c44e85c6e32ac54444fdf5e07886842e8",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/89a3a13c44e85c6e32ac54444fdf5e07886842e8",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/89a3a13c44e85c6e32ac54444fdf5e07886842e8"
+        },
+        {
+          "sha": "8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd"
+        }
+      ]
+    },
     {
       "sha": "89a3a13c44e85c6e32ac54444fdf5e07886842e8",
       "node_id": "C_kwDOABII59oAKDg5YTNhMTNjNDRlODVjNmUzMmFjNTQ0NDRmZGY1ZTA3ODg2ODQyZTg",
@@ -477,6 +564,88 @@
           "sha": "cce32b16874e85e8a00cfa1a2190f0b6f4dcaf66",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/cce32b16874e85e8a00cfa1a2190f0b6f4dcaf66",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/cce32b16874e85e8a00cfa1a2190f0b6f4dcaf66"
+        }
+      ]
+    },
+    {
+      "sha": "8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+      "node_id": "C_kwDOABII59oAKDg4OThmODMyZDlkODZkNWE2YThhZDg3MTllMTAwOWM3MDJiYmY0YmQ",
+      "commit": {
+        "author": {
+          "name": "ViniciusCestarii",
+          "email": "viniciuscestari01@gmail.com",
+          "date": "2026-10-14T13:24:38Z"
+        },
+        "committer": {
+          "name": "ViniciusCestarii",
+          "email": "viniciuscestari01@gmail.com",
+          "date": "2026-10-15T10:40:36Z"
+        },
+        "message": "test: poll more frequently in sync helpers and RPC connection wait",
+        "tree": {
+          "sha": "c4cf1dc35d48ccbfae90d11dab539ad862462942",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/c4cf1dc35d48ccbfae90d11dab539ad862462942"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgY7NROixtPE3hjThUiBvdMFhx+5\nJyj1M7a6RXrjRGqmMAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQH9NRrT/2q+8ps79kIq5Un8htHJk222L0PthJ3JDK7kp/VN77WHMbrbmltjk+HKYqI\nFzPodTnmYp9VnXbApP8gc=\n-----END SSH SIGNATURE-----",
+          "payload": "tree c4cf1dc35d48ccbfae90d11dab539ad862462942\nparent 0036d5f1fa09080b2b3cb1c1e33c542be9f75c26\nauthor ViniciusCestarii <viniciuscestari01@gmail.com> 1791984278 -0300\ncommitter ViniciusCestarii <viniciuscestari01@gmail.com> 1792060836 -0300\n\ntest: poll more frequently in sync helpers and RPC connection wait\n",
+          "verified_at": "2026-10-15T10:40:40Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8898f832d9d86d5a6a8ad8719e1009c702bbf4bd/comments",
+      "author": {
+        "login": "ViniciusCestarii",
+        "id": 124843824,
+        "node_id": "U_kgDOB3D3MA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ViniciusCestarii",
+        "html_url": "https://github.com/ViniciusCestarii",
+        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
+        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
+        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
+        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
+        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "ViniciusCestarii",
+        "id": 124843824,
+        "node_id": "U_kgDOB3D3MA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124843824?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ViniciusCestarii",
+        "html_url": "https://github.com/ViniciusCestarii",
+        "followers_url": "https://api.github.com/users/ViniciusCestarii/followers",
+        "following_url": "https://api.github.com/users/ViniciusCestarii/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ViniciusCestarii/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ViniciusCestarii/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ViniciusCestarii/subscriptions",
+        "organizations_url": "https://api.github.com/users/ViniciusCestarii/orgs",
+        "repos_url": "https://api.github.com/users/ViniciusCestarii/repos",
+        "events_url": "https://api.github.com/users/ViniciusCestarii/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ViniciusCestarii/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26"
         }
       ]
     },
@@ -1491,180 +1660,6 @@
           "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
-        }
-      ]
-    },
-    {
-      "sha": "4b4cdde064caf821dcd48fb8a45114bb1a1effa3",
-      "node_id": "C_kwDOABII59oAKDRiNGNkZGUwNjRjYWY4MjFkY2Q0OGZiOGE0NTExNGJiMWExZWZmYTM",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-14T01:52:06Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-14T01:52:06Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36504: test: Add missing timeouts for HTTPConnection\n\nfa4308dfbf3a59f95deac382fa955570f814e8ca test: make wait_until timing arguments keyword-only (MarcoFalke)\nfad441867c9baa8c4ae9a755f09948efa1b23447 test: Add missing timeouts for HTTPConnection (MarcoFalke)\n\nPull request description:\n\n  Without a timeout, the test can hang forever on broken systems. This is fine, but it would be nice if the test instead failed with a nicer error message, indicating the timeout.\n\nACKs for top commit:\n  mercie-ux:\n    tACK fa4308dfbf\n  hebasto:\n    ACK fa4308dfbf3a59f95deac382fa955570f814e8ca, I have reviewed the code and it looks OK.\n  pinheadmz:\n    ACK fa4308dfbf3a59f95deac382fa955570f814e8ca\n\nTree-SHA512: 8aaf9b78828cfbfa44f63b350edc7667ef5bd02c2d5f9011affc98625ecd8f37c80be980dc7c953de58840f48bfe50d23051b83cda2aca18a09d9920c8c77b1f",
-        "tree": {
-          "sha": "3c238a9959135bf70fe93e1ee18993a1ed125697",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/3c238a9959135bf70fe93e1ee18993a1ed125697"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/4b4cdde064caf821dcd48fb8a45114bb1a1effa3",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrO4EYbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB9B8P/1ZAaF/CiNNPrif+bcrR\noklhG8cjO3mcULFmRnPHq+meRf1KjdcOFldbxyTezr1P2w84urEC8yaEUts39VzI\nSYxNJoL77LuCo4aLHtkfJOzH2mxPTla6l1d3Z2sr6PI1ABse6PHDo7fj7PyznDC7\nmQnmOisNCMLElYsmkVc37Gea0pM+lkRdznKPSQ66D8tjVpmT63I0m//3NuQzSjGE\nDxN12RBGB52kj5lNyzS8G6RQP7XEaGoYVbwU5LwVKNSgZ/MM36zxhjdV63QgXzMZ\nyBL+egr3wrQZ0dRo2fA0fPDWoPgxQZdCIQAmvxRIJ+vZubdJy32LQ4NZH50KQ7fg\nnXHK1YS4XuosIKcaHmIL1KCYPh3merRwwvutT7zu2VHT+SUGP0XXrM7g2RRt8QEj\nXEolIxJqGOiC3WDgcKC8idWmuzt++H7GYUpDns85RlO9h0pdCasxZhJJiTFt+OP/\nQnv6S7bJz08X/5Aa6emoviZ7tOAHp6Q2kNRlA/tmB52XwdOLj6bMlVs0ZQWc8jp2\nnyCzJNlLSq/GhbxcDhvR8Wmw2PwQyXmkDxAwstY0J7GXZ4bYszNSH6tbc1DPS/jd\nsCWiV+CrUv+SdDQbmH2aFgQ1SEsWlfT3+10BQHCebRDYT/OPbNxhQv3r2RXrQAvF\nJWQc3ce0Y3uyZi4i2mqXnllv\n=p3kf\n-----END PGP SIGNATURE-----",
-          "payload": "tree 3c238a9959135bf70fe93e1ee18993a1ed125697\nparent badc9574810c23c05ac17a5285c2edf416d2d66b\nparent fa4308dfbf3a59f95deac382fa955570f814e8ca\nauthor merge-script <fanquake@gmail.com> 1791942726 +0900\ncommitter merge-script <fanquake@gmail.com> 1791942726 +0900\n\nMerge bitcoin/bitcoin#36504: test: Add missing timeouts for HTTPConnection\n\nfa4308dfbf3a59f95deac382fa955570f814e8ca test: make wait_until timing arguments keyword-only (MarcoFalke)\nfad441867c9baa8c4ae9a755f09948efa1b23447 test: Add missing timeouts for HTTPConnection (MarcoFalke)\n\nPull request description:\n\n  Without a timeout, the test can hang forever on broken systems. This is fine, but it would be nice if the test instead failed with a nicer error message, indicating the timeout.\n\nACKs for top commit:\n  mercie-ux:\n    tACK fa4308dfbf\n  hebasto:\n    ACK fa4308dfbf3a59f95deac382fa955570f814e8ca, I have reviewed the code and it looks OK.\n  pinheadmz:\n    ACK fa4308dfbf3a59f95deac382fa955570f814e8ca\n\nTree-SHA512: 8aaf9b78828cfbfa44f63b350edc7667ef5bd02c2d5f9011affc98625ecd8f37c80be980dc7c953de58840f48bfe50d23051b83cda2aca18a09d9920c8c77b1f\n",
-          "verified_at": "2026-10-14T01:52:16Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4b4cdde064caf821dcd48fb8a45114bb1a1effa3",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/4b4cdde064caf821dcd48fb8a45114bb1a1effa3",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4b4cdde064caf821dcd48fb8a45114bb1a1effa3/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "badc9574810c23c05ac17a5285c2edf416d2d66b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/badc9574810c23c05ac17a5285c2edf416d2d66b",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/badc9574810c23c05ac17a5285c2edf416d2d66b"
-        },
-        {
-          "sha": "fa4308dfbf3a59f95deac382fa955570f814e8ca",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa4308dfbf3a59f95deac382fa955570f814e8ca",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa4308dfbf3a59f95deac382fa955570f814e8ca"
-        }
-      ]
-    },
-    {
-      "sha": "2958dda39084db4f78eacd66133caae9a3be488b",
-      "node_id": "C_kwDOABII59oAKDI5NThkZGEzOTA4NGRiNGY3OGVhY2Q2NjEzM2NhYWU5YTNiZTQ4OGI",
-      "commit": {
-        "author": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-14T00:59:55Z"
-        },
-        "committer": {
-          "name": "fanquake",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-14T00:59:55Z"
-        },
-        "message": "Update crc32c subtree to latest master",
-        "tree": {
-          "sha": "a4d4802f0f38c15c04ac5deba1e1dfc0aba2f558",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/a4d4802f0f38c15c04ac5deba1e1dfc0aba2f558"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/2958dda39084db4f78eacd66133caae9a3be488b",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrO1CcbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB39gQAKI9M6l5C7NerPYTEvDr\n2DD/xfoL27pYwx43GMkeqMTwUfWP6UxSU0n4TXQFys2rm2uhUgHAKQO0UOv3lmR1\nRqvxpts/31awXx7mbmcsreIiWZvCpWEU/FGNyJYGsh0RpEoj0USSvcGRNzKl6Tl5\nyJ1r+WEGLHGPH33ePo+0p9Jk/BXQ+0v3DpYh9cu3fkCXgyka3yvk5T2ghwVy71nE\nXl+FeHLbZbtnl/RRqq8zQtiBiASMQfQ70H1non0lDqvTE955uLTaslFkBvNf/T7H\nrOMLQgDcebW2RfVCGhRqTPorFXfLeMTyT42+Zgidk9lhNgi2nJUPf1YsL4sXNmyy\n5Xj6iEKlpc0TPvZNiVBfeL7/e2T9TboJNwBHk2lEsaTleT1JYmzJmqKvyG8pq8C+\nnqNXbK5xfNgFw6VPaVT+L2fF2YmQsTqIobBYk0Ytq4XppkBa/Blh+Gr1qcteGT4g\nXBFlN75fYHnHobmQ2hoXJ9TPdfKW58fZQ4oIfympu5fX3TOf8L1F6u/7hC32zQbB\n0ludMCAWItfeFq2NWdvQasaG5qsf9XNAqL5sk7JgKKEWzaz8gwbA7DLegGDzQdiQ\n5rNfBYNYcY7vBK1+4BmHpdNzkPcOXy64F6UIhVl0U8WdDlJ7P+X1P688tkdBhOYi\nAvqbX8KrshDxRZl7kaNhOHTf\n=v5mx\n-----END PGP SIGNATURE-----",
-          "payload": "tree a4d4802f0f38c15c04ac5deba1e1dfc0aba2f558\nparent badc9574810c23c05ac17a5285c2edf416d2d66b\nparent 55f7dd00213dfaa2d39cf0e9b316627e935a0424\nauthor fanquake <fanquake@gmail.com> 1791939595 +0900\ncommitter fanquake <fanquake@gmail.com> 1791939595 +0900\n\nUpdate crc32c subtree to latest master\n",
-          "verified_at": "2026-10-14T01:00:33Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2958dda39084db4f78eacd66133caae9a3be488b",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/2958dda39084db4f78eacd66133caae9a3be488b",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2958dda39084db4f78eacd66133caae9a3be488b/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "badc9574810c23c05ac17a5285c2edf416d2d66b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/badc9574810c23c05ac17a5285c2edf416d2d66b",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/badc9574810c23c05ac17a5285c2edf416d2d66b"
-        },
-        {
-          "sha": "55f7dd00213dfaa2d39cf0e9b316627e935a0424",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/55f7dd00213dfaa2d39cf0e9b316627e935a0424",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/55f7dd00213dfaa2d39cf0e9b316627e935a0424"
         }
       ]
     }
