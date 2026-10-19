@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-19T01:36:25.666980Z",
+  "generated_at": "2026-10-19T06:47:39.955101Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
+      "node_id": "C_kwDOABII59oAKDcxZmEwNDM5Mjc4ZjFkMTFjOWExYWFiZTY3MzEyZGNkZjFjYzg3NTc",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-19T03:27:03Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-19T03:27:03Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36545: test: Fix intermittent issue in p2p_initial_headers_sync.py\n\nfad7637529426f058a3c2409dd137009b14622a4 test: Fix intermittent issue in p2p_initial_headers_sync.py (MarcoFalke)\n\nPull request description:\n\n  Fixes https://github.com/bitcoin/bitcoin/actions/runs/38697071260/job/116296055487?pr=36537#step:11:5104:\n\n  ```\n   test  2026-10-15T07:19:58.731108Z TestFramework (INFO): Check that noban peer1 is not disconnected\n   test  2026-10-15T07:19:58.731159Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000000)\n   test  2026-10-15T07:19:58.731184Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000002)\n   node0 2026-10-15T07:19:58.731236Z (mocktime: 2026-10-15T07:48:45Z) [http.01] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 148 bytes to client 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731307Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 started\n   node0 2026-10-15T07:19:58.731317Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 completed (0\u03bcs)\n   node0 2026-10-15T07:19:58.731332Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731338Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731365Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731377Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000000)\n   node0 2026-10-15T07:19:58.731388Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6499] [SendMessages] Timeout downloading headers from noban peer, not disconnecting peer=0\n   node0 2026-10-15T07:19:58.731402Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=1\n   node0 2026-10-15T07:19:58.731421Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending getheaders (69 bytes) peer=1\n   node0 2026-10-15T07:19:58.731441Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6151] [SendMessages] [net] initial getheaders (0) to peer=1\n   node0 2026-10-15T07:19:58.731461Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731466Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731579Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_ping(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731607Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_pong(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731633Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000002)\n   node0 2026-10-15T07:19:58.731777Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:971] [Receive] [http] Received 339 bytes from 127.0.0.1:57508 (id=0): total=3476 buffered=339\n   node0 2026-10-15T07:19:58.731798Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:1135] [TryReadRequest] [http] Received a POST request for / from 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731833Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [rpc/request.cpp:246] [parse] [rpc] ThreadRPCServer method=getpeerinfo user=__cookie__ id=32\n   node0 2026-10-15T07:19:58.732118Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:637] [Send] [http] HTTPResponse (status code: 200 size: 2260) added to send buffer for client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.732309Z TestFramework (INFO): Check that exactly 1 of {peer1, peer2} receives a getheaders\n   test  2026-10-15T07:19:58.732370Z TestFramework (ERROR): Unexpected exception:\n                                     Traceback (most recent call last):\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/test_framework.py\", line 146, in main\n                                         self.run_test()\n                                         ~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 182, in run_test\n                                         self.test_noban_peer_timeout()\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 177, in test_noban_peer_timeout\n                                         self.assert_single_getheaders_recipient([peer1, peer2])\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 66, in assert_single_getheaders_recipient\n                                         assert_equal(count, 1)\n                                         ~~~~~~~~~~~~^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/util.py\", line 95, in assert_equal\n                                         raise AssertionError(\"not(%s)\" % \" == \".join(str(arg) for arg in (thing1, thing2) + args))\n                                     AssertionError: not(0 == 1)\n   test  2026-10-15T07:19:58.733190Z TestFramework (DEBUG): Closing down network thread\n   node0 2026-10-15T07:19:58.733256Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 2260 bytes to client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.733311Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_ping(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733337Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:58180: msg_pong(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733367Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_getheaders(locator=CBlockLocator(vHave=[7041830694386478471858881810674310864173988660927928131397671070347943617030]), stop=0000000000000000000000000000000000000000000000000000000000000000)\n   node0 2026-10-15T07:19:58.733447Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.733502Z TestFramework.p2p (DEBUG): Closed connection to: 127.0.0.1:58180\n   node0 2026-10-15T07:19:58.733536Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:2236] [SocketHandlerConnected] [net] socket closed, disconnecting peer=1\n   node0 2026-10-15T07:19:58.733546Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:567] [CloseSocketDisconnect] [net] Resetting socket for peer=1\n   node0 2026-10-15T07:19:58.733596Z (mocktime: 2026-10-15T07:48:45Z) [net] [net_processing.cpp:1859] [FinalizeNode] [net] Cleared nodestate for peer=1\n   test  2026-10-15T07:19:58.783870Z TestFramework (INFO): Not stopping nodes as test failed. The dangling processes will be cleaned up later.\n  ```\n\n  Diff to reproduce:\n\n  ```diff\n  diff --git a/src/net_processing.cpp b/src/net_processing.cpp\n  index beec44f55d..85b1e88161 100644\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -87,2 +87,3 @@\n   #include <span>\n  +#include <thread>\n   #include <typeinfo>\n  @@ -5233,2 +5234,7 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string\n               MakeAndPushMessage(pfrom, NetMsgType::PONG, nonce);\n  +            // TEMPORARY: widen the p2p_initial_headers_sync race window after\n  +            // its second, nonzero ping has been sent but before SendMessages().\n  +            if (nonce != 0) {\n  +                std::this_thread::sleep_for(std::chrono::milliseconds{90});\n  +            }\n           }\n  ```\n\n  Cmd to reproduce:\n\n  ```\n  ./bld-cmake/test/functional/test_runner.py $(for i in {1..20}; do echo -n \"p2p_initial_headers_sync.py \";done) -j $( nproc )\n  ```\n\n  (fails before this pull and passes after)\n\nACKs for top commit:\n  Crypt-iQ:\n    tACK fad7637529426f058a3c2409dd137009b14622a4\n  l0rinc:\n    lightly tested ACK fad7637529426f058a3c2409dd137009b14622a4\n\nTree-SHA512: 701c9d75ed68e806f95ddef34b59abbd943288be8f957708d112f9e02e7b370f10f267c1a22946dc38dc6ff20665fdd0ceda19ebfed18660ae6ebbcc779fc90b",
+        "tree": {
+          "sha": "ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrVjgcbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBn0EP+wY2CjqDXZrVKhnmoJyd\n5MRyi+zkDu3eOtCq+oCiXOJP+nAv6O9ovlKGuXAH4DS2j0hdbS8TXtj2i7C86pxE\nfrnkImiDV+LjqNz2GshQeBWqhHdNq+8jf65+cH7ScNE511ZHByiqVZi7GZUSExq6\nVVi5TX9RpprzuJBlbJC7r1FauHzDS3c1jGHzoygBgz5wsZiIYIOgTI5pOou2oODS\nqZhv/GP05EOzU7u/5MkATDPfh5V9KCp74TxM1ouBNe3N1bZXHK3+5gEyc+tShKC9\nKdt9nZIp4iU95J8PWAfhM16xl8y8emBkQ3fIxZPmyJWkh2ecRGadwBrishlTy3SY\n7VF1wwzfyaNIOb17KpoDv00Dj4ysiKLaHRsLDR3lHOZgn8EdzD3f0J5ykXwwggUH\nnL1vOWYV59J3/UHmgX1l8HKVRdiaid/lUI3SWJtHoV3aVMr2ZWSyEfABkGmuHDc4\n03Jlys70bVYp3R0rHQEH5y32R5qi46RI+q3OhJ2bjE636yVf9GxWOqDVlOYm7bm7\nK/FiOQKRd4R/O01rzhM6VEEX+YshBPAcODH/KtOBuBLtTCNuT6d246dxAp67YEGS\nIAIl0fWz33ya8Y7S50LlzoDPe5qA51Rnbtn0ghzjfxiB+qTWG7tQu73GvsJEA0qU\nQH//h7qNAvLdlHo8JfoNSf2n\n=HtNs\n-----END PGP SIGNATURE-----",
+          "payload": "tree ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024\nparent 924f4c4ac78b0cd3b917c694f42c0651a6f3003a\nparent fad7637529426f058a3c2409dd137009b14622a4\nauthor merge-script <fanquake@gmail.com> 1792380423 +0900\ncommitter merge-script <fanquake@gmail.com> 1792380423 +0900\n\nMerge bitcoin/bitcoin#36545: test: Fix intermittent issue in p2p_initial_headers_sync.py\n\nfad7637529426f058a3c2409dd137009b14622a4 test: Fix intermittent issue in p2p_initial_headers_sync.py (MarcoFalke)\n\nPull request description:\n\n  Fixes https://github.com/bitcoin/bitcoin/actions/runs/38697071260/job/116296055487?pr=36537#step:11:5104:\n\n  ```\n   test  2026-10-15T07:19:58.731108Z TestFramework (INFO): Check that noban peer1 is not disconnected\n   test  2026-10-15T07:19:58.731159Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000000)\n   test  2026-10-15T07:19:58.731184Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000002)\n   node0 2026-10-15T07:19:58.731236Z (mocktime: 2026-10-15T07:48:45Z) [http.01] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 148 bytes to client 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731307Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 started\n   node0 2026-10-15T07:19:58.731317Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 completed (0\u03bcs)\n   node0 2026-10-15T07:19:58.731332Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731338Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731365Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731377Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000000)\n   node0 2026-10-15T07:19:58.731388Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6499] [SendMessages] Timeout downloading headers from noban peer, not disconnecting peer=0\n   node0 2026-10-15T07:19:58.731402Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=1\n   node0 2026-10-15T07:19:58.731421Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending getheaders (69 bytes) peer=1\n   node0 2026-10-15T07:19:58.731441Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6151] [SendMessages] [net] initial getheaders (0) to peer=1\n   node0 2026-10-15T07:19:58.731461Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731466Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731579Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_ping(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731607Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_pong(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731633Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000002)\n   node0 2026-10-15T07:19:58.731777Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:971] [Receive] [http] Received 339 bytes from 127.0.0.1:57508 (id=0): total=3476 buffered=339\n   node0 2026-10-15T07:19:58.731798Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:1135] [TryReadRequest] [http] Received a POST request for / from 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731833Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [rpc/request.cpp:246] [parse] [rpc] ThreadRPCServer method=getpeerinfo user=__cookie__ id=32\n   node0 2026-10-15T07:19:58.732118Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:637] [Send] [http] HTTPResponse (status code: 200 size: 2260) added to send buffer for client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.732309Z TestFramework (INFO): Check that exactly 1 of {peer1, peer2} receives a getheaders\n   test  2026-10-15T07:19:58.732370Z TestFramework (ERROR): Unexpected exception:\n                                     Traceback (most recent call last):\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/test_framework.py\", line 146, in main\n                                         self.run_test()\n                                         ~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 182, in run_test\n                                         self.test_noban_peer_timeout()\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 177, in test_noban_peer_timeout\n                                         self.assert_single_getheaders_recipient([peer1, peer2])\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 66, in assert_single_getheaders_recipient\n                                         assert_equal(count, 1)\n                                         ~~~~~~~~~~~~^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/util.py\", line 95, in assert_equal\n                                         raise AssertionError(\"not(%s)\" % \" == \".join(str(arg) for arg in (thing1, thing2) + args))\n                                     AssertionError: not(0 == 1)\n   test  2026-10-15T07:19:58.733190Z TestFramework (DEBUG): Closing down network thread\n   node0 2026-10-15T07:19:58.733256Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 2260 bytes to client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.733311Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_ping(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733337Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:58180: msg_pong(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733367Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_getheaders(locator=CBlockLocator(vHave=[7041830694386478471858881810674310864173988660927928131397671070347943617030]), stop=0000000000000000000000000000000000000000000000000000000000000000)\n   node0 2026-10-15T07:19:58.733447Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.733502Z TestFramework.p2p (DEBUG): Closed connection to: 127.0.0.1:58180\n   node0 2026-10-15T07:19:58.733536Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:2236] [SocketHandlerConnected] [net] socket closed, disconnecting peer=1\n   node0 2026-10-15T07:19:58.733546Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:567] [CloseSocketDisconnect] [net] Resetting socket for peer=1\n   node0 2026-10-15T07:19:58.733596Z (mocktime: 2026-10-15T07:48:45Z) [net] [net_processing.cpp:1859] [FinalizeNode] [net] Cleared nodestate for peer=1\n   test  2026-10-15T07:19:58.783870Z TestFramework (INFO): Not stopping nodes as test failed. The dangling processes will be cleaned up later.\n  ```\n\n  Diff to reproduce:\n\n  ```diff\n  diff --git a/src/net_processing.cpp b/src/net_processing.cpp\n  index beec44f55d..85b1e88161 100644\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -87,2 +87,3 @@\n   #include <span>\n  +#include <thread>\n   #include <typeinfo>\n  @@ -5233,2 +5234,7 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string\n               MakeAndPushMessage(pfrom, NetMsgType::PONG, nonce);\n  +            // TEMPORARY: widen the p2p_initial_headers_sync race window after\n  +            // its second, nonzero ping has been sent but before SendMessages().\n  +            if (nonce != 0) {\n  +                std::this_thread::sleep_for(std::chrono::milliseconds{90});\n  +            }\n           }\n  ```\n\n  Cmd to reproduce:\n\n  ```\n  ./bld-cmake/test/functional/test_runner.py $(for i in {1..20}; do echo -n \"p2p_initial_headers_sync.py \";done) -j $( nproc )\n  ```\n\n  (fails before this pull and passes after)\n\nACKs for top commit:\n  Crypt-iQ:\n    tACK fad7637529426f058a3c2409dd137009b14622a4\n  l0rinc:\n    lightly tested ACK fad7637529426f058a3c2409dd137009b14622a4\n\nTree-SHA512: 701c9d75ed68e806f95ddef34b59abbd943288be8f957708d112f9e02e7b370f10f267c1a22946dc38dc6ff20665fdd0ceda19ebfed18660ae6ebbcc779fc90b\n",
+          "verified_at": "2026-10-19T03:27:13Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/924f4c4ac78b0cd3b917c694f42c0651a6f3003a"
+        },
+        {
+          "sha": "fad7637529426f058a3c2409dd137009b14622a4",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fad7637529426f058a3c2409dd137009b14622a4",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fad7637529426f058a3c2409dd137009b14622a4"
+        }
+      ]
+    },
     {
       "sha": "924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
       "node_id": "C_kwDOABII59oAKDkyNGY0YzRhYzc4YjBjZDNiOTE3YzY5NGY0MmMwNjUxYTZmMzAwM2E",
@@ -87,6 +174,48 @@
           "sha": "84f8bfb9abc284e5f951264af4cdef7176db649b",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/84f8bfb9abc284e5f951264af4cdef7176db649b",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/84f8bfb9abc284e5f951264af4cdef7176db649b"
+        }
+      ]
+    },
+    {
+      "sha": "fad7637529426f058a3c2409dd137009b14622a4",
+      "node_id": "C_kwDOABII59oAKGZhZDc2Mzc1Mjk0MjZmMDU4YTNjMjQwOWRkMTM3MDA5YjE0NjIyYTQ",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-15T15:43:15Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-16T09:41:25Z"
+        },
+        "message": "test: Fix intermittent issue in p2p_initial_headers_sync.py",
+        "tree": {
+          "sha": "af1cb18e5b9c3e027e3fa95532263a9cf3fb1d3d",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/af1cb18e5b9c3e027e3fa95532263a9cf3fb1d3d"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fad7637529426f058a3c2409dd137009b14622a4",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQJLblSmfcKtZPwNydm1P9AgExGbXh9IPrvyCBW+lNp3w3C59BFNY46xpYCGf67rJOe\nIsMOk8g2hWqxG18LI7fAE=\n-----END SSH SIGNATURE-----",
+          "payload": "tree af1cb18e5b9c3e027e3fa95532263a9cf3fb1d3d\nparent b13ba1a7d3a126471f970b96ee892705aea96b8b\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792078995 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792143685 +0200\n\ntest: Fix intermittent issue in p2p_initial_headers_sync.py\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fad7637529426f058a3c2409dd137009b14622a4",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fad7637529426f058a3c2409dd137009b14622a4",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fad7637529426f058a3c2409dd137009b14622a4/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "b13ba1a7d3a126471f970b96ee892705aea96b8b",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b13ba1a7d3a126471f970b96ee892705aea96b8b",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b13ba1a7d3a126471f970b96ee892705aea96b8b"
         }
       ]
     },
@@ -7326,180 +7455,6 @@
           "sha": "6fa2f3974cbb69fb2086a8f89d300deec4486662",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6fa2f3974cbb69fb2086a8f89d300deec4486662",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/6fa2f3974cbb69fb2086a8f89d300deec4486662"
-        }
-      ]
-    },
-    {
-      "sha": "0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-      "node_id": "C_kwDOABII59oAKDAwMzZkNWYxZmEwOTA4MGIyYjNjYjFjMWUzM2M1NDJiZTlmNzVjMjY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-05T12:01:43Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-05T12:01:43Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36262: test: cover orphan reconsideration interruptibility\n\n16bff77a5aaf7a9740b859f74b8898cee6de5588 test: cover orphan reconsideration interruptibility (ViniciusCestarii)\n\nPull request description:\n\n  Add test checking that ProcessOrphanTx reconsiders at most one orphan per ProcessMessages(). This test prevents regression of [CVE-2024-52914](https://bitcoincore.org/en/2024/07/03/disclose-orphan-dos/) which currently no existing test checks.\n\n  The test kills 2 mutants found with https://github.com/ViniciusCestarii/mutant-harness:\n\n  1. Remove `return true` after an orphan is accepted\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3494,7 +3494,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n           if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {\n               LogDebug(BCLog::TXPACKAGES, \"   accepted orphan tx %s (wtxid=%s)\\n\", orphanHash.ToString(), orphan_wtxid.ToString());\n               ProcessValidTx(peer.m_id, porphanTx, result.m_replaced_transactions);\n  -            return true;\n           } else if (state.GetResult() != TxValidationResult::TX_MISSING_INPUTS) {\n  ```\n\n  2. Remove `return true` after an orphan is rejected for a reason other than `TX_MISSING_INPUTS`\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3508,7 +3508,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n            state.GetResult() != TxValidationResult::TX_RESULT_UNSET)) {\n                   ProcessInvalidTx(peer.m_id, porphanTx, state, /*first_time_failure=*/false);\n               }\n  -            return true;\n           }\n       }\n  ```\n\nACKs for top commit:\n  instagibbs:\n    reACK https://github.com/bitcoin/bitcoin/pull/36262/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588\n  fametrano:\n    tACK 16bff77a5aaf7a9740b859f74b8898cee6de5588\n\nTree-SHA512: 3d00bf7aa023c47d335b0f4c9d720c914611962272b895d91c8a542739f3b9c0d35c1dba5becdfd7167122c3f3f2be87b366d296732fa2765538467e6c0af6d7",
-        "tree": {
-          "sha": "8b188965030ffc7e682de8a46babade077979f52",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/8b188965030ffc7e682de8a46babade077979f52"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDkacACgkQm3m0VpHb\nQXMMBRAAtJ3K4fgYYwva8QGD3Z1HvmcWmHnW5KPmk6Uon0Fh51Xhk7s0oK92lWV2\n93DbSgb7M/rvMpZ+vZaydUnIpNMQjlgv/RQLKnYpqAkcrUoYbk3OE8lfKEfErvJI\nJ2d4XsoxfwLq6mQZSLVb2nhQoOLEYJW8aigqssUJk9KTdFca1JbCA4Ejra0ElUw7\n8t4IpgcCLf8YbkwR8sHHhlKtWQFpgZW2rqVdSdkr6bPK/Uqo9M3qlo+XZIFU1Rq0\n4+QzxiKaXHOhJezJR+BzMTDhVFCl4uk7ZmaAPVOsE1O4UUO57XiMvjJ1ojHyuOB/\naACV61bRHh7J26k2QbL6PW7iR/TIpcr3vn18zcKA0X4yFL40JuTSjCmhujrWM19o\nKujEbxSSnKtl1aJm+U5yJqrcmDSjzMUWglY6MD5Hahz7jdGX9Wd0ML/JiOJKMo7E\nqzW+BxEdhEJPzIoeiO35/TOdmDB84/eNTRb0vbDcwHSH+6NJ6pqnzeZyeJINos8Q\nL6wJjZuvcUBgvSrDERc2TWqDveW+UlAqd+JLbTHQFj4iUEaCvw5KEVCVYLH5Qjxn\n+FZDGaYMyokN4Ip7Q+vFhv0eBZ9l79fT8lB9GeOZZ3SqD+3gw5lJpelbPJoNkRhR\nS+js+eKPu9/1EI6f2vYKCTPfxIUWABJ23VToSeN5ofyJzTYXqss=\n=xKfW\n-----END PGP SIGNATURE-----",
-          "payload": "tree 8b188965030ffc7e682de8a46babade077979f52\nparent 36e9e52f169c4c241c8dbfbc19fdf32633101ce6\nparent 16bff77a5aaf7a9740b859f74b8898cee6de5588\nauthor merge-script <seb.kung@gmail.com> 1791201703 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791201703 +0200\n\nMerge bitcoin/bitcoin#36262: test: cover orphan reconsideration interruptibility\n\n16bff77a5aaf7a9740b859f74b8898cee6de5588 test: cover orphan reconsideration interruptibility (ViniciusCestarii)\n\nPull request description:\n\n  Add test checking that ProcessOrphanTx reconsiders at most one orphan per ProcessMessages(). This test prevents regression of [CVE-2024-52914](https://bitcoincore.org/en/2024/07/03/disclose-orphan-dos/) which currently no existing test checks.\n\n  The test kills 2 mutants found with https://github.com/ViniciusCestarii/mutant-harness:\n\n  1. Remove `return true` after an orphan is accepted\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3494,7 +3494,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n           if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {\n               LogDebug(BCLog::TXPACKAGES, \"   accepted orphan tx %s (wtxid=%s)\\n\", orphanHash.ToString(), orphan_wtxid.ToString());\n               ProcessValidTx(peer.m_id, porphanTx, result.m_replaced_transactions);\n  -            return true;\n           } else if (state.GetResult() != TxValidationResult::TX_MISSING_INPUTS) {\n  ```\n\n  2. Remove `return true` after an orphan is rejected for a reason other than `TX_MISSING_INPUTS`\n\n  ```diff\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -3508,7 +3508,6 @@ bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)\n            state.GetResult() != TxValidationResult::TX_RESULT_UNSET)) {\n                   ProcessInvalidTx(peer.m_id, porphanTx, state, /*first_time_failure=*/false);\n               }\n  -            return true;\n           }\n       }\n  ```\n\nACKs for top commit:\n  instagibbs:\n    reACK https://github.com/bitcoin/bitcoin/pull/36262/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588\n  fametrano:\n    tACK 16bff77a5aaf7a9740b859f74b8898cee6de5588\n\nTree-SHA512: 3d00bf7aa023c47d335b0f4c9d720c914611962272b895d91c8a542739f3b9c0d35c1dba5becdfd7167122c3f3f2be87b366d296732fa2765538467e6c0af6d7\n",
-          "verified_at": "2026-10-05T12:02:15Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0036d5f1fa09080b2b3cb1c1e33c542be9f75c26/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/36e9e52f169c4c241c8dbfbc19fdf32633101ce6"
-        },
-        {
-          "sha": "16bff77a5aaf7a9740b859f74b8898cee6de5588",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/16bff77a5aaf7a9740b859f74b8898cee6de5588",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/16bff77a5aaf7a9740b859f74b8898cee6de5588"
-        }
-      ]
-    },
-    {
-      "sha": "36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-      "node_id": "C_kwDOABII59oAKDM2ZTllNTJmMTY5YzRjMjQxYzhkYmZiYzE5ZmRmMzI2MzMxMDFjZTY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-05T11:31:12Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-10-05T11:31:12Z"
-        },
-        "message": "Merge bitcoin/bitcoin#34907: wallet, test: make wallet_fast_rescan robust\n\nf217da5c59f43b43abca96de66b95c24ae99eed7 wallet, test: wallet_fast_rescan follow-ups (rkrux)\n\nPull request description:\n\n  This patch addresses my own review comments from the review of #34667 and adds some more changes that I find helpful. It was observed in the review of the earlier PR that there is a tendency for the test code to cause the topups not being done that defeats the purpose of the test. Combine that with the earlier issue where the block filter was not being updated ever since this test was written, I think it's helpful that some robustness is added in the test.\n\n  Exact details are in the commit message.\n\nACKs for top commit:\n  Bicaru20:\n    lgtm ACK f217da5c59\n  polespinasa:\n    lgtm ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n  sedited:\n    ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n\nTree-SHA512: 781aeee4607a6750f370d4370b28da47f01428eb894ce59ac7de930396864a7c3708d1d1c05efb607fae8e5c2888a2503573140c37eed5c285c79d3e5155a3af",
-        "tree": {
-          "sha": "edbe9aeabdc046c4bc54bd13cab8e16279348ae0",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/edbe9aeabdc046c4bc54bd13cab8e16279348ae0"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrDioAACgkQm3m0VpHb\nQXNZyw/+Ipp9gwYB9tYBQna7J9WQ4WzcT8oxb1MgiAe90Jz7CJi6EXhyBIj0RQwf\nz1YF3/hdvfv0+gc/V6EsQ/qPjK2waddKOU+eOykwF5dZRcw6OEoBXnX1/dITYA50\notaHHV8p/6d9icexsgzyQ3kNImz9C2j1pHl5aISa/K07brlQNuDBUjvGiEsNSOjq\nG8F8ywAfs7jdUcz3bS4gblNcWQhkihhThCEz5e0x/zURuit5GYCCkA6WbZfbEQsY\nFAeNEqTLih6df5xrls8Ii0A8rmaaOCtrJdC6/B7NG/9MlLz2PeCACQLE1HwUl5/z\nnlYaffai2abIeRFFlPgvwmIFDdsiVntEQ+hIr+JdhVzVtqtYjln9yarSCFUCUFcs\nue1oiyfPlfZlRmN+4pwEyHSr13PtPo43T0racWA9Z0SIk93sq6CL47YFVWx8Ja1D\nM3EtAQW5eCDoh4sl3ScdF/ugJigBCPuqusmcrCduzqhAwGKjVV2gfe2h+aNIF6p8\n2QTagJUFeeJoEpoqQnVutVjtaKcECIriESMHX+lJvBCszExvBzDJxx3EcgOsxZBs\n7/T/vwk5Ac+rtxwWKz8L2vBBj3cJ3ZhpR6XCwWuq6Dj79QClKTSXsplyRGZquk4J\nHUmrGHBOKAlCIAAzxUQcX2yFEEPdy3bxiopcV7Ukc4uFL9MM8gQ=\n=Gmrk\n-----END PGP SIGNATURE-----",
-          "payload": "tree edbe9aeabdc046c4bc54bd13cab8e16279348ae0\nparent 8c49a9abe9196e35000849df76445037216b6d75\nparent f217da5c59f43b43abca96de66b95c24ae99eed7\nauthor merge-script <seb.kung@gmail.com> 1791199872 +0200\ncommitter merge-script <seb.kung@gmail.com> 1791199872 +0200\n\nMerge bitcoin/bitcoin#34907: wallet, test: make wallet_fast_rescan robust\n\nf217da5c59f43b43abca96de66b95c24ae99eed7 wallet, test: wallet_fast_rescan follow-ups (rkrux)\n\nPull request description:\n\n  This patch addresses my own review comments from the review of #34667 and adds some more changes that I find helpful. It was observed in the review of the earlier PR that there is a tendency for the test code to cause the topups not being done that defeats the purpose of the test. Combine that with the earlier issue where the block filter was not being updated ever since this test was written, I think it's helpful that some robustness is added in the test.\n\n  Exact details are in the commit message.\n\nACKs for top commit:\n  Bicaru20:\n    lgtm ACK f217da5c59\n  polespinasa:\n    lgtm ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n  sedited:\n    ACK f217da5c59f43b43abca96de66b95c24ae99eed7\n\nTree-SHA512: 781aeee4607a6750f370d4370b28da47f01428eb894ce59ac7de930396864a7c3708d1d1c05efb607fae8e5c2888a2503573140c37eed5c285c79d3e5155a3af\n",
-          "verified_at": "2026-10-05T11:31:36Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/36e9e52f169c4c241c8dbfbc19fdf32633101ce6",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/36e9e52f169c4c241c8dbfbc19fdf32633101ce6/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "8c49a9abe9196e35000849df76445037216b6d75",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/8c49a9abe9196e35000849df76445037216b6d75",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/8c49a9abe9196e35000849df76445037216b6d75"
-        },
-        {
-          "sha": "f217da5c59f43b43abca96de66b95c24ae99eed7",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f217da5c59f43b43abca96de66b95c24ae99eed7",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f217da5c59f43b43abca96de66b95c24ae99eed7"
         }
       ]
     }
