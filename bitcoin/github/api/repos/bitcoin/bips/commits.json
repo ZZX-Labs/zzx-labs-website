@@ -1,8 +1,90 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-24T13:35:18.420834Z",
+  "generated_at": "2026-10-24T21:50:42.296159Z",
   "repository": "bitcoin/bips",
   "commits": [
+    {
+      "sha": "100ba872c808946155b1eeb8c4568058f2eea0a7",
+      "node_id": "C_kwDOAN28mdoAKDEwMGJhODcyYzgwODk0NjE1NWIxZWViOGM0NTY4MDU4ZjJlZWEwYTc",
+      "commit": {
+        "author": {
+          "name": "pythcoiner",
+          "email": "124568858+pythcoiner@users.noreply.github.com",
+          "date": "2026-10-24T15:11:13Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2026-10-24T15:11:13Z"
+        },
+        "message": "Add BIP139: Wallet Metadata Backup Format (#2130)\n\n* bip139: wallet metadata format\n\n* bip139: add the Version header to the preamble\n\n* bip139: keep a single psbts field and fix the spend status link\n\n* bip139: fold the version section and bip field into the version value\n\n* bip139: capitalize Bitcoin Core and clarify the change_descriptor note\n\n* bip139: replace the three account birth time fields with birth_block\n\n* bip139: drop descriptor_id and change_descriptor_id\n\n* bip139: drop field aliases, keeping name and labels\n\n* bip139: restrict descriptor and change_descriptor to a string\n\n* bip139: make version, type, descriptor, key, txid, outpoint and tweak mandatory\n\n* bip139: move field definitions to a companion registry\n\n* bip139: add the wallet survey behind these decisions\n\n* bip139: replace the wallet description field with a backup note\n\n* bip139: add the backup date field\n\n* bip139: add the account gap_limit field\n\n* bip139: add the multi_bip380 account type\n\n* bip139: give the bip352_labels range an explicit encoding\n\n* bip139: add a general coin object\n\n* bip139: move signers above the account\n\n* bip139: add signer modality and device records\n\n* bip139: add bip85 application and index\n\n* bip139: add Bitkey to the wallet survey\n\n* bip139: state how to derive birth_block from a creation date\n\n* bip139: define the timestamp format once\n\n* bip139: rename the transaction time field to block_time\n\n* bip139: keep last_height on the account only\n\n* bip139: state that type names the descriptor language\n\n* bip139: drop output_type, the descriptor already states it\n\n* bip139: replace the account active flag with a status enum\n\n* bip139: add mutinynet and scope a backup to one network\n\n* bip139: record that the label gap belongs to BIP-329\n\n* bip139: record that proprietary needs no change\n\n* bip139: make the survey annex-ready\n\n* bip139: record that mainnet mnemonics stay out of scope\n\n* bip139: reword the mnemonic evidence heading\n\n* bip139: correct the birth_block evidence, Sparrow stores a height\n\n* bip139: type and descriptor fit every surveyed wallet\n\n* bip139: correct the addr descriptor solvability note\n\n* bip139: re-assess every partial score against fillability\n\n* bip139: store psbts once at wallet level, reference them per account\n\n* bip139: store transactions once at wallet level, reference them per account\n\n* bip139: txid is the transaction map key, not a field\n\n* bip139: refresh the matrix after the fillability re-assessment\n\n* bip139: electrum holds no bip39 mnemonic at all\n\n* bip139: sp_output.label has no constituency\n\n* bip139: collapse the survey to a two-value scale\n\n* bip139: drop the obsolete partial-score analysis\n\n* bip139: size the matrix field column from the data\n\n* bip139: cut the survey down to the table and its results\n\n* bip139: recompute liana compat against the current draft\n\n* bip139: correct the liana breaking-change count\n\n* bip139: make network mandatory\n\n* bip139: network no longer breaks liana on import\n\n* bip139: render wallet fields as a wrapped table\n\n* bip139: render account fields as a wrapped table\n\n* bip139: render every field section as a wrapped table\n\n* bip139: the registry is part of the bip, not a reference to it\n\n* bip139: drop the registration process from the registry intro\n\n* bip139: put field rationale in the cell, not below the table\n\n* bip139: keep code spans whole when wrapping cells\n\n* bip139: render field tables as preformatted blocks\n\n* bip139: drop link definitions the tables no longer use\n\n* bip139: use a bordered grid for the field tables\n\n* bip139: give birth_block an estimation formula and drop the enum underscore\n\n* bip139: merge silent payment outputs into the coin object\n\n* bip139: restore spend_status and give the sp label scalar a home\n\n* bip139: register the transaction fee field\n\n* bip139: rebuild the survey matrix against the current field set\n\n* bip139: drop survey findings the draft now addresses\n\n* bip139: bar passphrase-protected seeds from bip39_mnemonic\n\n* bip139: record the missing-field decisions in the survey\n\n* bip139: cut the survey down to its revision list and matrix\n\n* bip139: reword the survey as a wallet to field mapping\n\n* bip139: reference the wallet support annex from the spec\n\n* bip139: list the mandatory fields in the registry tables\n\n* bip139: point the spec at the registry as the complete field list\n\n* bip139: spell out mandatory and optional in the registry req column\n\n* bip139: mark only the optional fields in the registry tables\n\n* bip139: retitle and reframe the BIP around moving between wallets\n\n* bip139: call the artefact an export throughout\n\n* bip139: scope the mnemonic advice to exports kept as backups\n\n* bip139: say that most metadata cannot be recovered from the chain\n\n* bip139: clarify account and signer metadata fields\n\n* bip139: cut the registry cells back to the field description\n\n* bip139: reword the registry field descriptions\n\n* bip139: give the device record its own registry table\n\n* bip139: keep an unknown enum value from failing the import\n\n* bip139: define the device transports field\n\n* bip139: point the devices row at the device object\n\n* bip139: backup -> export in README\n\n* bip139: clarify export fields and remove survey annex\n\n* bip139: Drop Version header in absence of Changelog",
+        "tree": {
+          "sha": "ce0b9ba8dfe0f316276a026170a2963b018bc377",
+          "url": "https://api.github.com/repos/bitcoin/bips/git/trees/ce0b9ba8dfe0f316276a026170a2963b018bc377"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bips/git/commits/100ba872c808946155b1eeb8c4568058f2eea0a7",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq3MqRCRC1aQ7uu5UhlAAA4EEQAEEvfQzJXxn+f+BIZsg5d8Ot\nzgPglX+qD/ERqeoSGYm8PbaLzi+O6q0JyAuYAjnvOmDSwX/oxWPErwY5orxWsPij\nA0HW+nkoXAo5zxg+7aENotErkrqjKApoSvXHa2x4Ezgn6DR+j07CtJHi2VEwqCJH\nq2PzDL3nGNE6dpTQ+x4mRGjCE5f4FTlavEb7aUA1JWZ83RQG2k54u8DWqGe0RUB3\nkreX0M3SJTkN3cBSNb8i5cB6RfdfhZigdPD00eyqo5IS52jCFej2Ogo7IP4RZ3JF\nJ7jw3P9+RhPSHQBqMQQN/6ls7lm3B82wZQfFuISS9reqCCaUT4GxWnL/loNSMHrw\nNBRw8u8qt+3yed0HmYyyB8J7p56RrW9+LgVuv1/ioKfCkJc6tGeAdMjOdhIOGflZ\ntUH2uWM7Vj9fLZBQo+nROzilnQb9cunSlfSju39drrEt7yfXU77xa6591jcgf9dH\nNS/F77qFgAdU/N+kTl6s9B63KcSQR9aEbNVTvDrLvFdUl48H3RHm+H0XADILnZK5\nmedAJm7bQBar2CWFGvBV0HD4mOeV7mPQYLDHji5uKuQdaur4LHZRmtomcXF1xS93\nciWg/rY8kUQ9tyBQXKfKfRSV+tCtVaQwwFogV0IL8YhXmFqAF8kL511K+29Sp7sw\nTrXw/aMZ9YJ3StqgBrrr\n=XGs+\n-----END PGP SIGNATURE-----\n",
+          "payload": "tree ce0b9ba8dfe0f316276a026170a2963b018bc377\nparent 93f161194fbaed12c44f5e2a0c1d4f2b1b317cb0\nauthor pythcoiner <124568858+pythcoiner@users.noreply.github.com> 1792854673 +0200\ncommitter GitHub <noreply@github.com> 1792854673 -0700\n\nAdd BIP139: Wallet Metadata Backup Format (#2130)\n\n* bip139: wallet metadata format\n\n* bip139: add the Version header to the preamble\n\n* bip139: keep a single psbts field and fix the spend status link\n\n* bip139: fold the version section and bip field into the version value\n\n* bip139: capitalize Bitcoin Core and clarify the change_descriptor note\n\n* bip139: replace the three account birth time fields with birth_block\n\n* bip139: drop descriptor_id and change_descriptor_id\n\n* bip139: drop field aliases, keeping name and labels\n\n* bip139: restrict descriptor and change_descriptor to a string\n\n* bip139: make version, type, descriptor, key, txid, outpoint and tweak mandatory\n\n* bip139: move field definitions to a companion registry\n\n* bip139: add the wallet survey behind these decisions\n\n* bip139: replace the wallet description field with a backup note\n\n* bip139: add the backup date field\n\n* bip139: add the account gap_limit field\n\n* bip139: add the multi_bip380 account type\n\n* bip139: give the bip352_labels range an explicit encoding\n\n* bip139: add a general coin object\n\n* bip139: move signers above the account\n\n* bip139: add signer modality and device records\n\n* bip139: add bip85 application and index\n\n* bip139: add Bitkey to the wallet survey\n\n* bip139: state how to derive birth_block from a creation date\n\n* bip139: define the timestamp format once\n\n* bip139: rename the transaction time field to block_time\n\n* bip139: keep last_height on the account only\n\n* bip139: state that type names the descriptor language\n\n* bip139: drop output_type, the descriptor already states it\n\n* bip139: replace the account active flag with a status enum\n\n* bip139: add mutinynet and scope a backup to one network\n\n* bip139: record that the label gap belongs to BIP-329\n\n* bip139: record that proprietary needs no change\n\n* bip139: make the survey annex-ready\n\n* bip139: record that mainnet mnemonics stay out of scope\n\n* bip139: reword the mnemonic evidence heading\n\n* bip139: correct the birth_block evidence, Sparrow stores a height\n\n* bip139: type and descriptor fit every surveyed wallet\n\n* bip139: correct the addr descriptor solvability note\n\n* bip139: re-assess every partial score against fillability\n\n* bip139: store psbts once at wallet level, reference them per account\n\n* bip139: store transactions once at wallet level, reference them per account\n\n* bip139: txid is the transaction map key, not a field\n\n* bip139: refresh the matrix after the fillability re-assessment\n\n* bip139: electrum holds no bip39 mnemonic at all\n\n* bip139: sp_output.label has no constituency\n\n* bip139: collapse the survey to a two-value scale\n\n* bip139: drop the obsolete partial-score analysis\n\n* bip139: size the matrix field column from the data\n\n* bip139: cut the survey down to the table and its results\n\n* bip139: recompute liana compat against the current draft\n\n* bip139: correct the liana breaking-change count\n\n* bip139: make network mandatory\n\n* bip139: network no longer breaks liana on import\n\n* bip139: render wallet fields as a wrapped table\n\n* bip139: render account fields as a wrapped table\n\n* bip139: render every field section as a wrapped table\n\n* bip139: the registry is part of the bip, not a reference to it\n\n* bip139: drop the registration process from the registry intro\n\n* bip139: put field rationale in the cell, not below the table\n\n* bip139: keep code spans whole when wrapping cells\n\n* bip139: render field tables as preformatted blocks\n\n* bip139: drop link definitions the tables no longer use\n\n* bip139: use a bordered grid for the field tables\n\n* bip139: give birth_block an estimation formula and drop the enum underscore\n\n* bip139: merge silent payment outputs into the coin object\n\n* bip139: restore spend_status and give the sp label scalar a home\n\n* bip139: register the transaction fee field\n\n* bip139: rebuild the survey matrix against the current field set\n\n* bip139: drop survey findings the draft now addresses\n\n* bip139: bar passphrase-protected seeds from bip39_mnemonic\n\n* bip139: record the missing-field decisions in the survey\n\n* bip139: cut the survey down to its revision list and matrix\n\n* bip139: reword the survey as a wallet to field mapping\n\n* bip139: reference the wallet support annex from the spec\n\n* bip139: list the mandatory fields in the registry tables\n\n* bip139: point the spec at the registry as the complete field list\n\n* bip139: spell out mandatory and optional in the registry req column\n\n* bip139: mark only the optional fields in the registry tables\n\n* bip139: retitle and reframe the BIP around moving between wallets\n\n* bip139: call the artefact an export throughout\n\n* bip139: scope the mnemonic advice to exports kept as backups\n\n* bip139: say that most metadata cannot be recovered from the chain\n\n* bip139: clarify account and signer metadata fields\n\n* bip139: cut the registry cells back to the field description\n\n* bip139: reword the registry field descriptions\n\n* bip139: give the device record its own registry table\n\n* bip139: keep an unknown enum value from failing the import\n\n* bip139: define the device transports field\n\n* bip139: point the devices row at the device object\n\n* bip139: backup -> export in README\n\n* bip139: clarify export fields and remove survey annex\n\n* bip139: Drop Version header in absence of Changelog",
+          "verified_at": "2026-10-24T15:11:13Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bips/commits/100ba872c808946155b1eeb8c4568058f2eea0a7",
+      "html_url": "https://github.com/bitcoin/bips/commit/100ba872c808946155b1eeb8c4568058f2eea0a7",
+      "comments_url": "https://api.github.com/repos/bitcoin/bips/commits/100ba872c808946155b1eeb8c4568058f2eea0a7/comments",
+      "author": {
+        "login": "pythcoiner",
+        "id": 124568858,
+        "node_id": "U_kgDOB2zFGg",
+        "avatar_url": "https://avatars.githubusercontent.com/u/124568858?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/pythcoiner",
+        "html_url": "https://github.com/pythcoiner",
+        "followers_url": "https://api.github.com/users/pythcoiner/followers",
+        "following_url": "https://api.github.com/users/pythcoiner/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pythcoiner/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/pythcoiner/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pythcoiner/subscriptions",
+        "organizations_url": "https://api.github.com/users/pythcoiner/orgs",
+        "repos_url": "https://api.github.com/users/pythcoiner/repos",
+        "events_url": "https://api.github.com/users/pythcoiner/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/pythcoiner/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 19864447,
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/web-flow",
+        "html_url": "https://github.com/web-flow",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "93f161194fbaed12c44f5e2a0c1d4f2b1b317cb0",
+          "url": "https://api.github.com/repos/bitcoin/bips/commits/93f161194fbaed12c44f5e2a0c1d4f2b1b317cb0",
+          "html_url": "https://github.com/bitcoin/bips/commit/93f161194fbaed12c44f5e2a0c1d4f2b1b317cb0"
+        }
+      ]
+    },
     {
       "sha": "93f161194fbaed12c44f5e2a0c1d4f2b1b317cb0",
       "node_id": "C_kwDOAN28mdoAKDkzZjE2MTE5NGZiYWVkMTJjNDRmNWUyYTBjMWQ0ZjJiMWIzMTdjYjA",
@@ -1561,88 +1643,6 @@
       "url": "https://api.github.com/repos/bitcoin/bips/commits/b48abb1624b14a42ee2a23c2a0402c9d82948169",
       "html_url": "https://github.com/bitcoin/bips/commit/b48abb1624b14a42ee2a23c2a0402c9d82948169",
       "comments_url": "https://api.github.com/repos/bitcoin/bips/commits/b48abb1624b14a42ee2a23c2a0402c9d82948169/comments",
-      "author": {
-        "login": "0xShadowX",
-        "id": 146137079,
-        "node_id": "U_kgDOCLXf9w",
-        "avatar_url": "https://avatars.githubusercontent.com/u/146137079?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/0xShadowX",
-        "html_url": "https://github.com/0xShadowX",
-        "followers_url": "https://api.github.com/users/0xShadowX/followers",
-        "following_url": "https://api.github.com/users/0xShadowX/following{/other_user}",
-        "gists_url": "https://api.github.com/users/0xShadowX/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/0xShadowX/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/0xShadowX/subscriptions",
-        "organizations_url": "https://api.github.com/users/0xShadowX/orgs",
-        "repos_url": "https://api.github.com/users/0xShadowX/repos",
-        "events_url": "https://api.github.com/users/0xShadowX/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/0xShadowX/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "0xShadowX",
-        "id": 146137079,
-        "node_id": "U_kgDOCLXf9w",
-        "avatar_url": "https://avatars.githubusercontent.com/u/146137079?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/0xShadowX",
-        "html_url": "https://github.com/0xShadowX",
-        "followers_url": "https://api.github.com/users/0xShadowX/followers",
-        "following_url": "https://api.github.com/users/0xShadowX/following{/other_user}",
-        "gists_url": "https://api.github.com/users/0xShadowX/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/0xShadowX/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/0xShadowX/subscriptions",
-        "organizations_url": "https://api.github.com/users/0xShadowX/orgs",
-        "repos_url": "https://api.github.com/users/0xShadowX/repos",
-        "events_url": "https://api.github.com/users/0xShadowX/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/0xShadowX/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "8c4d9e258b8cec913ffe4bddeb1d96e9f0c01ae5",
-          "url": "https://api.github.com/repos/bitcoin/bips/commits/8c4d9e258b8cec913ffe4bddeb1d96e9f0c01ae5",
-          "html_url": "https://github.com/bitcoin/bips/commit/8c4d9e258b8cec913ffe4bddeb1d96e9f0c01ae5"
-        }
-      ]
-    },
-    {
-      "sha": "7fb28fa640b94af7636ffa8fd70f4a1af5d1262b",
-      "node_id": "C_kwDOAN28mdoAKDdmYjI4ZmE2NDBiOTRhZjc2MzZmZmE4ZmQ3MGY0YTFhZjVkMTI2MmI",
-      "commit": {
-        "author": {
-          "name": "Shadow",
-          "email": "146137079+0xShadowX@users.noreply.github.com",
-          "date": "2026-09-25T11:58:30Z"
-        },
-        "committer": {
-          "name": "Shadow",
-          "email": "146137079+0xShadowX@users.noreply.github.com",
-          "date": "2026-09-25T11:58:30Z"
-        },
-        "message": "bip174: add PSBT_IN_P2C_TWEAK to the type registry\n\nBIP-372 defines PSBT_IN_P2C_TWEAK = 0x19, but the per-input table in the\ntype registry goes from 0x18 straight to 0x1a.",
-        "tree": {
-          "sha": "a76621415e9f657e546cf2e8948edbf31fb26ba7",
-          "url": "https://api.github.com/repos/bitcoin/bips/git/trees/a76621415e9f657e546cf2e8948edbf31fb26ba7"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bips/git/commits/7fb28fa640b94af7636ffa8fd70f4a1af5d1262b",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bips/commits/7fb28fa640b94af7636ffa8fd70f4a1af5d1262b",
-      "html_url": "https://github.com/bitcoin/bips/commit/7fb28fa640b94af7636ffa8fd70f4a1af5d1262b",
-      "comments_url": "https://api.github.com/repos/bitcoin/bips/commits/7fb28fa640b94af7636ffa8fd70f4a1af5d1262b/comments",
       "author": {
         "login": "0xShadowX",
         "id": 146137079,
