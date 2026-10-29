@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-28T20:33:47.444709Z",
+  "generated_at": "2026-10-29T00:16:04.907893Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "9bf4815b94b9eaf8807f4e569091778da6c338d5",
+      "node_id": "C_kwDOABII59oAKDliZjQ4MTViOTRiOWVhZjg4MDdmNGU1NjkwOTE3NzhkYTZjMzM4ZDU",
+      "commit": {
+        "author": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-10-28T21:01:51Z"
+        },
+        "committer": {
+          "name": "Ryan Ofsky",
+          "email": "ryan@ofsky.org",
+          "date": "2026-10-28T21:22:33Z"
+        },
+        "message": "Merge bitcoin/bitcoin#35714: validation: return block-file flush errors\n\n12f691cf286ea9a020583d267b94efca102a4056 validation: return block-file flush errors (L\u0151rinc)\n07d23eb75527b8dd6571a33b3bc304815764bc07 test: characterize writes after flush failure (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** When flushing block or undo data fails, `FlushStateToDisk()` still writes block-index metadata and coins data, then advances `m_last_flushed_block`.\n  With a separate `-blocksdir`, persistent failures there can leave metadata referring to block data that is not durable even when chainstate writes succeed.\n\n  **Fix:** Return the flush error before those writes, leaving the last-flushed marker and on-disk coins tip unchanged in the failing call.\n  Later flushes can retry and write if they succeed, including during shutdown.\n  `ConnectTip()` and `DisconnectTip()` propagate the error before updating the chain tip, after applying the coins changes in memory.\n\n  **History:**\n  * [#27866](https://github.com/bitcoin/bitcoin/pull/27866#discussion_r1297313148) raised whether saving other state after a flush failure was preferable. This change preserves later retries while skipping writes in the failing call.\n  * [#34897](https://github.com/bitcoin/bitcoin/pull/34897) introduced `m_last_flushed_block` to prevent persistent indexes from advancing past flushed chainstate. This fix keeps it at the last successful flush.\n\nACKs for top commit:\n  optout21:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  arejula27:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  pzafonte:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  maflcko:\n    review ACK 12f691cf286ea9a020583d267b94efca102a4056 \ud83d\udc5f\n  ryanofsky:\n    Code review ACK 12f691cf286ea9a020583d267b94efca102a4056. Thanks for putting the test first, it makes the behavior change easy to verify.\n\nTree-SHA512: 227d7836918b457ed4afcab0ece67d7dd717876e967483cd773eefc7a790c0f1b940a67c9023341223b08b2a17260912a2bcfef04154815d103bf9dbaeb6d82e",
+        "tree": {
+          "sha": "11cb7be02eec876e7dba5c9456d114e30bba94f5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/11cb7be02eec876e7dba5c9456d114e30bba94f5"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/9bf4815b94b9eaf8807f4e569091778da6c338d5",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEETRs9Xsuhp+BTce6+RoAOMPx0imYFAmriZ5kACgkQRoAOMPx0\nimb9tQ//ZvDIT8znuxz/ldOKmkUJY/912qkvyv4N32AQT8zNXAR5C34JNTZH/bso\nu80k3+7RAWlXBQE/UqLkFrRbLzVYBY7U/5QS5RxtSknT7f6CsN8JNYM6L00EFl7G\nU3hPrDcwsGfAYDnJrX06cUY6sD0EWiber9aqgf8Ul+904Ccfm2RCri47drRykBXf\nZ34/Axz9k/Ql0Nc5c5JcBfImfrejUXgeT4ciwpL29aLuxsszv4aJMVe5mnIC+61P\n+HjO4CKrh59vgcmw2wU2ljMM+7/lojfzQ2DMLhhfQC52ph/Ndttk8MLwBy7wGD4f\nUnMGlbqwgFMP/rxjSAbPVc/HEnQelCYun1MSljhPkJbXoIeL4iEpMM/kiA71nCaC\nTonYV1gLoi9s+Ywcs4zUlq7ophBFq71Xu7WDvR4xhbRSc+aQm6tK3HRKmZ1ZBuGv\n2rNaDAZS2VpODSXIZvtkeGOcTB4wUf7ACkWtFuyuGN7gxgCThY1xvErs8BX6KOIA\n5ZEtSaJfFuKck+1s5XurhDSIZjlAvIrzF5Ol4HlIf+/yHQtWurspd1+LwwVEQZue\ndSETCqmEwyLOluAsoD8hNOlRFMr5zCK/iqEx4eTckm79dV/5G1cwTA9kIjNMF3sK\niOKyWYHcRa/R/QceZu/XtWzuLRIZRWA9gM68wqSsyYA2mIVhn1U=\n=bDGl\n-----END PGP SIGNATURE-----",
+          "payload": "tree 11cb7be02eec876e7dba5c9456d114e30bba94f5\nparent 0f27bed5b2924420d65caeca439e6b036d3c6cb2\nparent 12f691cf286ea9a020583d267b94efca102a4056\nauthor Ryan Ofsky <ryan@ofsky.org> 1793221311 -0400\ncommitter Ryan Ofsky <ryan@ofsky.org> 1793222553 -0400\n\nMerge bitcoin/bitcoin#35714: validation: return block-file flush errors\n\n12f691cf286ea9a020583d267b94efca102a4056 validation: return block-file flush errors (L\u0151rinc)\n07d23eb75527b8dd6571a33b3bc304815764bc07 test: characterize writes after flush failure (L\u0151rinc)\n\nPull request description:\n\n  **Problem:** When flushing block or undo data fails, `FlushStateToDisk()` still writes block-index metadata and coins data, then advances `m_last_flushed_block`.\n  With a separate `-blocksdir`, persistent failures there can leave metadata referring to block data that is not durable even when chainstate writes succeed.\n\n  **Fix:** Return the flush error before those writes, leaving the last-flushed marker and on-disk coins tip unchanged in the failing call.\n  Later flushes can retry and write if they succeed, including during shutdown.\n  `ConnectTip()` and `DisconnectTip()` propagate the error before updating the chain tip, after applying the coins changes in memory.\n\n  **History:**\n  * [#27866](https://github.com/bitcoin/bitcoin/pull/27866#discussion_r1297313148) raised whether saving other state after a flush failure was preferable. This change preserves later retries while skipping writes in the failing call.\n  * [#34897](https://github.com/bitcoin/bitcoin/pull/34897) introduced `m_last_flushed_block` to prevent persistent indexes from advancing past flushed chainstate. This fix keeps it at the last successful flush.\n\nACKs for top commit:\n  optout21:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  arejula27:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  pzafonte:\n    reACK 12f691cf286ea9a020583d267b94efca102a4056\n  maflcko:\n    review ACK 12f691cf286ea9a020583d267b94efca102a4056 \ud83d\udc5f\n  ryanofsky:\n    Code review ACK 12f691cf286ea9a020583d267b94efca102a4056. Thanks for putting the test first, it makes the behavior change easy to verify.\n\nTree-SHA512: 227d7836918b457ed4afcab0ece67d7dd717876e967483cd773eefc7a790c0f1b940a67c9023341223b08b2a17260912a2bcfef04154815d103bf9dbaeb6d82e\n",
+          "verified_at": "2026-10-28T21:22:41Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9bf4815b94b9eaf8807f4e569091778da6c338d5",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/9bf4815b94b9eaf8807f4e569091778da6c338d5",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9bf4815b94b9eaf8807f4e569091778da6c338d5/comments",
+      "author": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "ryanofsky",
+        "id": 7133040,
+        "node_id": "MDQ6VXNlcjcxMzMwNDA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/7133040?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ryanofsky",
+        "html_url": "https://github.com/ryanofsky",
+        "followers_url": "https://api.github.com/users/ryanofsky/followers",
+        "following_url": "https://api.github.com/users/ryanofsky/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ryanofsky/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ryanofsky/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ryanofsky/subscriptions",
+        "organizations_url": "https://api.github.com/users/ryanofsky/orgs",
+        "repos_url": "https://api.github.com/users/ryanofsky/repos",
+        "events_url": "https://api.github.com/users/ryanofsky/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ryanofsky/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "0f27bed5b2924420d65caeca439e6b036d3c6cb2",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/0f27bed5b2924420d65caeca439e6b036d3c6cb2",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/0f27bed5b2924420d65caeca439e6b036d3c6cb2"
+        },
+        {
+          "sha": "12f691cf286ea9a020583d267b94efca102a4056",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/12f691cf286ea9a020583d267b94efca102a4056",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/12f691cf286ea9a020583d267b94efca102a4056"
+        }
+      ]
+    },
     {
       "sha": "0f27bed5b2924420d65caeca439e6b036d3c6cb2",
       "node_id": "C_kwDOABII59oAKDBmMjdiZWQ1YjI5MjQ0MjBkNjVjYWVjYTQzOWU2YjAzNmQzYzZjYjI",
@@ -7573,88 +7660,6 @@
           "sha": "924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/924f4c4ac78b0cd3b917c694f42c0651a6f3003a"
-        }
-      ]
-    },
-    {
-      "sha": "d22d3565128828e158c6684a1b5bf1a7f2454c80",
-      "node_id": "C_kwDOABII59oAKGQyMmQzNTY1MTI4ODI4ZTE1OGM2Njg0YTFiNWJmMWE3ZjI0NTRjODA",
-      "commit": {
-        "author": {
-          "name": "Kanan",
-          "email": "93033289+kriss39@users.noreply.github.com",
-          "date": "2026-10-17T08:34:05Z"
-        },
-        "committer": {
-          "name": "Kanan",
-          "email": "93033289+kriss39@users.noreply.github.com",
-          "date": "2026-10-17T08:34:05Z"
-        },
-        "message": "util, cli: name the Sock wait timeout cap and use it for -rpcclienttimeout=0\n\n#36340 capped the timeout of Sock::Wait/WaitMany at INT_MAX milliseconds\n(about 24.8 days) inside WaitMany. Move the value to a named constant,\nSock::MAX_WAIT_TIMEOUT, and mention the cap in the Wait() and WaitMany()\ndocs, since it applies to every caller. The constant is a whole number\nof seconds (2147483 s), so callers that work in seconds use exactly the\nsame value.\n\nbitcoin-cli turned -rpcclienttimeout=0 into a 5 year timeout, which is\nnow capped to the same value on every wait, so \"5 years\" no longer\ndescribes what happens. Use Sock::MAX_WAIT_TIMEOUT directly, and say in\nthe help text that 0 means the longest supported timeout (about 24 days)\ninstead of no timeout.\n\nNo behaviour change.",
-        "tree": {
-          "sha": "6330e20e0587012000af77b343d7f750122585d4",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/6330e20e0587012000af77b343d7f750122585d4"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/d22d3565128828e158c6684a1b5bf1a7f2454c80",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d22d3565128828e158c6684a1b5bf1a7f2454c80",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/d22d3565128828e158c6684a1b5bf1a7f2454c80",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/d22d3565128828e158c6684a1b5bf1a7f2454c80/comments",
-      "author": {
-        "login": "kriss39",
-        "id": 93033289,
-        "node_id": "U_kgDOBYuTSQ",
-        "avatar_url": "https://avatars.githubusercontent.com/u/93033289?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/kriss39",
-        "html_url": "https://github.com/kriss39",
-        "followers_url": "https://api.github.com/users/kriss39/followers",
-        "following_url": "https://api.github.com/users/kriss39/following{/other_user}",
-        "gists_url": "https://api.github.com/users/kriss39/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/kriss39/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/kriss39/subscriptions",
-        "organizations_url": "https://api.github.com/users/kriss39/orgs",
-        "repos_url": "https://api.github.com/users/kriss39/repos",
-        "events_url": "https://api.github.com/users/kriss39/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/kriss39/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "kriss39",
-        "id": 93033289,
-        "node_id": "U_kgDOBYuTSQ",
-        "avatar_url": "https://avatars.githubusercontent.com/u/93033289?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/kriss39",
-        "html_url": "https://github.com/kriss39",
-        "followers_url": "https://api.github.com/users/kriss39/followers",
-        "following_url": "https://api.github.com/users/kriss39/following{/other_user}",
-        "gists_url": "https://api.github.com/users/kriss39/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/kriss39/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/kriss39/subscriptions",
-        "organizations_url": "https://api.github.com/users/kriss39/orgs",
-        "repos_url": "https://api.github.com/users/kriss39/repos",
-        "events_url": "https://api.github.com/users/kriss39/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/kriss39/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "9dfde64cc3262329051fd05fffe40eecc786a99f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9dfde64cc3262329051fd05fffe40eecc786a99f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/9dfde64cc3262329051fd05fffe40eecc786a99f"
         }
       ]
     }
