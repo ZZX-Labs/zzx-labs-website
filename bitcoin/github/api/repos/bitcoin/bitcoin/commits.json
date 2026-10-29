@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-10-29T14:39:45.647584Z",
+  "generated_at": "2026-10-29T20:08:26.764836Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "6ed5aad06111177c39f9b9f07a52634476380ae1",
+      "node_id": "C_kwDOABII59oAKDZlZDVhYWQwNjExMTE3N2MzOWY5YjlmMDdhNTI2MzQ0NzYzODBhZTE",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-29T14:45:02Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-29T14:45:02Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36124: http: Make `HTTPRequest` update state internally\n\n6a5212fb97c2c332fc3cb901f8e9a110622ef841 doc: Add missing names to activate grouping syntax (Hodlinator)\n148210fe99bb54583fd47f2c39bf0b9390161185 refactor: Flatten HTTPRemoteClient::ReadRequest() into HTTPRemoteClient::TryReadRequestInternal() (Hodlinator)\n9692e6f7d00f3fa5b1d57465730c8c50e090a06f refactor: Extract HTTPRemoteClient::TryReadRequestInternal() from static HTTPRemoteClient::TryReadRequest() (Hodlinator)\n05897e53b2f92bcd28d2ced7ffd76d82b682b400 http: Extract HTTPRequest::Load() to remove SetState() (Hodlinator)\n\nPull request description:\n\n  ### Issues in order of importance\n\n  #35829 made the fields of `HTTPRequest` & `HTTPRemoteClient` private, but still allows anyone with a reference to a request to update the internal state `enum`. https://github.com/bitcoin/bitcoin/pull/35829#discussion_r3860447518\n\n  `HTTPRemoteClient::TryReadRequest()` only needs to be a `static` method in order to forward a `shared_ptr` of a client to a new request.\n\n  ### Commits solving these issues in same order\n\n  * http: Remove `HTTPRequest::SetState()` and introduce `HTTPRequest::Load()` - Removes the ability for other classes to directly modify the request state.\n  * 2 refactors: Extract `HTTPRemoteClient::TryReadRequestInternal()` from a combination of `HTTPRemoteClient::TryReadRequest()` and `HTTPRemoteClient::ReadRequest()` (the latter is removed)\n\nACKs for top commit:\n  pinheadmz:\n    ACK 6a5212fb97c2c332fc3cb901f8e9a110622ef841\n\nTree-SHA512: 57f4f76969e67a23261620faeddb665021532fd90055d2d8e1f67c1bae784d5cebd73a07069f8e5dcd751c9e1b5d0ca7b7b826f35136fc73c4e36458723e8628",
+        "tree": {
+          "sha": "eafbb60212de0efb3da8f244c56884db4807f36a",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/eafbb60212de0efb3da8f244c56884db4807f36a"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/6ed5aad06111177c39f9b9f07a52634476380ae1",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrjW+4bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbB3U8QAIFdBT3v3ufxr54sGqF3\nYGRpYyB07lHlisB8nVr45lJ/xEMBmpIdDjO1IwFTcpMDeVit0+KGrM6Gxrognk22\nRF5mn3n9kW5vaFDD3pqJoLwmYiIln2qZpQ9j6m0vah5oQyqyzwAFwBs/7PQ7aDo4\nPpjlKVx3mjNvPWFxyb8knNHiEF6YEflFVbN+/ipjFgtYSEVpZ9LIjx5FyJQzVHlG\n/pqZNsijYpccIcOeXrR1vX+mGm5euRu3NdMIrQSFsbc+Fb3xZr4fMbixfWp8oXn7\nyBR+kHmQygDfX7bz5DWTEGr9lDQbsBCNbMIpxlRqQGDHFN+yJcMiLlWo/B9eQp1y\nA3Ktzk7OLCnH2LRSXxSFoASiy72mu3PSPYV2BESymbsuFfPZKvXHWVZYtF6edaMX\ni9uIOxHCDcH+v2+fHsZ6zR4RPPXpbWLZMvvoEufkarhtZZjOhez0BSxte49/e47R\nnwSAFf/i35Kli7H8OtkVMIJ7/Py+wCi9MsCLOcI8kgjZf4HRPw69OQ0FQfpJ5Yuw\nlPBs086EG2OcLFZzNKxyjUJ8XQr9vyzrbAEpnvM7QdsQLxEmOM8HU0VX5IpKHWtR\nKFLGVHfQJRgsnIKHUoPWBgJA5PKKEGM0+k93db+LnL/g/hyS4TCUfvwJamvnPzDA\n0kw+GCnJ9Tw6LSdsPIL47fR7\n=5EUR\n-----END PGP SIGNATURE-----",
+          "payload": "tree eafbb60212de0efb3da8f244c56884db4807f36a\nparent 18953bd01f131d8974fe076b562843796d1e74bf\nparent 6a5212fb97c2c332fc3cb901f8e9a110622ef841\nauthor merge-script <fanquake@gmail.com> 1793285102 +0000\ncommitter merge-script <fanquake@gmail.com> 1793285102 +0000\n\nMerge bitcoin/bitcoin#36124: http: Make `HTTPRequest` update state internally\n\n6a5212fb97c2c332fc3cb901f8e9a110622ef841 doc: Add missing names to activate grouping syntax (Hodlinator)\n148210fe99bb54583fd47f2c39bf0b9390161185 refactor: Flatten HTTPRemoteClient::ReadRequest() into HTTPRemoteClient::TryReadRequestInternal() (Hodlinator)\n9692e6f7d00f3fa5b1d57465730c8c50e090a06f refactor: Extract HTTPRemoteClient::TryReadRequestInternal() from static HTTPRemoteClient::TryReadRequest() (Hodlinator)\n05897e53b2f92bcd28d2ced7ffd76d82b682b400 http: Extract HTTPRequest::Load() to remove SetState() (Hodlinator)\n\nPull request description:\n\n  ### Issues in order of importance\n\n  #35829 made the fields of `HTTPRequest` & `HTTPRemoteClient` private, but still allows anyone with a reference to a request to update the internal state `enum`. https://github.com/bitcoin/bitcoin/pull/35829#discussion_r3860447518\n\n  `HTTPRemoteClient::TryReadRequest()` only needs to be a `static` method in order to forward a `shared_ptr` of a client to a new request.\n\n  ### Commits solving these issues in same order\n\n  * http: Remove `HTTPRequest::SetState()` and introduce `HTTPRequest::Load()` - Removes the ability for other classes to directly modify the request state.\n  * 2 refactors: Extract `HTTPRemoteClient::TryReadRequestInternal()` from a combination of `HTTPRemoteClient::TryReadRequest()` and `HTTPRemoteClient::ReadRequest()` (the latter is removed)\n\nACKs for top commit:\n  pinheadmz:\n    ACK 6a5212fb97c2c332fc3cb901f8e9a110622ef841\n\nTree-SHA512: 57f4f76969e67a23261620faeddb665021532fd90055d2d8e1f67c1bae784d5cebd73a07069f8e5dcd751c9e1b5d0ca7b7b826f35136fc73c4e36458723e8628\n",
+          "verified_at": "2026-10-29T14:45:06Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6ed5aad06111177c39f9b9f07a52634476380ae1",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/6ed5aad06111177c39f9b9f07a52634476380ae1",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6ed5aad06111177c39f9b9f07a52634476380ae1/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "18953bd01f131d8974fe076b562843796d1e74bf",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/18953bd01f131d8974fe076b562843796d1e74bf",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/18953bd01f131d8974fe076b562843796d1e74bf"
+        },
+        {
+          "sha": "6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/6a5212fb97c2c332fc3cb901f8e9a110622ef841"
+        }
+      ]
+    },
     {
       "sha": "18953bd01f131d8974fe076b562843796d1e74bf",
       "node_id": "C_kwDOABII59oAKDE4OTUzYmQwMWYxMzFkODk3NGZlMDc2YjU2Mjg0Mzc5NmQxZTc0YmY",
@@ -671,6 +758,88 @@
           "sha": "9878e2a5cf397ef10dd67a3605f4764d892b4976",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9878e2a5cf397ef10dd67a3605f4764d892b4976",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/9878e2a5cf397ef10dd67a3605f4764d892b4976"
+        }
+      ]
+    },
+    {
+      "sha": "6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+      "node_id": "C_kwDOABII59oAKDZhNTIxMmZiOTdjMmMzMzJmYzNjYjkwMWY4ZTlhMTEwNjIyZWY4NDE",
+      "commit": {
+        "author": {
+          "name": "Hodlinator",
+          "email": "172445034+hodlinator@users.noreply.github.com",
+          "date": "2026-10-28T19:29:07Z"
+        },
+        "committer": {
+          "name": "Hodlinator",
+          "email": "172445034+hodlinator@users.noreply.github.com",
+          "date": "2026-10-29T07:29:46Z"
+        },
+        "message": "doc: Add missing names to activate grouping syntax",
+        "tree": {
+          "sha": "1eeebec6874c8d931439e1120a9591aa0bae5708",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1eeebec6874c8d931439e1120a9591aa0bae5708"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAg39Hzirivn9mM3G8qwAOGOKsmHT\ny2f/O2iDRQI8UxEyoAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQIZL21eKt5E3EwCRR5bZMAtLbMhLwWQcjQurvINdVK0kuzxUCig1PXG0MTho8eLFP7\nPeO14OkH6LC4wXZ0ridwI=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 1eeebec6874c8d931439e1120a9591aa0bae5708\nparent 148210fe99bb54583fd47f2c39bf0b9390161185\nauthor Hodlinator <172445034+hodlinator@users.noreply.github.com> 1793215747 +0100\ncommitter Hodlinator <172445034+hodlinator@users.noreply.github.com> 1793258986 +0100\n\ndoc: Add missing names to activate grouping syntax\n",
+          "verified_at": "2026-10-29T07:29:56Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/6a5212fb97c2c332fc3cb901f8e9a110622ef841",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6a5212fb97c2c332fc3cb901f8e9a110622ef841/comments",
+      "author": {
+        "login": "hodlinator",
+        "id": 172445034,
+        "node_id": "U_kgDOCkdNag",
+        "avatar_url": "https://avatars.githubusercontent.com/u/172445034?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hodlinator",
+        "html_url": "https://github.com/hodlinator",
+        "followers_url": "https://api.github.com/users/hodlinator/followers",
+        "following_url": "https://api.github.com/users/hodlinator/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hodlinator/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hodlinator/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hodlinator/subscriptions",
+        "organizations_url": "https://api.github.com/users/hodlinator/orgs",
+        "repos_url": "https://api.github.com/users/hodlinator/repos",
+        "events_url": "https://api.github.com/users/hodlinator/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hodlinator/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hodlinator",
+        "id": 172445034,
+        "node_id": "U_kgDOCkdNag",
+        "avatar_url": "https://avatars.githubusercontent.com/u/172445034?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hodlinator",
+        "html_url": "https://github.com/hodlinator",
+        "followers_url": "https://api.github.com/users/hodlinator/followers",
+        "following_url": "https://api.github.com/users/hodlinator/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hodlinator/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hodlinator/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hodlinator/subscriptions",
+        "organizations_url": "https://api.github.com/users/hodlinator/orgs",
+        "repos_url": "https://api.github.com/users/hodlinator/repos",
+        "events_url": "https://api.github.com/users/hodlinator/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hodlinator/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "148210fe99bb54583fd47f2c39bf0b9390161185",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/148210fe99bb54583fd47f2c39bf0b9390161185",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/148210fe99bb54583fd47f2c39bf0b9390161185"
         }
       ]
     },
@@ -1521,170 +1690,6 @@
           "sha": "ad68edfb92fba7603607a25d21de72c9f3b26fec",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ad68edfb92fba7603607a25d21de72c9f3b26fec",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/ad68edfb92fba7603607a25d21de72c9f3b26fec"
-        }
-      ]
-    },
-    {
-      "sha": "ad68edfb92fba7603607a25d21de72c9f3b26fec",
-      "node_id": "C_kwDOABII59oAKGFkNjhlZGZiOTJmYmE3NjAzNjA3YTI1ZDIxZGU3MmM5ZjNiMjZmZWM",
-      "commit": {
-        "author": {
-          "name": "Antoine Poinsot",
-          "email": "mail@antoinep.com",
-          "date": "2026-10-28T13:34:29Z"
-        },
-        "committer": {
-          "name": "Antoine Poinsot",
-          "email": "mail@antoinep.com",
-          "date": "2026-10-28T13:34:29Z"
-        },
-        "message": "doc: link to security disclosure policy in release notes template",
-        "tree": {
-          "sha": "ec1a00c8b0a74f4ec1754c1c4f2dd81b223fd84a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ec1a00c8b0a74f4ec1754c1c4f2dd81b223fd84a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/ad68edfb92fba7603607a25d21de72c9f3b26fec",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ad68edfb92fba7603607a25d21de72c9f3b26fec",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/ad68edfb92fba7603607a25d21de72c9f3b26fec",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ad68edfb92fba7603607a25d21de72c9f3b26fec/comments",
-      "author": {
-        "login": "darosior",
-        "id": 22457751,
-        "node_id": "MDQ6VXNlcjIyNDU3NzUx",
-        "avatar_url": "https://avatars.githubusercontent.com/u/22457751?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/darosior",
-        "html_url": "https://github.com/darosior",
-        "followers_url": "https://api.github.com/users/darosior/followers",
-        "following_url": "https://api.github.com/users/darosior/following{/other_user}",
-        "gists_url": "https://api.github.com/users/darosior/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/darosior/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/darosior/subscriptions",
-        "organizations_url": "https://api.github.com/users/darosior/orgs",
-        "repos_url": "https://api.github.com/users/darosior/repos",
-        "events_url": "https://api.github.com/users/darosior/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/darosior/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "darosior",
-        "id": 22457751,
-        "node_id": "MDQ6VXNlcjIyNDU3NzUx",
-        "avatar_url": "https://avatars.githubusercontent.com/u/22457751?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/darosior",
-        "html_url": "https://github.com/darosior",
-        "followers_url": "https://api.github.com/users/darosior/followers",
-        "following_url": "https://api.github.com/users/darosior/following{/other_user}",
-        "gists_url": "https://api.github.com/users/darosior/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/darosior/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/darosior/subscriptions",
-        "organizations_url": "https://api.github.com/users/darosior/orgs",
-        "repos_url": "https://api.github.com/users/darosior/repos",
-        "events_url": "https://api.github.com/users/darosior/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/darosior/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "ae658dd8061b7b653cadaf5101fce1b9b2869ce3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ae658dd8061b7b653cadaf5101fce1b9b2869ce3",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/ae658dd8061b7b653cadaf5101fce1b9b2869ce3"
-        }
-      ]
-    },
-    {
-      "sha": "701545e5b5750aa24cfc87b2db93f4f81accb67c",
-      "node_id": "C_kwDOABII59oAKDcwMTU0NWU1YjU3NTBhYTI0Y2ZjODdiMmRiOTNmNGY4MWFjY2I2N2M",
-      "commit": {
-        "author": {
-          "name": "Bruno Garcia",
-          "email": "brunoely.gc@gmail.com",
-          "date": "2026-10-28T13:25:46Z"
-        },
-        "committer": {
-          "name": "Bruno Garcia",
-          "email": "brunoely.gc@gmail.com",
-          "date": "2026-10-28T13:25:55Z"
-        },
-        "message": "test: check AddToBlockIndex keeps first-seen header on equal work\n\nBlockManager::AddToBlockIndex only replaces best_header when the new\nheader has strictly more chain work. Add a unit test that adds two\nsibling headers with equal work and checks that best_header keeps\npointing to the first one.",
-        "tree": {
-          "sha": "a8d47979c1fc23ca0fc936e98d045917a88776de",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/a8d47979c1fc23ca0fc936e98d045917a88776de"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/701545e5b5750aa24cfc87b2db93f4f81accb67c",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/701545e5b5750aa24cfc87b2db93f4f81accb67c",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/701545e5b5750aa24cfc87b2db93f4f81accb67c",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/701545e5b5750aa24cfc87b2db93f4f81accb67c/comments",
-      "author": {
-        "login": "brunoerg",
-        "id": 19480819,
-        "node_id": "MDQ6VXNlcjE5NDgwODE5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/19480819?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/brunoerg",
-        "html_url": "https://github.com/brunoerg",
-        "followers_url": "https://api.github.com/users/brunoerg/followers",
-        "following_url": "https://api.github.com/users/brunoerg/following{/other_user}",
-        "gists_url": "https://api.github.com/users/brunoerg/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/brunoerg/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/brunoerg/subscriptions",
-        "organizations_url": "https://api.github.com/users/brunoerg/orgs",
-        "repos_url": "https://api.github.com/users/brunoerg/repos",
-        "events_url": "https://api.github.com/users/brunoerg/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/brunoerg/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "brunoerg",
-        "id": 19480819,
-        "node_id": "MDQ6VXNlcjE5NDgwODE5",
-        "avatar_url": "https://avatars.githubusercontent.com/u/19480819?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/brunoerg",
-        "html_url": "https://github.com/brunoerg",
-        "followers_url": "https://api.github.com/users/brunoerg/followers",
-        "following_url": "https://api.github.com/users/brunoerg/following{/other_user}",
-        "gists_url": "https://api.github.com/users/brunoerg/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/brunoerg/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/brunoerg/subscriptions",
-        "organizations_url": "https://api.github.com/users/brunoerg/orgs",
-        "repos_url": "https://api.github.com/users/brunoerg/repos",
-        "events_url": "https://api.github.com/users/brunoerg/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/brunoerg/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "4fe28722a572793da7614734a0c9cc8e1adc751a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4fe28722a572793da7614734a0c9cc8e1adc751a",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/4fe28722a572793da7614734a0c9cc8e1adc751a"
         }
       ]
     }
