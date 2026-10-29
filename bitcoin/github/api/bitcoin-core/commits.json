@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-10-29T06:14:53.453830Z",
+  "generated_at": "2026-10-29T13:36:07.423393Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "363d9e9d38154b7dced1767e996f8f18f391fcff",
+      "node_id": "C_kwDOABII59oAKDM2M2Q5ZTlkMzgxNTRiN2RjZWQxNzY3ZTk5NmY4ZjE4ZjM5MWZjZmY",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-29T10:23:12Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-10-29T10:23:12Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36682: refactor: Use std::erase and std::erase_if\n\nfa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e refactor: Use std::erase and std::erase_if over iterator-based erase (MarcoFalke)\nfa93a02563145aca3f96badaabe302b2dfa331d5 refactor: Use std::erase and std::erase_if over list removal or vector erase-remove (MarcoFalke)\n\nPull request description:\n\n  Convert `remove` and `remove_if` to the C++20 `std::erase` and `std::erase_if` overloads.\n\n  The legacy ones can be confusing, because:\n\n  * Array-based containers (like vector) must use the erase-remove idiom. Forgetting the erase, or forgetting to pass the end iterator (`bugprone-inaccurate-erase`) can be a bug, see also https://github.com/bitcoin/bitcoin/pull/36588#discussion_r4345799022. So a call only to \"remove\" will not erase.\n  * Node-based containers (like list or set) must not use the idiom. Using it will be a pessimization or won't compile. And correctly not using the idiom reads confusing, because a call to \"remove\" will actually erase.\n  * They are more verbose.\n\n  Also convert simple iterator-erase (which is verbose, but fine) to the std overload.\n\nACKs for top commit:\n  jpk68:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n  hodlinator:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n  w0xlt:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n\nTree-SHA512: 08fca3ecb73a5c45371a2e65339d9e35911f89dc717568cc29564f1a1395a44d84e939b9d38a21cadf5f2cbd64463c2564b1f7239ca75f53cf0bb30ae724dafd",
+        "tree": {
+          "sha": "64099eaaa0207822074525d58807cb92eb885e6c",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/64099eaaa0207822074525d58807cb92eb885e6c"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/363d9e9d38154b7dced1767e996f8f18f391fcff",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrjHpAbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBOzUP/R3iP4FK26PO4IhKvnVy\nnCtPXXrPqtglZ0nYdi/zQm7wrwZB6nA9qvAhd+HlPgKRjnFQAVEl+s3DT1XYCp1r\nik8p/QfB3OiolR4tcr6rYh7/ZDAIOhnhQ6XGyHwsc6ygN3s/l3md3O6RDNu2nltu\nUamsSPvlUDJ+xJL1WsoU6SwN23iL622eqtZS+l+pcpXlJZZahGsZp/sxD8ondOf9\nAYGgUdKVmPLRo744VXYQ/EXQ64Ai/tB7ls9vwHGx/Ha+8NiWvL3roOlJh6UfePuu\nGN2TBaWNcFAVWldnaBqHdeSg9/sGcoQK+svDyYVXfy1k2P3KhhhXhfo0hCt+NBaV\n4o36M8Jry3M7ODqxBlRrCQCJv3sWSZQHbZNkhKMXpFiAMU/vDvhmrwIpWZ0EABfR\nI3Y1bUS9wh2zLoxwpANcV0Cn936mvF+CED8t4B1SEL+N0cB0QaN+ZYtVOMbHG72l\nYfpM5pszCVicOUc2zy6y6rEfvWunLKgz1Ex9F2u51O1r1q3dzU1zZrcTKraR6Ise\nBiD8tnp7J8RTzqkPVgIyS2XWl6sHSMAF2jY/2Ot3DCtnFCXg4CKfiSc3q3hIc77x\nYICAc0ZXkS1Pt+WHciBg8DAsTTM5YWE7BrXG+unR+XDOTY1jRS1qb5OljdyCk4VF\nAHmWA+PVWq+RACIpAwn9o7C7\n=3eVH\n-----END PGP SIGNATURE-----",
+          "payload": "tree 64099eaaa0207822074525d58807cb92eb885e6c\nparent 9bf4815b94b9eaf8807f4e569091778da6c338d5\nparent fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\nauthor merge-script <fanquake@gmail.com> 1793269392 +0000\ncommitter merge-script <fanquake@gmail.com> 1793269392 +0000\n\nMerge bitcoin/bitcoin#36682: refactor: Use std::erase and std::erase_if\n\nfa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e refactor: Use std::erase and std::erase_if over iterator-based erase (MarcoFalke)\nfa93a02563145aca3f96badaabe302b2dfa331d5 refactor: Use std::erase and std::erase_if over list removal or vector erase-remove (MarcoFalke)\n\nPull request description:\n\n  Convert `remove` and `remove_if` to the C++20 `std::erase` and `std::erase_if` overloads.\n\n  The legacy ones can be confusing, because:\n\n  * Array-based containers (like vector) must use the erase-remove idiom. Forgetting the erase, or forgetting to pass the end iterator (`bugprone-inaccurate-erase`) can be a bug, see also https://github.com/bitcoin/bitcoin/pull/36588#discussion_r4345799022. So a call only to \"remove\" will not erase.\n  * Node-based containers (like list or set) must not use the idiom. Using it will be a pessimization or won't compile. And correctly not using the idiom reads confusing, because a call to \"remove\" will actually erase.\n  * They are more verbose.\n\n  Also convert simple iterator-erase (which is verbose, but fine) to the std overload.\n\nACKs for top commit:\n  jpk68:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n  hodlinator:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n  w0xlt:\n    ACK fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e\n\nTree-SHA512: 08fca3ecb73a5c45371a2e65339d9e35911f89dc717568cc29564f1a1395a44d84e939b9d38a21cadf5f2cbd64463c2564b1f7239ca75f53cf0bb30ae724dafd\n",
+          "verified_at": "2026-10-29T10:23:16Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/363d9e9d38154b7dced1767e996f8f18f391fcff",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/363d9e9d38154b7dced1767e996f8f18f391fcff",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/363d9e9d38154b7dced1767e996f8f18f391fcff/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "9bf4815b94b9eaf8807f4e569091778da6c338d5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/9bf4815b94b9eaf8807f4e569091778da6c338d5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/9bf4815b94b9eaf8807f4e569091778da6c338d5"
+        },
+        {
+          "sha": "fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e"
+        }
+      ]
+    },
     {
       "sha": "9bf4815b94b9eaf8807f4e569091778da6c338d5",
       "node_id": "C_kwDOABII59oAKDliZjQ4MTViOTRiOWVhZjg4MDdmNGU1NjkwOTE3NzhkYTZjMzM4ZDU",
@@ -1014,6 +1101,90 @@
           "sha": "4fe28722a572793da7614734a0c9cc8e1adc751a",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4fe28722a572793da7614734a0c9cc8e1adc751a",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/4fe28722a572793da7614734a0c9cc8e1adc751a"
+        }
+      ]
+    },
+    {
+      "sha": "fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+      "node_id": "C_kwDOABII59oAKGZhODdiZmUzMWRmZGEyZDEwMmM0ZTBjYjVkMzk4MTNjZjg0YzdkMWU",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-28T08:31:05Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-28T08:48:55Z"
+        },
+        "message": "refactor: Use std::erase and std::erase_if over iterator-based erase\n\nThe erase with an iterator is perfectly fine, but the std overloads can\nbe used as well.",
+        "tree": {
+          "sha": "2713a96bade8b33a013be0edd3d70aeb69eb6cac",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/2713a96bade8b33a013be0edd3d70aeb69eb6cac"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQBjr1XWJvO9g9qJkva5e4sXFHJ0YGxMNpQpINWKiYkKuJlgtKniE56kKVhCMhIGKI6\n/8yP49zmsu/9OFmJmIQA4=\n-----END SSH SIGNATURE-----",
+          "payload": "tree 2713a96bade8b33a013be0edd3d70aeb69eb6cac\nparent fa93a02563145aca3f96badaabe302b2dfa331d5\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793176265 +0100\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793177335 +0100\n\nrefactor: Use std::erase and std::erase_if over iterator-based erase\n\nThe erase with an iterator is perfectly fine, but the std overloads can\nbe used as well.\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa87bfe31dfda2d102c4e0cb5d39813cf84c7d1e/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "fa93a02563145aca3f96badaabe302b2dfa331d5",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa93a02563145aca3f96badaabe302b2dfa331d5",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa93a02563145aca3f96badaabe302b2dfa331d5"
+        }
+      ]
+    },
+    {
+      "sha": "fa93a02563145aca3f96badaabe302b2dfa331d5",
+      "node_id": "C_kwDOABII59oAKGZhOTNhMDI1NjMxNDVhY2EzZjk2YmFkYWFiZTMwMmIyZGZhMzMxZDU",
+      "commit": {
+        "author": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-27T18:31:00Z"
+        },
+        "committer": {
+          "name": "MarcoFalke",
+          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
+          "date": "2026-10-28T08:48:49Z"
+        },
+        "message": "refactor: Use std::erase and std::erase_if over list removal or vector erase-remove\n\nThe std::list removal or std::vector erase-remove idiom is fine, but the\nstd overloads can be less confusing and more consistent.",
+        "tree": {
+          "sha": "a0e11e00d0eb87f7050f894adf17d9312af60395",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/a0e11e00d0eb87f7050f894adf17d9312af60395"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa93a02563145aca3f96badaabe302b2dfa331d5",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "no_user",
+          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQATftBmeLjCruvDBpgeCpMPLqe+08E1e3Ntv3opg/fBo2AFBOjwNn+gUZsFkaV46J+\nqAtsLLa4PZU4+7DM/+oAg=\n-----END SSH SIGNATURE-----",
+          "payload": "tree a0e11e00d0eb87f7050f894adf17d9312af60395\nparent 23288073d4e7723bf7559a904bbf322a52d8af55\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793125860 +0100\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793177329 +0100\n\nrefactor: Use std::erase and std::erase_if over list removal or vector erase-remove\n\nThe std::list removal or std::vector erase-remove idiom is fine, but the\nstd overloads can be less confusing and more consistent.\n",
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa93a02563145aca3f96badaabe302b2dfa331d5",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa93a02563145aca3f96badaabe302b2dfa331d5",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa93a02563145aca3f96badaabe302b2dfa331d5/comments",
+      "author": null,
+      "committer": null,
+      "parents": [
+        {
+          "sha": "23288073d4e7723bf7559a904bbf322a52d8af55",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/23288073d4e7723bf7559a904bbf322a52d8af55",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/23288073d4e7723bf7559a904bbf322a52d8af55"
         }
       ]
     },
@@ -7449,217 +7620,6 @@
           "sha": "fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575"
-        }
-      ]
-    },
-    {
-      "sha": "fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
-      "node_id": "C_kwDOABII59oAKGZhMzk4NmY1YzFkNTEyZjVlOGEzMjBjY2JiZDg0YmRlM2M5ZTI1NzU",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-16T11:04:48Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-19T06:49:21Z"
-        },
-        "message": "test: Remove redundant sync call after self.generate called sync_all",
-        "tree": {
-          "sha": "3404f1bb7193c875d2d6dbe52e19c954efed12b1",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/3404f1bb7193c875d2d6dbe52e19c954efed12b1"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQM0RzB+kUxymovk5ClK1cFRmSaNS2Gi11hV/H5ZAAAd7e1loDzGqhdQzSuqwIqrmyo\n0NQV0j14D9NaP6pPMs4wI=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 3404f1bb7193c875d2d6dbe52e19c954efed12b1\nparent 71fa0439278f1d11c9a1aabe67312dcdf1cc8757\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792148688 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792392561 +0200\n\ntest: Remove redundant sync call after self.generate called sync_all\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa3986f5c1d512f5e8a320ccbbd84bde3c9e2575/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/71fa0439278f1d11c9a1aabe67312dcdf1cc8757"
-        }
-      ]
-    },
-    {
-      "sha": "71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-      "node_id": "C_kwDOABII59oAKDcxZmEwNDM5Mjc4ZjFkMTFjOWExYWFiZTY3MzEyZGNkZjFjYzg3NTc",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-19T03:27:03Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-10-19T03:27:03Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36545: test: Fix intermittent issue in p2p_initial_headers_sync.py\n\nfad7637529426f058a3c2409dd137009b14622a4 test: Fix intermittent issue in p2p_initial_headers_sync.py (MarcoFalke)\n\nPull request description:\n\n  Fixes https://github.com/bitcoin/bitcoin/actions/runs/38697071260/job/116296055487?pr=36537#step:11:5104:\n\n  ```\n   test  2026-10-15T07:19:58.731108Z TestFramework (INFO): Check that noban peer1 is not disconnected\n   test  2026-10-15T07:19:58.731159Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000000)\n   test  2026-10-15T07:19:58.731184Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000002)\n   node0 2026-10-15T07:19:58.731236Z (mocktime: 2026-10-15T07:48:45Z) [http.01] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 148 bytes to client 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731307Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 started\n   node0 2026-10-15T07:19:58.731317Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 completed (0\u03bcs)\n   node0 2026-10-15T07:19:58.731332Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731338Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731365Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731377Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000000)\n   node0 2026-10-15T07:19:58.731388Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6499] [SendMessages] Timeout downloading headers from noban peer, not disconnecting peer=0\n   node0 2026-10-15T07:19:58.731402Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=1\n   node0 2026-10-15T07:19:58.731421Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending getheaders (69 bytes) peer=1\n   node0 2026-10-15T07:19:58.731441Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6151] [SendMessages] [net] initial getheaders (0) to peer=1\n   node0 2026-10-15T07:19:58.731461Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731466Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731579Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_ping(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731607Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_pong(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731633Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000002)\n   node0 2026-10-15T07:19:58.731777Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:971] [Receive] [http] Received 339 bytes from 127.0.0.1:57508 (id=0): total=3476 buffered=339\n   node0 2026-10-15T07:19:58.731798Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:1135] [TryReadRequest] [http] Received a POST request for / from 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731833Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [rpc/request.cpp:246] [parse] [rpc] ThreadRPCServer method=getpeerinfo user=__cookie__ id=32\n   node0 2026-10-15T07:19:58.732118Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:637] [Send] [http] HTTPResponse (status code: 200 size: 2260) added to send buffer for client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.732309Z TestFramework (INFO): Check that exactly 1 of {peer1, peer2} receives a getheaders\n   test  2026-10-15T07:19:58.732370Z TestFramework (ERROR): Unexpected exception:\n                                     Traceback (most recent call last):\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/test_framework.py\", line 146, in main\n                                         self.run_test()\n                                         ~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 182, in run_test\n                                         self.test_noban_peer_timeout()\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 177, in test_noban_peer_timeout\n                                         self.assert_single_getheaders_recipient([peer1, peer2])\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 66, in assert_single_getheaders_recipient\n                                         assert_equal(count, 1)\n                                         ~~~~~~~~~~~~^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/util.py\", line 95, in assert_equal\n                                         raise AssertionError(\"not(%s)\" % \" == \".join(str(arg) for arg in (thing1, thing2) + args))\n                                     AssertionError: not(0 == 1)\n   test  2026-10-15T07:19:58.733190Z TestFramework (DEBUG): Closing down network thread\n   node0 2026-10-15T07:19:58.733256Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 2260 bytes to client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.733311Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_ping(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733337Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:58180: msg_pong(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733367Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_getheaders(locator=CBlockLocator(vHave=[7041830694386478471858881810674310864173988660927928131397671070347943617030]), stop=0000000000000000000000000000000000000000000000000000000000000000)\n   node0 2026-10-15T07:19:58.733447Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.733502Z TestFramework.p2p (DEBUG): Closed connection to: 127.0.0.1:58180\n   node0 2026-10-15T07:19:58.733536Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:2236] [SocketHandlerConnected] [net] socket closed, disconnecting peer=1\n   node0 2026-10-15T07:19:58.733546Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:567] [CloseSocketDisconnect] [net] Resetting socket for peer=1\n   node0 2026-10-15T07:19:58.733596Z (mocktime: 2026-10-15T07:48:45Z) [net] [net_processing.cpp:1859] [FinalizeNode] [net] Cleared nodestate for peer=1\n   test  2026-10-15T07:19:58.783870Z TestFramework (INFO): Not stopping nodes as test failed. The dangling processes will be cleaned up later.\n  ```\n\n  Diff to reproduce:\n\n  ```diff\n  diff --git a/src/net_processing.cpp b/src/net_processing.cpp\n  index beec44f55d..85b1e88161 100644\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -87,2 +87,3 @@\n   #include <span>\n  +#include <thread>\n   #include <typeinfo>\n  @@ -5233,2 +5234,7 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string\n               MakeAndPushMessage(pfrom, NetMsgType::PONG, nonce);\n  +            // TEMPORARY: widen the p2p_initial_headers_sync race window after\n  +            // its second, nonzero ping has been sent but before SendMessages().\n  +            if (nonce != 0) {\n  +                std::this_thread::sleep_for(std::chrono::milliseconds{90});\n  +            }\n           }\n  ```\n\n  Cmd to reproduce:\n\n  ```\n  ./bld-cmake/test/functional/test_runner.py $(for i in {1..20}; do echo -n \"p2p_initial_headers_sync.py \";done) -j $( nproc )\n  ```\n\n  (fails before this pull and passes after)\n\nACKs for top commit:\n  Crypt-iQ:\n    tACK fad7637529426f058a3c2409dd137009b14622a4\n  l0rinc:\n    lightly tested ACK fad7637529426f058a3c2409dd137009b14622a4\n\nTree-SHA512: 701c9d75ed68e806f95ddef34b59abbd943288be8f957708d112f9e02e7b370f10f267c1a22946dc38dc6ff20665fdd0ceda19ebfed18660ae6ebbcc779fc90b",
-        "tree": {
-          "sha": "ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrVjgcbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBn0EP+wY2CjqDXZrVKhnmoJyd\n5MRyi+zkDu3eOtCq+oCiXOJP+nAv6O9ovlKGuXAH4DS2j0hdbS8TXtj2i7C86pxE\nfrnkImiDV+LjqNz2GshQeBWqhHdNq+8jf65+cH7ScNE511ZHByiqVZi7GZUSExq6\nVVi5TX9RpprzuJBlbJC7r1FauHzDS3c1jGHzoygBgz5wsZiIYIOgTI5pOou2oODS\nqZhv/GP05EOzU7u/5MkATDPfh5V9KCp74TxM1ouBNe3N1bZXHK3+5gEyc+tShKC9\nKdt9nZIp4iU95J8PWAfhM16xl8y8emBkQ3fIxZPmyJWkh2ecRGadwBrishlTy3SY\n7VF1wwzfyaNIOb17KpoDv00Dj4ysiKLaHRsLDR3lHOZgn8EdzD3f0J5ykXwwggUH\nnL1vOWYV59J3/UHmgX1l8HKVRdiaid/lUI3SWJtHoV3aVMr2ZWSyEfABkGmuHDc4\n03Jlys70bVYp3R0rHQEH5y32R5qi46RI+q3OhJ2bjE636yVf9GxWOqDVlOYm7bm7\nK/FiOQKRd4R/O01rzhM6VEEX+YshBPAcODH/KtOBuBLtTCNuT6d246dxAp67YEGS\nIAIl0fWz33ya8Y7S50LlzoDPe5qA51Rnbtn0ghzjfxiB+qTWG7tQu73GvsJEA0qU\nQH//h7qNAvLdlHo8JfoNSf2n\n=HtNs\n-----END PGP SIGNATURE-----",
-          "payload": "tree ac57c7d3b5ad41db7afd46c6bb05dbc630b5b024\nparent 924f4c4ac78b0cd3b917c694f42c0651a6f3003a\nparent fad7637529426f058a3c2409dd137009b14622a4\nauthor merge-script <fanquake@gmail.com> 1792380423 +0900\ncommitter merge-script <fanquake@gmail.com> 1792380423 +0900\n\nMerge bitcoin/bitcoin#36545: test: Fix intermittent issue in p2p_initial_headers_sync.py\n\nfad7637529426f058a3c2409dd137009b14622a4 test: Fix intermittent issue in p2p_initial_headers_sync.py (MarcoFalke)\n\nPull request description:\n\n  Fixes https://github.com/bitcoin/bitcoin/actions/runs/38697071260/job/116296055487?pr=36537#step:11:5104:\n\n  ```\n   test  2026-10-15T07:19:58.731108Z TestFramework (INFO): Check that noban peer1 is not disconnected\n   test  2026-10-15T07:19:58.731159Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000000)\n   test  2026-10-15T07:19:58.731184Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_ping(nonce=00000002)\n   node0 2026-10-15T07:19:58.731236Z (mocktime: 2026-10-15T07:48:45Z) [http.01] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 148 bytes to client 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731307Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 started\n   node0 2026-10-15T07:19:58.731317Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [logging/timer.h:58] [Log] [lock] ContendedLock: lock contention connman.m_nodes_mutex, ./net.h:1876 completed (0\u03bcs)\n   node0 2026-10-15T07:19:58.731332Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731338Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731365Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731377Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000000)\n   node0 2026-10-15T07:19:58.731388Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6499] [SendMessages] Timeout downloading headers from noban peer, not disconnecting peer=0\n   node0 2026-10-15T07:19:58.731402Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending ping (8 bytes) peer=1\n   node0 2026-10-15T07:19:58.731421Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending getheaders (69 bytes) peer=1\n   node0 2026-10-15T07:19:58.731441Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:6151] [SendMessages] [net] initial getheaders (0) to peer=1\n   node0 2026-10-15T07:19:58.731461Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: ping (8 bytes) peer=0\n   node0 2026-10-15T07:19:58.731466Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net.cpp:4220] [PushMessage] [net] sending pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.731579Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_ping(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731607Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:12392: msg_pong(nonce=a011607af5f6e69c)\n   test  2026-10-15T07:19:58.731633Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:12392: msg_pong(nonce=00000002)\n   node0 2026-10-15T07:19:58.731777Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:971] [Receive] [http] Received 339 bytes from 127.0.0.1:57508 (id=0): total=3476 buffered=339\n   node0 2026-10-15T07:19:58.731798Z (mocktime: 2026-10-15T07:48:45Z) [http] [httpserver.cpp:1135] [TryReadRequest] [http] Received a POST request for / from 127.0.0.1:57508 (id=0)\n   node0 2026-10-15T07:19:58.731833Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [rpc/request.cpp:246] [parse] [rpc] ThreadRPCServer method=getpeerinfo user=__cookie__ id=32\n   node0 2026-10-15T07:19:58.732118Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:637] [Send] [http] HTTPResponse (status code: 200 size: 2260) added to send buffer for client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.732309Z TestFramework (INFO): Check that exactly 1 of {peer1, peer2} receives a getheaders\n   test  2026-10-15T07:19:58.732370Z TestFramework (ERROR): Unexpected exception:\n                                     Traceback (most recent call last):\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/test_framework.py\", line 146, in main\n                                         self.run_test()\n                                         ~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 182, in run_test\n                                         self.test_noban_peer_timeout()\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 177, in test_noban_peer_timeout\n                                         self.assert_single_getheaders_recipient([peer1, peer2])\n                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/build_ \u20bf\ud83e\uddea_/test/functional/p2p_initial_headers_sync.py\", line 66, in assert_single_getheaders_recipient\n                                         assert_equal(count, 1)\n                                         ~~~~~~~~~~~~^^^^^^^^^^\n                                       File \"/home/runner/work/_temp/test/functional/test_framework/util.py\", line 95, in assert_equal\n                                         raise AssertionError(\"not(%s)\" % \" == \".join(str(arg) for arg in (thing1, thing2) + args))\n                                     AssertionError: not(0 == 1)\n   test  2026-10-15T07:19:58.733190Z TestFramework (DEBUG): Closing down network thread\n   node0 2026-10-15T07:19:58.733256Z (mocktime: 2026-10-15T07:48:45Z) [http.00] [httpserver.cpp:1318] [MaybeSendBytesFromBuffer] [http] Sent 2260 bytes to client 127.0.0.1:57508 (id=0)\n   test  2026-10-15T07:19:58.733311Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_ping(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733337Z TestFramework.p2p (DEBUG): Send message to 127.0.0.1:58180: msg_pong(nonce=39768d79544b5e40)\n   test  2026-10-15T07:19:58.733367Z TestFramework.p2p (DEBUG): Received message from 127.0.0.1:58180: msg_getheaders(locator=CBlockLocator(vHave=[7041830694386478471858881810674310864173988660927928131397671070347943617030]), stop=0000000000000000000000000000000000000000000000000000000000000000)\n   node0 2026-10-15T07:19:58.733447Z (mocktime: 2026-10-15T07:48:45Z) [msghand] [net_processing.cpp:3836] [ProcessMessage] [net] received: pong (8 bytes) peer=0\n   test  2026-10-15T07:19:58.733502Z TestFramework.p2p (DEBUG): Closed connection to: 127.0.0.1:58180\n   node0 2026-10-15T07:19:58.733536Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:2236] [SocketHandlerConnected] [net] socket closed, disconnecting peer=1\n   node0 2026-10-15T07:19:58.733546Z (mocktime: 2026-10-15T07:48:45Z) [net] [net.cpp:567] [CloseSocketDisconnect] [net] Resetting socket for peer=1\n   node0 2026-10-15T07:19:58.733596Z (mocktime: 2026-10-15T07:48:45Z) [net] [net_processing.cpp:1859] [FinalizeNode] [net] Cleared nodestate for peer=1\n   test  2026-10-15T07:19:58.783870Z TestFramework (INFO): Not stopping nodes as test failed. The dangling processes will be cleaned up later.\n  ```\n\n  Diff to reproduce:\n\n  ```diff\n  diff --git a/src/net_processing.cpp b/src/net_processing.cpp\n  index beec44f55d..85b1e88161 100644\n  --- a/src/net_processing.cpp\n  +++ b/src/net_processing.cpp\n  @@ -87,2 +87,3 @@\n   #include <span>\n  +#include <thread>\n   #include <typeinfo>\n  @@ -5233,2 +5234,7 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string\n               MakeAndPushMessage(pfrom, NetMsgType::PONG, nonce);\n  +            // TEMPORARY: widen the p2p_initial_headers_sync race window after\n  +            // its second, nonzero ping has been sent but before SendMessages().\n  +            if (nonce != 0) {\n  +                std::this_thread::sleep_for(std::chrono::milliseconds{90});\n  +            }\n           }\n  ```\n\n  Cmd to reproduce:\n\n  ```\n  ./bld-cmake/test/functional/test_runner.py $(for i in {1..20}; do echo -n \"p2p_initial_headers_sync.py \";done) -j $( nproc )\n  ```\n\n  (fails before this pull and passes after)\n\nACKs for top commit:\n  Crypt-iQ:\n    tACK fad7637529426f058a3c2409dd137009b14622a4\n  l0rinc:\n    lightly tested ACK fad7637529426f058a3c2409dd137009b14622a4\n\nTree-SHA512: 701c9d75ed68e806f95ddef34b59abbd943288be8f957708d112f9e02e7b370f10f267c1a22946dc38dc6ff20665fdd0ceda19ebfed18660ae6ebbcc779fc90b\n",
-          "verified_at": "2026-10-19T03:27:13Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/71fa0439278f1d11c9a1aabe67312dcdf1cc8757",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/71fa0439278f1d11c9a1aabe67312dcdf1cc8757/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/924f4c4ac78b0cd3b917c694f42c0651a6f3003a"
-        },
-        {
-          "sha": "fad7637529426f058a3c2409dd137009b14622a4",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fad7637529426f058a3c2409dd137009b14622a4",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fad7637529426f058a3c2409dd137009b14622a4"
-        }
-      ]
-    },
-    {
-      "sha": "2f7622e3f6f7ef431a7d5ec522958da62f33cec4",
-      "node_id": "C_kwDOABII59oAKDJmNzYyMmUzZjZmN2VmNDMxYTdkNWVjNTIyOTU4ZGE2MmYzM2NlYzQ",
-      "commit": {
-        "author": {
-          "name": "Kevin Ravensberg",
-          "email": "kevinravensberg@proton.me",
-          "date": "2026-10-17T17:50:17Z"
-        },
-        "committer": {
-          "name": "Kevin Ravensberg",
-          "email": "kevinravensberg@proton.me",
-          "date": "2026-10-17T17:50:17Z"
-        },
-        "message": "test: zero-pad the port in feature_anchors' expected hex\n\nThe test builds the expected anchors.dat substring from the peer's port\nwith hex(port)[2:], which is not zero-padded. The port is serialized as\ntwo bytes, so for ports below 4096 the expected string is one hex digit\nshort and the assertion fails:\n\n    TEST_RUNNER_PORT_MIN=1100 test/functional/feature_anchors.py\n\nFormat the port as four hex digits instead.",
-        "tree": {
-          "sha": "f636e06ab441c19faf96363dbb32dfaab26bfc48",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f636e06ab441c19faf96363dbb32dfaab26bfc48"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/2f7622e3f6f7ef431a7d5ec522958da62f33cec4",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "unsigned",
-          "signature": null,
-          "payload": null,
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2f7622e3f6f7ef431a7d5ec522958da62f33cec4",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/2f7622e3f6f7ef431a7d5ec522958da62f33cec4",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/2f7622e3f6f7ef431a7d5ec522958da62f33cec4/comments",
-      "author": {
-        "login": "kravens",
-        "id": 9646902,
-        "node_id": "MDQ6VXNlcjk2NDY5MDI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/9646902?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/kravens",
-        "html_url": "https://github.com/kravens",
-        "followers_url": "https://api.github.com/users/kravens/followers",
-        "following_url": "https://api.github.com/users/kravens/following{/other_user}",
-        "gists_url": "https://api.github.com/users/kravens/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/kravens/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/kravens/subscriptions",
-        "organizations_url": "https://api.github.com/users/kravens/orgs",
-        "repos_url": "https://api.github.com/users/kravens/repos",
-        "events_url": "https://api.github.com/users/kravens/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/kravens/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "kravens",
-        "id": 9646902,
-        "node_id": "MDQ6VXNlcjk2NDY5MDI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/9646902?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/kravens",
-        "html_url": "https://github.com/kravens",
-        "followers_url": "https://api.github.com/users/kravens/followers",
-        "following_url": "https://api.github.com/users/kravens/following{/other_user}",
-        "gists_url": "https://api.github.com/users/kravens/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/kravens/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/kravens/subscriptions",
-        "organizations_url": "https://api.github.com/users/kravens/orgs",
-        "repos_url": "https://api.github.com/users/kravens/repos",
-        "events_url": "https://api.github.com/users/kravens/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/kravens/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/924f4c4ac78b0cd3b917c694f42c0651a6f3003a",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/924f4c4ac78b0cd3b917c694f42c0651a6f3003a"
         }
       ]
     }
