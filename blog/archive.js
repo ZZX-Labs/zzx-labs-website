@@ -1,2 +1,212 @@
-/* no frameworks, no remote API, no user-supplied HTML injection */
-(()=>{'use strict';const mount=document.getElementById('post-grid'),search=document.getElementById('search'),category=document.getElementById('category'),sort=document.getElementById('sort'),counter=document.getElementById('counter'),prev=document.getElementById('prev'),next=document.getElementById('next'),pageLabel=document.getElementById('page-label');if(!mount)return;let records=[],page=0;const PAGE_SIZE=12;const fmt=(s)=>{if(!s)return 'Undated';let d=new Date(s);return Number.isNaN(d.getTime())?'Undated':d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'})};const safe=(url)=>typeof url==='string'&&url.startsWith('/blog/')&&!url.startsWith('//')&&!url.includes('..')?url:'#';function el(tag,txt,cls){const n=document.createElement(tag);if(txt!==undefined)n.textContent=txt;if(cls)n.className=cls;return n}function card(p){const t=el('article',undefined,'tile');const img=document.createElement('img');img.loading='lazy';img.decoding='async';img.src=safe(p.thumb)||'';img.alt='Illustrative archive thumbnail';t.appendChild(img);const b=el('div',undefined,'body');const m=el('div',fmt(p.date)+' · '+p.category,'meta');b.appendChild(m);const h=el('h3');const a=el('a',p.title);a.href=safe(p.url);h.appendChild(a);b.appendChild(h);b.appendChild(el('p',p.description||'Archive entry'));b.appendChild(el('span',p.published?'Publisher verified route':(p.recovered?'Recovered draft · review':'Source pending'),'state'));t.appendChild(b);return t}function redraw(){const q=search.value.trim().toLowerCase(),c=category.value;let filtered=records.filter(p=>(!q||(p.title+' '+(p.description||'')+' '+(p.tags||[]).join(' ')).toLowerCase().includes(q))&&(!c||p.category===c));if(sort.value==='oldest')filtered.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));else if(sort.value==='title')filtered.sort((a,b)=>a.title.localeCompare(b.title));else filtered.sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));let total=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));page=Math.min(page,total-1);mount.replaceChildren();for(const p of filtered.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE))mount.appendChild(card(p));if(!filtered.length)mount.appendChild(el('p','No matching posts. Try another search.','empty'));counter.textContent=filtered.length+' entries';pageLabel.textContent='Page '+(page+1)+' / '+total;prev.disabled=page===0;next.disabled=page>=total-1}Promise.all([fetch('/blog/catalog.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Archive manifest unavailable');return r.json()}),fetch('/blog/zzxblog-posts.json',{cache:'no-cache'}).then(r=>r.ok?r.json():{posts:[]}).catch(()=>({posts:[]}))]).then(([j,publisher])=>{const legacy=j.posts||[];const fresh=(publisher.posts||[]).filter(p=>typeof p.url==='string'&&p.url.startsWith('/blog/posts/')).map(p=>({title:p.title,url:p.url,description:p.description||'',date:p.date,tags:p.tags||[],thumb:p.thumb||'',category:'New Publications',published:true,recovered:true}));records=[...fresh,...legacy.filter(x=>!fresh.some(y=>y.url===x.url))];const cats=[...new Set(records.map(p=>p.category))].sort();for(const c of cats){const opt=el('option',c);opt.value=c;category.appendChild(opt)}redraw()}).catch(()=>{counter.textContent='Archive data failed to load';mount.appendChild(el('p','Archive manifest could not be loaded. Use a local HTTP server rather than opening index.html with file://.','empty'))});for(const control of [search,category,sort])control.addEventListener('input',()=>{page=0;redraw()});prev.addEventListener('click',()=>{page--;redraw()});next.addEventListener('click',()=>{page++;redraw()})})();
+/*
+ * ZZX-Labs R&D — editorial archive browser.
+ * Framework-free, progressive enhancement, no external services.
+ * All catalog text is inserted with textContent (never innerHTML).
+ */
+(() => {
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const mount = $('post-grid');
+
+    // The script is shared by /blog/ and /blog/blog-posts/.
+    if (!mount) {
+        return;
+    }
+
+    const search = $('search');
+    const category = $('category');
+    const sort = $('sort');
+    const counter = $('counter');
+    const previous = $('prev');
+    const next = $('next');
+    const pageLabel = $('page-label');
+    const PAGE_SIZE = 12;
+
+    let records = [];
+    let page = 0;
+
+    function create(tag, text, className) {
+        const element = document.createElement(tag);
+
+        if (text !== undefined) {
+            element.textContent = text;
+        }
+        if (className) {
+            element.className = className;
+        }
+        return element;
+    }
+
+    function safeBlogPath(path) {
+        return typeof path === 'string' &&
+            path.startsWith('/blog/') &&
+            !path.startsWith('//') &&
+            !path.includes('..') ? path : null;
+    }
+
+    function formatDate(isoDate) {
+        if (!isoDate) {
+            return 'Undated';
+        }
+        const value = new Date(isoDate);
+        if (Number.isNaN(value.getTime())) {
+            return 'Undated';
+        }
+        return value.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'UTC'
+        });
+    }
+
+    function createCard(post) {
+        const tile = create('article', undefined, 'tile');
+        const imagePath = safeBlogPath(post.thumb);
+
+        if (imagePath) {
+            const image = document.createElement('img');
+            image.loading = 'lazy';
+            image.decoding = 'async';
+            image.src = imagePath;
+            image.alt = 'Illustrative archive thumbnail';
+            tile.appendChild(image);
+        }
+
+        const body = create('div', undefined, 'body');
+        body.appendChild(
+            create('div', `${formatDate(post.date)} · ${post.category || 'Research'}`, 'meta')
+        );
+
+        const heading = create('h3');
+        const link = create('a', post.title || 'Untitled article');
+        link.href = safeBlogPath(post.url) || '#';
+        heading.appendChild(link);
+        body.appendChild(heading);
+        body.appendChild(create('p', post.description || 'Archive entry'));
+
+        const status = post.published
+            ? 'Publisher verified route'
+            : (post.recovered ? 'Recovered draft · review' : 'Source pending');
+        body.appendChild(create('span', status, 'state'));
+        tile.appendChild(body);
+        return tile;
+    }
+
+    function redraw() {
+        const query = search.value.trim().toLowerCase();
+        const selectedCategory = category.value;
+
+        const matching = records.filter((post) => {
+            const haystack = [post.title, post.description, ...(post.tags || [])]
+                .filter(Boolean).join(' ').toLowerCase();
+            return (!query || haystack.includes(query)) &&
+                (!selectedCategory || post.category === selectedCategory);
+        });
+
+        if (sort.value === 'title') {
+            matching.sort((a, b) => a.title.localeCompare(b.title));
+        } else if (sort.value === 'oldest') {
+            matching.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+        } else {
+            matching.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+        }
+
+        const pages = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
+        page = Math.min(Math.max(0, page), pages - 1);
+        mount.replaceChildren();
+
+        const start = page * PAGE_SIZE;
+        matching.slice(start, start + PAGE_SIZE)
+            .forEach((post) => mount.appendChild(createCard(post)));
+
+        if (!matching.length) {
+            mount.appendChild(
+                create('p', 'No matching posts. Try another search.', 'empty')
+            );
+        }
+
+        counter.textContent = `${matching.length} entries`;
+        pageLabel.textContent = `Page ${page + 1} / ${pages}`;
+        previous.disabled = page === 0;
+        next.disabled = page >= pages - 1;
+    }
+
+    function loadJson(url, optional = false) {
+        return fetch(url, { cache: 'no-cache' })
+            .then((response) => {
+                if (!response.ok) {
+                    if (optional) {
+                        return { posts: [] };
+                    }
+                    throw new Error(`Archive manifest unavailable (${response.status})`);
+                }
+                return response.json();
+            })
+            .catch((error) => {
+                if (optional) {
+                    return { posts: [] };
+                }
+                throw error;
+            });
+    }
+
+    Promise.all([
+        loadJson('/blog/catalog.json'),
+        loadJson('/blog/zzxblog-posts.json', true)
+    ]).then(([catalog, publisher]) => {
+        const legacyPosts = catalog.posts || [];
+        const newPosts = (publisher.posts || [])
+            .filter((post) => typeof post.url === 'string' &&
+                post.url.startsWith('/blog/posts/') && safeBlogPath(post.url))
+            .map((post) => ({
+                title: post.title,
+                url: post.url,
+                description: post.description || '',
+                date: post.date,
+                tags: post.tags || [],
+                thumb: post.thumb || '',
+                category: 'New Publications',
+                published: true,
+                recovered: true
+            }));
+
+        const publishedPaths = new Set(newPosts.map((post) => post.url));
+        records = [
+            ...newPosts,
+            ...legacyPosts.filter((post) => !publishedPaths.has(post.url))
+        ];
+
+        const categories = [...new Set(records.map((post) => post.category))].sort();
+        categories.forEach((name) => {
+            const option = create('option', name);
+            option.value = name;
+            category.appendChild(option);
+        });
+        redraw();
+    }).catch(() => {
+        counter.textContent = 'Archive data failed to load';
+        mount.appendChild(create(
+            'p',
+            'Archive manifest could not be loaded. ' +
+                'Use a local HTTP server rather than opening index.html with file://.',
+            'empty'
+        ));
+    });
+
+    [search, category, sort].forEach((control) => {
+        control.addEventListener('input', () => {
+            page = 0;
+            redraw();
+        });
+    });
+    previous.addEventListener('click', () => {
+        page -= 1;
+        redraw();
+    });
+    next.addEventListener('click', () => {
+        page += 1;
+        redraw();
+    });
+})();
