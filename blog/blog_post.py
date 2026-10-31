@@ -80,28 +80,51 @@ def write_manifest(entries):
 
 # --------------- Generator -----------------
 def generate_html(title: str, date_iso: str, content_html: str) -> str:
-    return f"""<!DOCTYPE html>
+    """Legacy draft generator shares the site's actual chrome and ticker."""
+    from html import escape
+    return f"""<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex, nofollow" />
-  <title>{title} | ZZX-Labs Blog</title>
-  <link rel="stylesheet" href="/static/styles.css" />
-  <script src="/static/script.js" defer></script>
-</head>
-<body>
-<header><div id="zzx-header"></div></header>
-<main class="container">
-  <h1>{title}</h1>
-  <p class="meta">{date_iso}</p>
-  <article>
-    {content_html}
-  </article>
-  <p><a class="btn alt" href="/blog/">← Back to Blog</a></p>
-</main>
-<footer><div id="zzx-footer"></div></footer>
-</body>
-</html>"""
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex,nofollow">
+        <title>{escape(title)} | ZZX-Labs R&amp;D</title>
+        <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+        <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" type="image/png">
+        <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+        <link rel="stylesheet" href="/static/styles.css">
+        <script src="/static/script.js" defer></script>
+        <link rel="stylesheet" href="/blog/zzx.css">
+    </head>
+    <body class="zzx-site-page zzx-page-blog">
+        <header>
+            <div id="zzx-header"></div>
+            <br>
+            <div id="ticker-container"></div>
+            <br>
+        </header>
+        <main id="content" class="zzx-blog-content">
+            <nav class="zzx-blog-nav" aria-label="Blog sections">
+                <a href="/blog/">Journal</a>
+                <a href="/blog/blog-posts/">Archive</a>
+                <a href="/blog/rss/">RSS</a>
+            </nav>
+            <article class="article-layout">
+                <h1>{escape(title)}</h1>
+                <p class="meta">{escape(date_iso)}</p>
+                <div class="prose">
+                    {content_html}
+                </div>
+                <p><a href="/blog/">Back to Blog</a></p>
+            </article>
+        </main>
+        <footer>
+            <div id="zzx-footer"></div>
+        </footer>
+    </body>
+</html>
+"""
 
 def main():
     POSTS_ROOT.mkdir(parents=True, exist_ok=True)
