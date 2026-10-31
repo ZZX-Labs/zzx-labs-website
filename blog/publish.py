@@ -55,11 +55,15 @@ def load_template() -> str:
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
   <title>{{TITLE}} | ZZX-Labs Blog</title>
+  <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="/static/script.js" defer></script>
 </head>
-<body>
-<header><div id="zzx-header"></div></header>
+<body class="zzx-site-page zzx-page-blog">
+<header><div id="zzx-header"></div><br><div id="ticker-container"></div><br></header>
 <main class="container">
   <h1>{{TITLE}}</h1>
   <p class="meta">{{DATE}}</p>
@@ -201,6 +205,12 @@ def publish_one(unit: Path, slot_dt: datetime):
     elif "html_full" in data:
         # Already a full HTML doc. We can inject the date by simple replacement if you want.
         html_full = data["html_full"].replace("DATE_PLACEHOLDER", date_iso)
+        required_site_chrome = ('id="zzx-header"', 'id="ticker-container"', 'id="zzx-footer"', '/static/script.js')
+        if not all(marker in html_full for marker in required_site_chrome):
+            raise ValueError(
+                "Imported full-page HTML must preserve the ZZX-Labs website header, "
+                "ticker, footer and shared site JavaScript before publication"
+            )
         atomic_write(target_dir / "index.html", html_full)
 
     # 2) Copy assets (if any directory content)
