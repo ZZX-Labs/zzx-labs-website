@@ -1,192 +1,179 @@
-// blog/script.js
-// 1) Load ./manifest.json (featured)
-// 2) Load .posted + .tank manifests (if present)
-// 3) Merge, de-dupe by URL, sort by date desc
-// 4) Render Featured + Recent lists with search and tag filters
-
+/* ZZX-BLOG v5: ONE shared browser script for /blog/, /blog/journal/,
+   /blog/blog-posts/, /blog/blog-posts/YYYY-MM-.../, /blog/rss/ and posts.
+   Works on GitHub Pages; no node, React, npm, Flask, or external runtime.
+   Initial HTML includes all entries for non-JS fallback. */
 (() => {
-  const FEAT = document.getElementById('featured-list');
-  const RECENT = document.getElementById('recent-list');
-  const SHUFFLE = document.getElementById('shuffle');
-  const SEARCH = document.getElementById('search');
-  const TAGSEL = document.getElementById('tag-filter');
-
-  let featured = [];
-  let recent = [];
-  let allTags = new Set();
-
-  const el = (t, c, txt) => {
-    const n = document.createElement(t);
-    if (c) n.className = c;
-    if (txt != null) n.textContent = txt;
-    return n;
+  'use strict';
+  const root = document.body;
+  if (!root || !root.classList.contains('zzx-blog')) return;
+  const view = root.dataset.blogView || 'home';
+  const search = document.getElementById('search');
+  if (!search) return;  // Article pages need only shared CSS and site chrome.
+  const category = document.getElementById('category-filter');
+  const tag = document.getElementById('tag-filter');
+  const sort = document.getElementById('sort-order');
+  const shuffle = document.getElementById('shuffle');
+  const status = document.getElementById('blog-status');
+  const count = document.getElementById('post-count');
+  let all = [];
+  let shuffled = false;
+  let shuffledOrder = [];
+  const elt = (name, cls, text) => {
+    const node = document.createElement(name);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
   };
-
-  const shuffleInPlace = (arr) => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
-  async function fetchJSON(url) {
-    try {
-      const r = await fetch(url, { cache: 'no-cache' });
-      if (!r.ok) return null;
-      return await r.json();
-    } catch {
-      return null;
-    }
+  const clear = node => { if (node) node.replaceChildren(); };
+  const dateValue = p => Number.isFinite(Date.parse(p.date)) ? Date.parse(p.date) : 0;
+  const day = p => (p.date || '').slice(0, 10);
+  const normalize = raw => ({
+    title: String(raw.title || 'Untitled'), url: String(raw.url || ''),
+    description: String(raw.description || ''), date: String(raw.date || ''),
+    category: String(raw.category || 'Research'),
+    thumb: String(raw.thumb || ''), hero_alt: String(raw.hero_alt || raw.title || ''),
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    status: String(raw.status || '')
+  });
+  function imageBlock(post) {
+    const a = elt('a', 'blog-card-art');
+    a.href = post.url;
+    if (post.thumb.startsWith('/assets/hero/') && post.thumb.endsWith('.png')) {
+      const img = elt('img');
+      img.src = post.thumb;
+      img.alt = post.hero_alt;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.addEventListener('error', () => { img.hidden = true; a.classList.add('image-unavailable'); }, {once:true});
+      a.append(img);
+    } else a.classList.add('image-unavailable');
+    return a;
   }
-
-  function normalizePost(p) {
-    return {
-      title: p.title || 'Untitled',
-      url: p.url || '#',
-      description: p.description || '',
-      date: p.date ? new Date(p.date).toISOString() : new Date().toISOString(),
-      thumb: p.thumb || '',
-      tags: Array.isArray(p.tags) ? p.tags : []
-    };
+  function card(post) {
+    const item = elt('article', 'blog-card');
+    item.dataset.url = post.url;
+    const body = elt('div', 'blog-card-body');
+    const meta = elt('div', 'blog-meta');
+    meta.append(elt('span','',post.category), elt('span','',`${day(post)} (archive date)`));
+    const h = elt('h3'); const link = elt('a','',post.title); link.href = post.url; h.append(link);
+    body.append(meta, h, elt('p','',post.description));
+    if (post.status === 'source-missing') body.append(elt('span','archive-flag','Source text unavailable'));
+    const tags = elt('div', 'blog-tags');
+    post.tags.slice(0,4).forEach(x => tags.append(elt('span','blog-tag',x)));
+    const read = elt('a','blog-read','Read article'); read.href = post.url;
+    body.append(tags,read);
+    item.append(imageBlock(post),body);
+    return item;
   }
-
-  function dedupeByUrl(list) {
-    const seen = new Set();
-    const out = [];
-    for (const it of list) {
-      if (!seen.has(it.url)) {
-        seen.add(it.url);
-        out.push(it);
-      }
-    }
-    return out;
-  }
-
-  function collectTags(items) {
-    items.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
-  }
-
-  function fillTagSelect() {
-    TAGSEL.innerHTML = '<option value="">All tags</option>';
-    [...allTags].sort().forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      TAGSEL.appendChild(opt);
+  function optionsFor(select, values, name) {
+    if (!select) return;
+    const current = select.value;
+    clear(select);
+    const first = elt('option','',`All ${name}`); first.value = ''; select.append(first);
+    [...new Set(values)].filter(Boolean).sort((a,b) => a.localeCompare(b)).forEach(value => {
+      const option = elt('option','',value); option.value = value; select.append(option);
     });
+    if ([...select.options].some(o => o.value === current)) select.value = current;
   }
-
-  function matchFilters(p) {
-    const q = (SEARCH.value || '').toLowerCase().trim();
-    const tag = TAGSEL.value;
-    const hay = `${p.title} ${p.description}`.toLowerCase();
-    const okText = !q || hay.includes(q);
-    const okTag = !tag || (p.tags || []).includes(tag);
-    return okText && okTag;
+  function shuffleArray(xs) {
+    for (let i = xs.length-1; i>0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [xs[i],xs[j]] = [xs[j],xs[i]];
+    }
+    return xs;
   }
-
-  function renderList(mount, items) {
-    mount.innerHTML = '';
-    if (!items.length) {
-      mount.appendChild(el('p', 'loading', 'No posts.'));
+  function filtered() {
+    const query = search.value.trim().toLocaleLowerCase();
+    let posts = all.filter(p => {
+      if (view === 'month' && !p.date.startsWith(root.dataset.blogMonth || '')) return false;
+      if (category.value && category.value !== p.category) return false;
+      if (tag.value && !p.tags.includes(tag.value)) return false;
+      return !query || [p.title,p.description,p.category,...p.tags].join(' ').toLocaleLowerCase().includes(query);
+    });
+    if (shuffled) {
+      const ranks = new Map(shuffledOrder.map((key,i) => [key,i]));
+      posts.sort((a,b) => (ranks.get(a.url) ?? 1e9)-(ranks.get(b.url) ?? 1e9));
+    } else if (sort.value === 'title') posts.sort((a,b) => a.title.localeCompare(b.title));
+    else posts.sort((a,b) => sort.value === 'oldest' ? dateValue(a)-dateValue(b) : dateValue(b)-dateValue(a));
+    return posts;
+  }
+  function showCards(target, posts) {
+    if (!target) return;
+    clear(target);
+    const fragment = document.createDocumentFragment();
+    posts.forEach(p => fragment.append(card(p)));
+    target.append(fragment);
+  }
+  function archive(target, posts) {
+    if (!target) return;
+    clear(target);
+    const groups = new Map();
+    posts.forEach(p => {
+      const key = p.date.slice(0,7) || 'Undated';
+      if (!groups.has(key)) groups.set(key,[]);
+      groups.get(key).push(p);
+    });
+    for (const [month, entries] of groups) {
+      const section = elt('section','month-group');
+      const heading = elt('div','blog-section-head');
+      let label = month;
+      if (/^\d{4}-\d{2}$/.test(month)) {
+        const dt = new Date(month+'-01T00:00:00Z');
+        if (!Number.isNaN(+dt)) label = dt.toLocaleDateString('en-US',{timeZone:'UTC',month:'long',year:'numeric'});
+      }
+      heading.append(elt('h2','',label), elt('p','',`${entries.length} entries`));
+      const grid = elt('div','blog-grid'); entries.forEach(p => grid.append(card(p)));
+      section.append(heading,grid); target.append(section);
+    }
+  }
+  function render() {
+    const posts = filtered();
+    if (count) count.textContent = String(all.length);
+    if (status) status.textContent = `Showing ${posts.length} of ${view === 'month' ? all.filter(p=>p.date.startsWith(root.dataset.blogMonth||'')).length : all.length} articles`;
+    if (view === 'home' || view === 'journal') {
+      const feat = document.getElementById('featured-list');
+      const recent = document.getElementById('recent-list');
+      showCards(feat,posts.slice(0,4)); showCards(recent,posts.slice(4));
+    } else if (view === 'archive') archive(document.getElementById('archives'),posts);
+    else if (view === 'rss') showCards(document.getElementById('rss-previews'),posts);
+    else if (view === 'month') showCards(document.getElementById('month-posts'),posts);
+    if (!posts.length) {
+      const dest = document.getElementById(view === 'archive' ? 'archives' : view === 'rss' ? 'rss-previews' : view === 'month' ? 'month-posts' : 'recent-list');
+      if (dest) dest.append(elt('p','empty-message','No articles match these filters.'));
+    }
+  }
+  async function init() {
+    let data;
+    try {
+      const response = await fetch('/blog/catalog.json', {cache:'no-cache'});
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      data = await response.json();
+      if (!data || !Array.isArray(data.posts)) throw new Error('Invalid catalog schema');
+    } catch (err) {
+      // Static HTML has all posts pre-rendered; never erase them on fetch failure.
+      if (status) status.textContent = 'Showing the static article index (live filtering unavailable).';
+      console.warn('ZZX Blog: catalog unavailable; static posts retained.',err);
       return;
     }
-    for (const it of items) {
-      if (!matchFilters(it)) continue;
-
-      const wrap = el('div', 'feature');
-
-      const thumb = el('div', 'thumb');
-      if (it.thumb) {
-        const img = new Image();
-        img.alt = it.hero_alt || it.title;
-        img.src = it.thumb;
-        thumb.appendChild(img);
-      } else {
-        thumb.appendChild(el('span', 'muted', 'Illustration pending editorial review')); 
-      }
-      wrap.appendChild(thumb);
-
-      const body = el('div', 'body');
-      const h3 = el('h3');
-      const link = el('a', null, it.title);
-      link.href = it.url;
-      h3.appendChild(link);
-      body.appendChild(h3);
-
-      if (it.description) body.appendChild(el('p', null, it.description));
-
-      const btn = el('a', 'btn', 'Read Post');
-      btn.href = it.url;
-      body.appendChild(btn);
-
-      const meta = el('div', 'meta', new Date(it.date).toLocaleString());
-      body.appendChild(meta);
-
-      if (it.tags && it.tags.length) {
-        const tg = el('div', 'tags');
-        it.tags.forEach(t => tg.appendChild(el('span', 'tag', t)));
-        body.appendChild(tg);
-      }
-
-      wrap.appendChild(body);
-      mount.appendChild(wrap);
-    }
-    if (!mount.children.length) {
-      mount.appendChild(el('p', 'loading', 'No posts match your filters.'));
-    }
-  }
-
-  async function boot() {
-    // Featured (curated)
-    const mf = await fetchJSON('./manifest.json');
-    featured = Array.isArray(mf?.posts) ? mf.posts.map(normalizePost) : [];
-
-    // Recent from posted + tank (if present)
-    const posted = await fetchJSON('/blog/blog-posts/.posted/manifest.json');
-    const tank   = await fetchJSON('/blog/blog-posts/.tank/manifest.json');
-    const merged = [
-      ...(Array.isArray(posted?.posts) ? posted.posts : []),
-      ...(Array.isArray(tank?.posts) ? tank.posts : [])
-    ].map(normalizePost);
-
-    // Resolve canonical article artwork across featured and recent, then de-duplicate by URL.
-    const allUnique = dedupeByUrl([...featured, ...merged]);
-    const withArt = await window.ZZXHero.normalize(allUnique);
-    const artMap = new Map(withArt.map(x => [x.url.replace(/\/$/, ''),x]));
-    featured = dedupeByUrl(featured).map(x=>artMap.get(x.url.replace(/\/$/,''))||x).slice(0,6);
-    const featuredUrls=new Set(featured.map(x=>x.url));
-    recent = dedupeByUrl(merged.length ? merged : allUnique)
-       .map(x=>artMap.get(x.url.replace(/\/$/,''))||x)
-       .filter(x=>!featuredUrls.has(x.url))
-       .sort((a,b)=>new Date(b.date)-new Date(a.date));
-
-    // Collect tags across both sets
-    collectTags(featured);
-    collectTags(recent);
-    fillTagSelect();
-
-    renderList(FEAT, featured);
-    renderList(RECENT, recent);
-
-    SHUFFLE?.addEventListener('click', () => {
-      shuffleInPlace(recent);
-      renderList(RECENT, recent);
+    const urls = new Set(); const thumbs = new Set();
+    all = data.posts.map(normalize).filter(p => {
+      if (!p.url.startsWith('/blog/blog-posts/') || urls.has(p.url)) return false;
+      urls.add(p.url);
+      if (p.thumb && thumbs.has(p.thumb)) console.warn('Duplicate artwork assigned:',p.thumb);
+      thumbs.add(p.thumb);
+      return true;
     });
-    SEARCH?.addEventListener('input', () => {
-      renderList(FEAT, featured);
-      renderList(RECENT, recent);
+    optionsFor(category,all.map(p=>p.category),'categories');
+    optionsFor(tag,all.flatMap(p=>p.tags),'topics');
+    [search,category,tag,sort].forEach(control => {
+      if (control) control.addEventListener(control === search ? 'input' : 'change', () => {shuffled=false;render();});
     });
-    TAGSEL?.addEventListener('change', () => {
-      renderList(FEAT, featured);
-      renderList(RECENT, recent);
+    if (shuffle) shuffle.addEventListener('click', () => {
+      shuffled = true;
+      shuffledOrder = shuffleArray(all.map(p=>p.url));
+      render();
     });
+    render();
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
-  }
+  init();
 })();
