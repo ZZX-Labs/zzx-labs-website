@@ -1,9 +1,125 @@
+/*
+ * ZZX-Labs R&D — Hero artwork compatibility styles
+ * File: /blog/hero-art.css
+ *
+ * Supports legacy .zzx-masthead and .feature/.thumb markup.
+ * Modern v5 .blog-masthead and .blog-card styles are in /blog/style.css.
+ * Global site layout remains in /static/styles.css.
+ * No assets are renamed or replaced by this file.
+ */
 
-/* ZZX-Labs original editorial art — dark accessible mastheads */
-.zzx-masthead{max-width:1200px;margin:1.3rem auto 1rem;padding:0 1rem;position:relative;}
-.zzx-masthead img{width:100%;display:block;aspect-ratio:16 / 9;object-fit:cover;border:1px solid rgba(192,214,116,.3);border-radius:12px;}
-.zzx-masthead figcaption{font-size:.8rem;color:#bac3bc;margin-top:.5rem;letter-spacing:.06em}
-.feature .thumb{background:#101820;}
-.feature .thumb .muted{font-size:.75rem;padding:.6rem;text-align:center;}
-.feature:focus-within{outline:2px solid #c0d674;outline-offset:2px;}
-@media(max-width:560px){.feature{flex-direction:column}.feature .thumb{width:100%;height:auto;aspect-ratio:16/9}.zzx-masthead{margin:.7rem auto}}
+:root {
+    --zzx-art-green: #c0d674;
+    --zzx-art-gold: #e6a42b;
+    --zzx-art-muted: #bac3bc;
+    --zzx-art-surface: #101820;
+}
+
+/* Legacy journal, archive, and RSS header illustrations. */
+.zzx-masthead {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1200px;
+    margin: 1.3rem auto 1rem;
+    padding: 0 1rem;
+}
+
+.zzx-masthead img {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: 1px solid rgba(192, 214, 116, 0.3);
+    border-radius: 12px;
+    background: #182323;
+}
+
+.zzx-masthead img[hidden] {
+    display: none !important;
+}
+
+.zzx-masthead figcaption {
+    margin-top: 0.5rem;
+    color: var(--zzx-art-muted);
+    font: 400 0.8rem/1.5 Consolas, "IBM Plex Mono", monospace;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+}
+
+/* Image loading errors are handled by the page's JavaScript, not CSS alone. */
+.zzx-masthead.image-unavailable {
+    min-height: 160px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #172322, #2a352b, #352b1d);
+}
+
+.zzx-masthead.image-unavailable img {
+    display: none !important;
+}
+
+.zzx-masthead.image-unavailable::before {
+    content: "ZZX-Labs R&D — Editorial artwork unavailable";
+    display: grid;
+    min-height: 160px;
+    place-items: center;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--zzx-art-green);
+    font: 600 clamp(0.9rem, 2vw, 1.3rem)/1.5 Consolas, "IBM Plex Mono", monospace;
+}
+
+/* Legacy feature cards only; newer v5 cards use .blog-card-art. */
+.feature .thumb {
+    background: var(--zzx-art-surface);
+}
+
+.feature .thumb img {
+    display: block;
+    max-width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.feature .thumb img[hidden] {
+    display: none !important;
+}
+
+.feature .thumb .muted {
+    padding: 0.6rem;
+    color: var(--zzx-art-muted);
+    text-align: center;
+    font-size: 0.75rem;
+}
+
+.feature:focus-within {
+    outline: 2px solid var(--zzx-art-green);
+    outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+    .feature {
+        flex-direction: column;
+    }
+
+    .feature .thumb {
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        aspect-ratio: 16 / 9;
+    }
+
+    .zzx-masthead {
+        margin: 0.7rem auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .zzx-masthead *,
+    .feature .thumb * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
