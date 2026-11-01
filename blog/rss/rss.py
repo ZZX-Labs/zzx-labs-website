@@ -1,36 +1,14 @@
-import feedparser
-from flask import Blueprint, render_template_string
-
-rss_feed = Blueprint('rss_feed', __name__)
-
-@rss_feed.route('/rss', methods=['GET'])
-def get_rss_feed():
-    feed = feedparser.parse("http://localhost:5000/api/posts")
-    rss_items = []
-
-    for post in feed.entries:
-        rss_items.append({
-            "title": post.title,
-            "link": post.link,
-            "description": post.description,
-            "pubDate": post.published
-        })
-
-    return render_template_string("""
-        <?xml version="1.0" encoding="UTF-8" ?>
-        <rss version="2.0">
-            <channel>
-                <title>ZZX Labs Blog</title>
-                <link>http://localhost:5000</link>
-                <description>Latest blog posts from ZZX Labs</description>
-                {% for item in rss_items %}
-                <item>
-                    <title>{{ item.title }}</title>
-                    <link>{{ item.link }}</link>
-                    <description>{{ item.description }}</description>
-                    <pubDate>{{ item.pubDate }}</pubDate>
-                </item>
-                {% endfor %}
-            </channel>
-        </rss>
-    """, rss_items=rss_items)
+"""Optional replacement for blog/rss.py: no feedparser or localhost HTTP call.
+Register rss_feed Blueprint; feed is generated from verified source offline.
+"""
+from pathlib import Path
+from flask import Blueprint, current_app, send_file, abort, redirect
+rss_feed=Blueprint('rss_feed',__name__)
+@rss_feed.get('/blog/rss.xml')
+def rss():
+    site=Path(current_app.config.get('ZZX_SITE_ROOT') or current_app.root_path)
+    feed=site/'blog/rss.xml'
+    if not feed.is_file(): abort(404)
+    return send_file(feed,mimetype='application/rss+xml')
+@rss_feed.get('/rss')
+def legacy_rss():return redirect('/blog/rss.xml',code=301)
