@@ -100,11 +100,11 @@
       const thumb = el('div', 'thumb');
       if (it.thumb) {
         const img = new Image();
-        img.alt = '';
+        img.alt = it.hero_alt || it.title;
         img.src = it.thumb;
         thumb.appendChild(img);
       } else {
-        thumb.appendChild(el('span', 'muted', '—'));
+        thumb.appendChild(el('span', 'muted', 'Illustration pending editorial review')); 
       }
       wrap.appendChild(thumb);
 
@@ -151,8 +151,16 @@
       ...(Array.isArray(tank?.posts) ? tank.posts : [])
     ].map(normalizePost);
 
-    // Sort and dedupe
-    recent = dedupeByUrl(merged).sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Resolve canonical article artwork across featured and recent, then de-duplicate by URL.
+    const allUnique = dedupeByUrl([...featured, ...merged]);
+    const withArt = await window.ZZXHero.normalize(allUnique);
+    const artMap = new Map(withArt.map(x => [x.url.replace(/\/$/, ''),x]));
+    featured = dedupeByUrl(featured).map(x=>artMap.get(x.url.replace(/\/$/,''))||x).slice(0,6);
+    const featuredUrls=new Set(featured.map(x=>x.url));
+    recent = dedupeByUrl(merged.length ? merged : allUnique)
+       .map(x=>artMap.get(x.url.replace(/\/$/,''))||x)
+       .filter(x=>!featuredUrls.has(x.url))
+       .sort((a,b)=>new Date(b.date)-new Date(a.date));
 
     // Collect tags across both sets
     collectTags(featured);
