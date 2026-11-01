@@ -1,69 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="index, follow" />
-  <title>Blog | ZZX-Labs R&D</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow">
+  <meta name="description" content="The ZZX-Labs R&D research journal: cybersecurity research, engineering logs, technical analysis, and laboratory announcements.">
+  <link rel="canonical" href="https://zzx-labs.io/blog/">
+  <title>Blog | ZZX-Labs R&amp;D</title>
 
-  <link rel="icon" href="../static/icons/favicon.ico" type="image/x-icon">
-  <link rel="icon" href="../static/icons/favicon-32.png" sizes="32x32" type="image/png">
-  <link rel="icon" href="../static/icons/favicon-16.png" sizes="16x16" type="image/png">
-  <link rel="apple-touch-icon" href="../static/icons/apple-touch-icon.png">
-  
-  <!-- Global -->
-  <link rel="stylesheet" href="/static/styles.css" />
+  <!-- Site icons: always resolve from the deployed site root. -->
+  <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+
+  <!-- RSS autodiscovery for browsers and feed readers. -->
+  <link rel="alternate" type="application/rss+xml" title="ZZX-Labs R&amp;D Blog RSS" href="/blog/rss.xml">
+
+  <!-- Global styles, then existing blog styles and hero-art layout. -->
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/blog/style.css">
+  <link rel="stylesheet" href="/blog/hero-art.css">
+
+  <!-- Preserve existing script dependencies and their execution order. -->
   <script src="/static/script.js" defer></script>
-
-  <!-- Local -->
-  <link rel="stylesheet" href="./style.css" />
   <script src="/blog/hero-art.js" defer></script>
-  <script src="./script.js" defer></script>
-<link rel="stylesheet" href="/blog/hero-art.css">
+  <script src="/blog/script.js" defer></script>
 </head>
 <body class="blog-home">
-<header>
-  <div id="zzx-header"></div>
-</header>
+  <header>
+    <div id="zzx-header"></div>
+  </header>
 
-<main>
-<figure class="zzx-masthead"><img src="/assets/hero/zzx-journal-home.png" alt="Original illustration of the ZZX-Labs research journal" width="1920" height="1080" loading="eager" decoding="async"><figcaption>ZZX-Labs R&D · Original independent editorial illustration</figcaption></figure>
+  <main id="main-content">
+    <!-- Asset must exist on disk at zzx-labs.io/assets/hero/zzx-journal-home.png.
+         A missing file cannot be repaired by changing this HTML. -->
+    <figure class="zzx-masthead">
+      <img
+        src="/assets/hero/zzx-journal-home.png"
+        alt="Illustration of the independent ZZX-Labs R&amp;D research journal"
+        width="1920"
+        height="1080"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high"
+      >
+      <figcaption>ZZX-Labs R&amp;D · Independent research journal</figcaption>
+    </figure>
 
-  <br /><div id="ticker-container"></div><br />
+    <div id="ticker-container"></div>
 
-  <section class="container">
-    <h1>ZZX-Labs Blog</h1>
-    <p class="lede">
-      Essays, engineering logs, announcements. Featured posts are curated below. New posts are prepared through
-      <code>.tank</code> and move into <code>.posted</code> archives automatically.
-    </p>
-    <div class="controls">
-      <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search posts" />
-      <select id="tag-filter" aria-label="Filter by tag">
-        <option value="">All tags</option>
-      </select>
-      <button class="btn" id="shuffle">Shuffle</button>
-      <a class="btn alt" href="/blog/blog-posts/">← Blog Archives</a>
-      <a class="btn alt" href="/">← Home</a>
-    </div>
-  </section>
+    <section class="container" aria-labelledby="blog-heading">
+      <h1 id="blog-heading">ZZX-Labs Blog</h1>
+      <p class="lede">
+        Essays, engineering logs, and announcements. Featured posts are curated below.
+        New posts are prepared through <code>.tank</code> and move into
+        <code>.posted</code> archives automatically.
+      </p>
 
-  <section class="container">
-    <h2>Featured</h2>
-  </section>
-  <section class="features" id="featured-list">
-    <p class="loading">Loading featured…</p>
-  </section>
+      <div class="controls" role="group" aria-label="Blog browsing controls">
+        <input
+          id="search"
+          type="search"
+          placeholder="Search titles/descriptions…"
+          aria-label="Search posts by title or description"
+          autocomplete="off"
+        >
+        <select id="tag-filter" aria-label="Filter posts by tag">
+          <option value="">All tags</option>
+        </select>
+        <button class="btn" id="shuffle" type="button">Shuffle</button>
+        <a class="btn alt" href="/blog/blog-posts/">Blog Archives</a>
+        <a class="btn alt" href="/blog/rss.xml" type="application/rss+xml">RSS Feed</a>
+        <a class="btn alt" href="/">Home</a>
+      </div>
+    </section>
 
-  <section class="container">
-    <h2>Recent</h2>
-  </section>
-  <section class="features" id="recent-list">
-    <p class="loading">Loading recent posts…</p>
-  </section>
-</main>
+    <!-- These IDs must remain stable for /blog/script.js. -->
+    <section aria-labelledby="featured-heading">
+      <div class="container">
+        <h2 id="featured-heading">Featured</h2>
+      </div>
+      <div class="features" id="featured-list" aria-live="polite">
+        <p class="loading">Loading featured posts…</p>
+      </div>
+    </section>
 
-<footer>
-  <div id="zzx-footer"></div>
-</footer>
+    <section aria-labelledby="recent-heading">
+      <div class="container">
+        <h2 id="recent-heading">Recent</h2>
+      </div>
+      <div class="features" id="recent-list" aria-live="polite">
+        <p class="loading">Loading recent posts…</p>
+      </div>
+    </section>
+
+    <noscript>
+      <p class="container">JavaScript is needed to load the dynamic post listings.
+        You can browse the <a href="/blog/blog-posts/">archive</a> or
+        <a href="/blog/rss.xml">RSS feed</a> directly.</p>
+    </noscript>
+  </main>
+
+  <footer>
+    <div id="zzx-footer"></div>
+  </footer>
 </body>
 </html>
