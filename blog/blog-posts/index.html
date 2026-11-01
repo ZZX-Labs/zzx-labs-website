@@ -1,56 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="index, follow" />
-  <title>Blog Posts · Archives | ZZX-Labs R&D</title>
-
-  <!-- Global -->
-  <link rel="stylesheet" href="/static/styles.css" />
-  <script src="/static/script.js" defer></script>
-
-  <!-- Local -->
-  <link rel="stylesheet" href="./style.css" />
-  <script src="/blog/hero-art.js" defer></script>
-  <script src="./script.js" defer></script>
-<link rel="stylesheet" href="/blog/hero-art.css">
-</head>
-<body class="blog-archives">
-<header>
-  <div id="zzx-header"></div>
-</header>
-
-<main>
-<figure class="zzx-masthead"><img src="/assets/hero/zzx-archive-home.png" alt="Original illustration of the ZZX-Labs document archives" width="1920" height="1080" loading="eager" decoding="async"><figcaption>ZZX-Labs R&D · Original independent editorial illustration</figcaption></figure>
-
-  <br /><div id="ticker-container"></div><br />
-
-  <section class="container">
-    <h1>ZZX-Labs Blog Posts</h1>
-    <p class="lede">Long-form essays, engineering logs, announcements, and deep thoughts. Posts are prepared for publication through <code>.tank</code> into <code>.posted</code>.</p>
-
-    <div class="controls">
-      <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search posts" />
-      <select id="tag-filter" aria-label="Filter by tag">
-        <option value="">All tags</option>
-      </select>
-      <button class="btn" id="shuffle">Shuffle</button>
-      <a class="btn alt" href="/blog/">← Blog Home</a>
-      <a class="btn alt" href="/">← Home</a>
-    </div>
-  </section>
-
-  <!-- Grouped by Month Year -->
-  <section class="container">
-    <h2>All Posts</h2>
-  </section>
-  <section id="archives" class="archives">
-    <p class="loading">Loading posts…</p>
-  </section>
-</main>
-
-<footer>
-  <div id="zzx-footer"></div>
-</footer>
-</body>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="dark">
+        <title>Archive | ZZX-Labs R&amp;D</title>
+        <meta name="description" content="Original research and technical articles from ZZX-Labs R&amp;D covering cybersecurity, Bitcoin, software engineering, applied AI, and independent analysis.">
+        <meta name="robots" content="noindex,nofollow">
+        <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+        <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" type="image/png">
+        <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+        <link rel="stylesheet" href="/static/styles.css">
+        <script src="/static/script.js" defer></script>
+        <link rel="stylesheet" href="/blog/zzx.css">
+        <link rel="alternate" type="application/rss+xml" title="ZZX-Labs R&amp;D RSS" href="/blog/rss.xml">
+    </head>
+    <body class="zzx-site-page zzx-page-blog" data-view="archive">
+        <a class="skip" href="#content">Skip to content</a>
+        <header>
+            <div id="zzx-header"></div>
+            <br>
+            <div id="ticker-container"></div>
+            <br>
+        </header>
+        <main id="content" class="zzx-blog-content">
+            <nav class="zzx-blog-nav" aria-label="Blog sections">
+                <a href="/blog/">Journal</a>
+                <a href="/blog/blog-posts/">Archive</a>
+                <a href="/blog/rss/">RSS</a>
+            </nav>
+            <div class="wrap">
+                <section class="hero"><figure class="zzx-page-art"><img src="/assets/hero/zzx-archive-home.png" width="1920" height="1080" alt="ZZX-Labs archive original editorial artwork" decoding="async"><figcaption>ZZX-Labs R&amp;D / Archive / Editorial Artwork</figcaption></figure>
+                    <div class="eyebrow">PUBLICATIONS / COMPLETE ARCHIVE</div>
+                    <h1>Article archive</h1>
+                    <p class="lede">Explore historical essays, engineering investigations, software research, Bitcoin infrastructure, security, and applied AI. Historical article records are preserved; published URLs are validated before linking.</p>
+                    <div class="notice">Preview and editorial review: unpublished article records are clearly marked and are not linked. Images are original journal illustrations unless otherwise noted. Rebuilding the catalog does not publish drafts.</div>
+                </section>
+                <section aria-label="Article catalog">
+                    <div class="section-head">
+                        <h2>Explore the library</h2>
+                        <small id="counter" aria-live="polite">Loading…</small>
+                    </div>
+                    <div class="toolbar"><select id="publication-status" aria-label="Publication state"><option value="all">All records</option><option value="published">Published articles</option><option value="pending">Pending editorial review</option></select>
+                        <input id="search" type="search" placeholder="Search articles, research, topics…" aria-label="Search articles">
+                        <select id="category" aria-label="Category">
+                            <option value="">Every category</option>
+                        </select>
+                        <select id="sort" aria-label="Sort articles">
+                            <option value="newest">Newest first</option>
+                            <option value="oldest">Oldest first</option>
+                            <option value="title">Title A–Z</option>
+                        </select>
+                    </div>
+                    <div id="post-grid" class="grid"></div>
+                    <div class="pager">
+                        <button type="button" id="prev">Previous</button>
+                        <span id="page-label" aria-live="polite"></span>
+                        <button type="button" id="next">Next</button>
+                    </div>
+                </section>
+            </div>
+            <script src="/blog/archive.js" defer></script>
+        </main>
+        <footer>
+            <div id="zzx-footer"></div>
+        </footer>
+    </body>
 </html>
