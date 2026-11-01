@@ -1,212 +1,132 @@
-/*
- * ZZX-Labs R&D — editorial archive browser.
- * Framework-free, progressive enhancement, no external services.
- * All catalog text is inserted with textContent (never innerHTML).
- */
+/* ZZX-Labs R&D unified journal/archive browser; no external packages.
+   Canonical published status and imagery come from blog/catalog.json.
+   Identical article URL => same assigned cover across all views.
+*/
 (() => {
-    'use strict';
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const grid = $('post-grid');
+  if (!grid) return;
+  const search = $('search');
+  const category = $('category');
+  const sort = $('sort');
+  const status = $('publication-status');
+  const count = $('counter');
+  const prev = $('prev');
+  const next = $('next');
+  const pageLabel = $('page-label');
+  const isArchive = document.body.dataset.view === 'archive';
+  let records = [];
+  let page = 0;
+  const SIZE = 12;
 
-    const $ = (id) => document.getElementById(id);
-    const mount = $('post-grid');
-
-    // The script is shared by /blog/ and /blog/blog-posts/.
-    if (!mount) {
-        return;
+  function el(tag, text, classname) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = String(text);
+    if (classname) node.className = classname;
+    return node;
+  }
+  function safeBlogUrl(url) {
+    if (typeof url !== 'string' || !/^\/blog\/[a-zA-Z0-9/_-]+\/$/.test(url)) return null;
+    if (url.includes('//') || url.split('/').some((part) => part.startsWith('.'))) return null;
+    return url;
+  }
+  function safeHeroUrl(url) {
+    return typeof url === 'string' && /^\/assets\/hero\/[a-z0-9-]+\.png$/.test(url) ? url : null;
+  }
+  function formatDate(date) {
+    const parsed = new Date(date);
+    return date && !Number.isNaN(parsed.getTime())
+      ? parsed.toLocaleDateString('en-US', {dateStyle:'medium',timeZone:'UTC'}) : 'Undated';
+  }
+  function card(post) {
+    const item = el('article', undefined, 'tile');
+    const src = safeHeroUrl(post.thumb);
+    if (src) {
+      const image = document.createElement('img');
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.width = 1920;
+      image.height = 1080;
+      image.src = src;
+      image.alt = post.hero_alt || `Editorial illustration for ${post.title}`;
+      image.addEventListener('error', () => { image.hidden = true; item.classList.add('missing-image'); }, {once:true});
+      item.appendChild(image);
+    } else {
+      item.appendChild(el('div', post.category || 'Research', 'tile-image-fallback'));
     }
-
-    const search = $('search');
-    const category = $('category');
-    const sort = $('sort');
-    const counter = $('counter');
-    const previous = $('prev');
-    const next = $('next');
-    const pageLabel = $('page-label');
-    const PAGE_SIZE = 12;
-
-    let records = [];
-    let page = 0;
-
-    function create(tag, text, className) {
-        const element = document.createElement(tag);
-
-        if (text !== undefined) {
-            element.textContent = text;
-        }
-        if (className) {
-            element.className = className;
-        }
-        return element;
+    const body = el('div', undefined, 'body');
+    body.appendChild(el('div', `${formatDate(post.date)} · ${post.category || 'Research'}`, 'meta'));
+    const heading = el('h3');
+    const url = safeBlogUrl(post.url);
+    if (post.published === true && url) {
+      const link = el('a', post.title || 'Untitled');
+      link.href = url;
+      heading.appendChild(link);
+    } else {
+      heading.appendChild(el('span', post.title || 'Untitled'));
     }
-
-    function safeBlogPath(path) {
-        return typeof path === 'string' &&
-            path.startsWith('/blog/') &&
-            !path.startsWith('//') &&
-            !path.includes('..') ? path : null;
+    body.appendChild(heading);
+    body.appendChild(el('p', post.description || 'Editorial article'));
+    const label = post.published ? 'Verified publication' : 'Editorial review · not published';
+    body.appendChild(el('span', label, 'state'));
+    if (post.published && url) {
+      const link = el('a', 'Read article', 'read-link');
+      link.href = url;
+      body.appendChild(link);
     }
-
-    function formatDate(isoDate) {
-        if (!isoDate) {
-            return 'Undated';
-        }
-        const value = new Date(isoDate);
-        if (Number.isNaN(value.getTime())) {
-            return 'Undated';
-        }
-        return value.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            timeZone: 'UTC'
-        });
-    }
-
-    function createCard(post) {
-        const tile = create('article', undefined, 'tile');
-        const imagePath = safeBlogPath(post.thumb);
-
-        if (imagePath) {
-            const image = document.createElement('img');
-            image.loading = 'lazy';
-            image.decoding = 'async';
-            image.src = imagePath;
-            image.alt = 'Illustrative archive thumbnail';
-            tile.appendChild(image);
-        }
-
-        const body = create('div', undefined, 'body');
-        body.appendChild(
-            create('div', `${formatDate(post.date)} · ${post.category || 'Research'}`, 'meta')
-        );
-
-        const heading = create('h3');
-        const link = create('a', post.title || 'Untitled article');
-        link.href = safeBlogPath(post.url) || '#';
-        heading.appendChild(link);
-        body.appendChild(heading);
-        body.appendChild(create('p', post.description || 'Archive entry'));
-
-        const status = post.published
-            ? 'Publisher verified route'
-            : (post.recovered ? 'Recovered draft · review' : 'Source pending');
-        body.appendChild(create('span', status, 'state'));
-        tile.appendChild(body);
-        return tile;
-    }
-
-    function redraw() {
-        const query = search.value.trim().toLowerCase();
-        const selectedCategory = category.value;
-
-        const matching = records.filter((post) => {
-            const haystack = [post.title, post.description, ...(post.tags || [])]
-                .filter(Boolean).join(' ').toLowerCase();
-            return (!query || haystack.includes(query)) &&
-                (!selectedCategory || post.category === selectedCategory);
-        });
-
-        if (sort.value === 'title') {
-            matching.sort((a, b) => a.title.localeCompare(b.title));
-        } else if (sort.value === 'oldest') {
-            matching.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
-        } else {
-            matching.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-        }
-
-        const pages = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
-        page = Math.min(Math.max(0, page), pages - 1);
-        mount.replaceChildren();
-
-        const start = page * PAGE_SIZE;
-        matching.slice(start, start + PAGE_SIZE)
-            .forEach((post) => mount.appendChild(createCard(post)));
-
-        if (!matching.length) {
-            mount.appendChild(
-                create('p', 'No matching posts. Try another search.', 'empty')
-            );
-        }
-
-        counter.textContent = `${matching.length} entries`;
-        pageLabel.textContent = `Page ${page + 1} / ${pages}`;
-        previous.disabled = page === 0;
-        next.disabled = page >= pages - 1;
-    }
-
-    function loadJson(url, optional = false) {
-        return fetch(url, { cache: 'no-cache' })
-            .then((response) => {
-                if (!response.ok) {
-                    if (optional) {
-                        return { posts: [] };
-                    }
-                    throw new Error(`Archive manifest unavailable (${response.status})`);
-                }
-                return response.json();
-            })
-            .catch((error) => {
-                if (optional) {
-                    return { posts: [] };
-                }
-                throw error;
-            });
-    }
-
-    Promise.all([
-        loadJson('/blog/catalog.json'),
-        loadJson('/blog/zzxblog-posts.json', true)
-    ]).then(([catalog, publisher]) => {
-        const legacyPosts = catalog.posts || [];
-        const newPosts = (publisher.posts || [])
-            .filter((post) => typeof post.url === 'string' &&
-                post.url.startsWith('/blog/posts/') && safeBlogPath(post.url))
-            .map((post) => ({
-                title: post.title,
-                url: post.url,
-                description: post.description || '',
-                date: post.date,
-                tags: post.tags || [],
-                thumb: post.thumb || '',
-                category: 'New Publications',
-                published: true,
-                recovered: true
-            }));
-
-        const publishedPaths = new Set(newPosts.map((post) => post.url));
-        records = [
-            ...newPosts,
-            ...legacyPosts.filter((post) => !publishedPaths.has(post.url))
-        ];
-
-        const categories = [...new Set(records.map((post) => post.category))].sort();
-        categories.forEach((name) => {
-            const option = create('option', name);
-            option.value = name;
-            category.appendChild(option);
-        });
-        redraw();
-    }).catch(() => {
-        counter.textContent = 'Archive data failed to load';
-        mount.appendChild(create(
-            'p',
-            'Archive manifest could not be loaded. ' +
-                'Use a local HTTP server rather than opening index.html with file://.',
-            'empty'
-        ));
+    item.appendChild(body);
+    return item;
+  }
+  function redraw() {
+    const q = search.value.toLowerCase().trim();
+    const cat = category.value;
+    const state = status.value;
+    const filtered = records.filter((p) => {
+      const searchable = [p.title, p.description, p.category, ...(p.tags || [])].join(' ').toLowerCase();
+      return (!q || searchable.includes(q)) && (!cat || p.category === cat) &&
+        (state === 'all' || (state === 'published' ? p.published === true : !p.published));
     });
-
-    [search, category, sort].forEach((control) => {
-        control.addEventListener('input', () => {
-            page = 0;
-            redraw();
-        });
-    });
-    previous.addEventListener('click', () => {
-        page -= 1;
-        redraw();
-    });
-    next.addEventListener('click', () => {
-        page += 1;
-        redraw();
-    });
+    if (sort.value === 'title') filtered.sort((a,b) => a.title.localeCompare(b.title));
+    else if (sort.value === 'oldest') filtered.sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+    else filtered.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
+    const pages = Math.max(1, Math.ceil(filtered.length / SIZE));
+    page = Math.max(0,Math.min(page,pages-1));
+    grid.replaceChildren(...filtered.slice(page*SIZE,(page+1)*SIZE).map(card));
+    if (!filtered.length) grid.appendChild(el('p',
+      isArchive ? 'No articles in this view. Change publication filter to see drafts.' : 'No matching articles.', 'empty'));
+    count.textContent = `${filtered.length} ${filtered.length===1 ? 'entry' : 'entries'}`;
+    pageLabel.textContent = `Page ${page+1} / ${pages}`;
+    prev.disabled = page===0;
+    next.disabled = page>=pages-1;
+  }
+  async function boot() {
+    try {
+      const response = await fetch('/blog/catalog.json',{cache:'no-cache'});
+      if (!response.ok) throw new Error(`Catalog HTTP ${response.status}`);
+      const data = await response.json();
+      const seen = new Set();
+      records = (Array.isArray(data.posts) ? data.posts : []).filter((p) => {
+        const key = safeBlogUrl(p.url);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      for (const name of [...new Set(records.map((p) => p.category || 'Research'))].sort()) {
+        const option = el('option',name); option.value=name; category.appendChild(option);
+      }
+      status.value = isArchive ? 'published' : 'all';
+      redraw();
+    } catch (err) {
+      count.textContent = 'Cannot load catalog';
+      grid.replaceChildren(el('p',
+        'The catalog could not be loaded. Run the catalog builder and serve through an HTTP server (not file://).','empty'));
+    }
+  }
+  for (const control of [search, category, sort, status]) {
+    control.addEventListener('input', () => {page=0; redraw();});
+  }
+  prev.addEventListener('click',()=>{page--;redraw();});
+  next.addEventListener('click',()=>{page++;redraw();});
+  boot();
 })();
