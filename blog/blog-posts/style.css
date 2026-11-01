@@ -1,72 +1,197 @@
-:root{
-  --accent:#c0d674;    /* green primary */
-  --accent-alt:#e6a42b;/* ochre secondary/back */
-  --muted:#8a8f98;
+/*
+ * ZZX-BLOG / Archive-specific styles
+ * Path: /blog/blog-posts/style.css
+ * Load after /blog/style.css (shared styles) and /static/styles.css.
+ * Supports both the v5 blog-card renderer and legacy .feature markup.
+ * This file does not modify site-wide rules or artwork assets.
+ */
+
+.blog-archives,
+.zzx-blog-archive {
+    --archive-green: var(--zzx-green, #c0d674);
+    --archive-gold: var(--zzx-gold, #e6a42b);
+    --archive-ink: var(--zzx-ink, #e9efe8);
+    --archive-muted: var(--zzx-soft, #bdc9c0);
+    --archive-panel: var(--zzx-panel, #192125);
+    --archive-border: var(--zzx-line, #39494c);
 }
 
-.container{max-width:1200px;margin:0 auto;padding:1rem;}
-.lede{color:#adb5bd;margin:.35rem 0 1rem;}
-
-.controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0 1rem;}
-.controls input[type="search"], .controls select{
-  background:rgba(255,255,255,0.05);
-  color:#eaeaea;border:1px solid rgba(255,255,255,0.14);
-  padding:.45rem .6rem;border-radius:8px;
+/* The current v5 archive uses #archives, .month-group, .blog-grid and .blog-card. */
+.blog-archives #archives,
+.zzx-blog-archive #archives,
+.blog-archives .archives,
+.zzx-blog-archive .archives {
+    width: min(100%, 1260px);
+    margin-inline: auto;
+    padding: 0 clamp(17px, 3vw, 34px) 2rem;
 }
 
-.archives{max-width:1200px;margin:0 auto;padding:0 1rem 1.75rem;}
-.month-group{margin:1.2rem 0;}
-.month-group h3{
-  margin:.5rem 0 .4rem;
-  color:#eaeaea;font-weight:700;font-size:1.1rem;
-  border-bottom:1px dashed rgba(255,255,255,0.12);
-  padding-bottom:.35rem;
+/* Avoid doubling the page gutter if #archives lives in a .blog-wrap. */
+.blog-archives .blog-wrap > #archives,
+.zzx-blog-archive .blog-wrap > #archives {
+    width: 100%;
+    padding-inline: 0;
 }
 
-.feature{
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:10px;
-  background:rgba(255,255,255,0.03);
-  padding:1rem 1.1rem;
-  margin:.6rem 0;
-  display:flex;gap:1rem;
-}
-.feature .thumb{
-  width:140px;min-width:140px;height:90px;border-radius:6px;overflow:hidden;
-  background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;
-}
-.feature .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-.feature .body{flex:1;min-width:0;}
-.feature h4{margin:0 0 .25rem;color:var(--accent);font-weight:600;font-size:1.02rem;}
-.feature h4 a{color:inherit;text-decoration:none;}
-.feature h4 a:hover{text-decoration:underline;}
-.feature p{margin:0 0 .5rem;color:#cfd3da;}
-.feature .meta{color:var(--muted);font-size:.85rem;margin:.15rem 0 0;}
-.feature .tags{margin-top:.35rem;}
-.feature .tag{
-  display:inline-block;font-size:.72rem;color:#bcc2ca;
-  border:1px solid rgba(255,255,255,0.14);border-radius:999px;
-  padding:.12rem .5rem;margin:.1rem .25rem 0 0;
+.blog-archives .month-group,
+.zzx-blog-archive .month-group {
+    margin-block: 1.25rem 2rem;
 }
 
-/* Buttons */
-.btn{
-  display:inline-block;color:#0e1116;background:var(--accent);
-  border:1px solid rgba(255,255,255,0.12);
-  padding:.42rem .78rem;border-radius:8px;text-decoration:none;font-weight:700;line-height:1;
+.blog-archives .month-group > h3,
+.zzx-blog-archive .month-group > h3 {
+    margin: 0 0 1rem;
+    padding-bottom: .6rem;
+    color: var(--archive-ink);
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    line-height: 1.3;
+    border-bottom: 1px solid var(--archive-border);
 }
-.btn:hover{filter:brightness(1.05);}
-.btn.alt{background:var(--accent-alt);color:#0e1116;}
 
-.feature .btn{margin-top:.35rem;}
-.loading{color:var(--muted);font-style:italic;}
-.muted{color:var(--muted);}
-
-/* Scroll Sentinel */
-#scroll-sentinel{
-  max-width:1200px;
-  margin:0 auto;
-  padding:0 1rem 1.75rem;
-  text-align:center;
+.blog-archives .month-group .blog-grid,
+.zzx-blog-archive .month-group .blog-grid {
+    align-items: stretch;
 }
-#scroll-sentinel .loading{margin:0.25rem 0 0;}
+
+/* Legacy archives may still render .feature rows instead of .blog-card tiles. */
+.blog-archives .feature,
+.zzx-blog-archive .feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    min-width: 0;
+    padding: 1rem;
+    margin: .75rem 0;
+    border: 1px solid var(--archive-border);
+    border-radius: 12px;
+    background: var(--archive-panel);
+}
+
+.blog-archives .feature .thumb,
+.zzx-blog-archive .feature .thumb {
+    display: block;
+    flex: 0 0 155px;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #25332f;
+}
+
+.blog-archives .feature .thumb img,
+.zzx-blog-archive .feature .thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.blog-archives .feature .body,
+.zzx-blog-archive .feature .body {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.blog-archives .feature h4,
+.zzx-blog-archive .feature h4 {
+    margin: 0 0 .4rem;
+    color: var(--archive-green);
+    font-size: 1.1rem;
+    line-height: 1.35;
+}
+
+.blog-archives .feature h4 a,
+.zzx-blog-archive .feature h4 a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.blog-archives .feature h4 a:hover,
+.zzx-blog-archive .feature h4 a:hover {
+    text-decoration: underline;
+}
+
+.blog-archives .feature p,
+.zzx-blog-archive .feature p {
+    margin: .25rem 0 .6rem;
+    color: var(--archive-muted);
+}
+
+.blog-archives .feature .meta,
+.zzx-blog-archive .feature .meta {
+    color: var(--archive-gold);
+    font: .8rem/1.5 'IBM Plex Mono', Consolas, monospace;
+}
+
+.blog-archives .feature .tags,
+.zzx-blog-archive .feature .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-top: .6rem;
+}
+
+.blog-archives .feature .tag,
+.zzx-blog-archive .feature .tag {
+    border: 1px solid var(--archive-border);
+    border-radius: 999px;
+    padding: .2rem .55rem;
+    color: var(--archive-muted);
+    font-size: .72rem;
+}
+
+/* Legacy controls only; modern .blog-controls are styled in /blog/style.css. */
+.blog-archives .controls,
+.zzx-blog-archive .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    align-items: center;
+    margin: .75rem 0 1rem;
+}
+
+.blog-archives .controls input[type='search'],
+.blog-archives .controls select,
+.zzx-blog-archive .controls input[type='search'],
+.zzx-blog-archive .controls select {
+    min-height: 44px;
+    padding: .65rem .8rem;
+    border: 1px solid #52645d;
+    border-radius: 8px;
+    background: #1b272a;
+    color: var(--archive-ink);
+    font: inherit;
+}
+
+.blog-archives .controls input[type='search'],
+.zzx-blog-archive .controls input[type='search'] {
+    flex: 2 1 220px;
+}
+
+.blog-archives .controls select,
+.zzx-blog-archive .controls select {
+    flex: 1 1 145px;
+}
+
+/* Some legacy pages use a sentinel for incremental loading. */
+.blog-archives #scroll-sentinel,
+.zzx-blog-archive #scroll-sentinel {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding: .75rem 1rem 2rem;
+    color: var(--archive-muted);
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .blog-archives .feature,
+    .zzx-blog-archive .feature {
+        flex-direction: column;
+    }
+
+    .blog-archives .feature .thumb,
+    .zzx-blog-archive .feature .thumb {
+        width: 100%;
+        flex: none;
+        aspect-ratio: 16 / 9;
+    }
+}
