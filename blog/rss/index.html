@@ -1,55 +1,62 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="index, follow">
-    <title>Blog RSS | ZZX-Labs R&D</title>
-    <link rel="stylesheet" href="../../static/styles.css">
-    <script src="../../static/script.js" defer></script>
-<link rel="stylesheet" href="/blog/hero-art.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="index, follow">
+  <title>RSS &amp; Syndication | ZZX-Labs R&amp;D</title>
+  <meta name="description" content="Subscribe to original research, cybersecurity analysis, Bitcoin engineering, software development and laboratory dispatches from ZZX-Labs R&amp;D.">
+  <link rel="canonical" href="https://zzx-labs.io/blog/rss/">
+  <link rel="alternate" type="application/rss+xml" title="ZZX-Labs R&amp;D RSS" href="/blog/rss/index.xml">
+  <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/static/icons/favicon-16.png" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/blog/hero-art.css">
+  <script src="/static/script.js" defer></script>
+  <script src="/blog/rss/script.js" defer></script>
 </head>
-<body>
-<header>
+<body class="blog-rss zzx-site-page zzx-page-blog">
+  <a class="skip" href="#content">Skip to content</a>
+  <header>
     <div id="zzx-header"></div>
-</header>
-<main>
-<figure class="zzx-masthead"><img src="/assets/hero/zzx-rss-home.png" alt="Original ZZX-Labs RSS syndication editorial artwork" width="1920" height="1080" loading="eager" decoding="async"><figcaption>ZZX-Labs R&D · Original independent editorial illustration</figcaption></figure>
-
-    <br>
-    <!-- Bitcoin Ticker Widget -->
-    <div id="ticker-container"></div>
-    <br>
-
-<section class="container">
-  <h2>ZZX-Labs Blog RSS Feed</h2>
-  <p>
-    Our blog system at <a href="/blog/">zzx-labs.io/blog</a> supports a fully compliant RSS 2.0 feed for easy syndication and subscription. This allows users, researchers, and developers to stay updated on new posts, technical reports, changelogs, and thought pieces from the ZZX-Labs ecosystem.
-  </p>
-  <p>
-    You can subscribe to the RSS feed using your favorite RSS reader, terminal client, or integration platform. The feed is generated dynamically and rebuilt whenever the publisher runs; changes are visible after deployment.
-  </p>
-  <p>
-    <strong>RSS Feed URL:</strong>
-    <br>
-    <code>https://zzx-labs.io/blog/rss/index.xml</code>
-  </p>
-  <p>
-    <strong>Supported Features:</strong>
-    <ul>
-      <li style="list-style-type: none;">Post title, description, date, link, categories and original artwork (where available)</li>
-      <li style="list-style-type: none;">Chronological export of the currently published manifest entries</li>
-      <li style="list-style-type: none;">Compatible with most RSS clients including Thunderbird, Feedly, NetNewsWire, and terminal tools like <code>newsboat</code></li>
-    </ul>
-  </p>
-  <p>
-    For developers, the RSS XML can be parsed programmatically using any XML or RSS parsing library in Python, Go, JavaScript, or your preferred language.
-  </p>
-</section>
-<br><br>
-<section class="container"><h2>Recent dispatches</h2><div id="rss-previews" class="features"></div><p><a class="btn" href="/blog/rss/index.xml">Open RSS XML feed</a></p></section><script src="./script.js" defer></script></main>
-<footer>
-	<div id="zzx-footer"></div>
-</footer>
+  </header>
+  <main id="content">
+    <figure class="zzx-masthead">
+      <img src="/assets/hero/zzx-rss-home.png"
+           alt="ZZX-Labs R&amp;D journal syndication illustration"
+           width="1920" height="1080" loading="eager" decoding="async"
+           fetchpriority="high">
+      <figcaption>ZZX-Labs R&amp;D · Research syndication</figcaption>
+    </figure>
+    <div id="ticker-container" aria-label="Bitcoin market ticker"></div>
+    <section class="container" aria-labelledby="rss-heading">
+      <p class="lede">ZZX-Labs R&amp;D / Journal syndication</p>
+      <h1 id="rss-heading">RSS feed</h1>
+      <p>Subscribe to our published technical research, software-engineering notes,
+         cybersecurity investigations, Bitcoin infrastructure work, and editorial analysis.
+         Only approved, published articles belong in the feed.</p>
+      <p>The publisher rebuilds the feed when new material is published; GitHub Pages serves
+         the resulting static XML after deployment.</p>
+      <p><strong>Feed address:</strong>
+        <a href="/blog/rss/index.xml"><code>https://zzx-labs.io/blog/rss/index.xml</code></a>
+      </p>
+      <p>Compatible with RSS 2.0 readers such as Thunderbird, NetNewsWire, and newsboat.
+         Articles can include publication dates, tags, summaries and image links where available.</p>
+      <nav class="controls" aria-label="Blog navigation">
+        <a class="btn" href="/blog/rss/index.xml">Open RSS XML</a>
+        <a class="btn alt" href="/blog/">Journal</a>
+        <a class="btn alt" href="/blog/blog-posts/">Archive</a>
+      </nav>
+    </section>
+    <section class="container" aria-labelledby="dispatches-heading">
+      <h2 id="dispatches-heading">Recent dispatches</h2>
+      <div id="rss-previews" class="features" aria-live="polite"></div>
+      <noscript><p>JavaScript is disabled. Use the RSS XML link to subscribe directly.</p></noscript>
+    </section>
+  </main>
+  <footer><div id="zzx-footer"></div></footer>
 </body>
 </html>
