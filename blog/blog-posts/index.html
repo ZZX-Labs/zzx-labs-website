@@ -1,56 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="index, follow" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow">
+  <meta name="description" content="Browse the ZZX-Labs R&D archive of cybersecurity research, engineering logs, technical essays and project announcements.">
   <title>Blog Posts · Archives | ZZX-Labs R&D</title>
+  <link rel="canonical" href="https://zzx-labs.io/blog/blog-posts/">
+  <link rel="alternate" type="application/rss+xml" title="ZZX-Labs R&D RSS Feed" href="/blog/rss.xml">
 
-  <!-- Global -->
-  <link rel="stylesheet" href="/static/styles.css" />
+  <!-- Shared site icons -->
+  <link rel="icon" href="/static/icons/favicon.ico" sizes="any">
+  <link rel="icon" href="/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/static/icons/favicon-16.png" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+
+  <!-- Global, shared blog artwork and archive-specific styles -->
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/blog/hero-art.css">
+  <link rel="stylesheet" href="./style.css">
+
+  <!-- Preserve dependency order: global shell, hero-art mapping, archive UI -->
   <script src="/static/script.js" defer></script>
-
-  <!-- Local -->
-  <link rel="stylesheet" href="./style.css" />
   <script src="/blog/hero-art.js" defer></script>
   <script src="./script.js" defer></script>
-<link rel="stylesheet" href="/blog/hero-art.css">
 </head>
 <body class="blog-archives">
-<header>
-  <div id="zzx-header"></div>
-</header>
+  <a class="skip-link" href="#main-content">Skip to archive content</a>
 
-<main>
-<figure class="zzx-masthead"><img src="/assets/hero/zzx-archive-home.png" alt="Original illustration of the ZZX-Labs document archives" width="1920" height="1080" loading="eager" decoding="async"><figcaption>ZZX-Labs R&D · Original independent editorial illustration</figcaption></figure>
+  <header>
+    <div id="zzx-header"></div>
+  </header>
 
-  <br /><div id="ticker-container"></div><br />
+  <main id="main-content">
+    <!-- Unique archive masthead; not shared with /blog/ or /blog/rss/ -->
+    <figure class="zzx-masthead">
+      <img
+        src="/assets/hero/zzx-archive-home.png"
+        alt="Illustration representing the ZZX-Labs R&D document and research archives"
+        width="1920"
+        height="1080"
+        loading="eager"
+        decoding="async">
+      <figcaption>ZZX-Labs R&D · Research and publication archives</figcaption>
+    </figure>
 
-  <section class="container">
-    <h1>ZZX-Labs Blog Posts</h1>
-    <p class="lede">Long-form essays, engineering logs, announcements, and deep thoughts. Posts are prepared for publication through <code>.tank</code> into <code>.posted</code>.</p>
+    <div id="ticker-container" aria-label="ZZX-Labs news ticker"></div>
 
-    <div class="controls">
-      <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search posts" />
-      <select id="tag-filter" aria-label="Filter by tag">
-        <option value="">All tags</option>
-      </select>
-      <button class="btn" id="shuffle">Shuffle</button>
-      <a class="btn alt" href="/blog/">← Blog Home</a>
-      <a class="btn alt" href="/">← Home</a>
-    </div>
-  </section>
+    <section class="container" aria-labelledby="archive-title">
+      <h1 id="archive-title">ZZX-Labs Blog Posts</h1>
+      <p class="lede">Long-form essays, engineering logs, technical investigations and announcements. Posts are prepared for publication through <code>.tank</code> and published to <code>.posted</code>.</p>
 
-  <!-- Grouped by Month Year -->
-  <section class="container">
-    <h2>All Posts</h2>
-  </section>
-  <section id="archives" class="archives">
-    <p class="loading">Loading posts…</p>
-  </section>
-</main>
+      <!-- Keep existing IDs for ./script.js -->
+      <div class="controls" role="search" aria-label="Search and filter archived posts">
+        <input id="search" type="search" placeholder="Search titles/descriptions…" aria-label="Search archived posts">
+        <select id="tag-filter" aria-label="Filter archived posts by tag">
+          <option value="">All tags</option>
+        </select>
+        <button class="btn" id="shuffle" type="button">Shuffle</button>
+        <a class="btn alt" href="/blog/">← Blog Home</a>
+        <a class="btn alt" href="/blog/rss.xml" type="application/rss+xml">RSS Feed</a>
+        <a class="btn alt" href="/">← Home</a>
+      </div>
+    </section>
 
-<footer>
-  <div id="zzx-footer"></div>
-</footer>
+    <section class="container" aria-labelledby="all-posts-heading">
+      <h2 id="all-posts-heading">All Posts</h2>
+    </section>
+    <!-- Populated and grouped by month/year by ./script.js -->
+    <section id="archives" class="archives" aria-labelledby="all-posts-heading">
+      <p class="loading" role="status">Loading posts…</p>
+    </section>
+    <noscript>
+      <p class="container">JavaScript is required to display the interactive archive. You can also subscribe to the <a href="/blog/rss.xml">RSS feed</a>.</p>
+    </noscript>
+  </main>
+
+  <footer>
+    <div id="zzx-footer"></div>
+  </footer>
 </body>
 </html>
