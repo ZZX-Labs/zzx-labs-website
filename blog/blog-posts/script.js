@@ -127,7 +127,7 @@
     const thumb = el("div", "thumb");
     if (it.thumb) {
       const img = new Image();
-      img.alt = "";
+      img.alt = it.hero_alt || it.title;
       img.src = it.thumb;
       thumb.appendChild(img);
     } else {
@@ -249,7 +249,7 @@
       return;
     }
 
-    ALL = dedupeByUrl(items).sort((a, b) => new Date(b.date) - new Date(a.date));
+    ALL = await window.ZZXHero.normalize(dedupeByUrl(items).sort((a, b) => new Date(b.date) - new Date(a.date)));
 
     collectTags(ALL);
     fillTagSelect();
