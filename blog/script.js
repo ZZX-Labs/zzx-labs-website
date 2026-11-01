@@ -1,179 +1,289 @@
-/* ZZX-BLOG v5: ONE shared browser script for /blog/, /blog/journal/,
-   /blog/blog-posts/, /blog/blog-posts/YYYY-MM-.../, /blog/rss/ and posts.
-   Works on GitHub Pages; no node, React, npm, Flask, or external runtime.
-   Initial HTML includes all entries for non-JS fallback. */
+/* ZZX-LABS R&D | ZZX-BLOG shared browser renderer v6.8
+ * Covers /blog/, /blog/journal/, /blog/blog-posts/, monthly archives, /blog/rss/.
+ * Article pages have no listing controls and are left unchanged.
+ * Pure browser JavaScript; no dependencies, build step, or server-side runtime.
+ * Pre-rendered HTML is retained if fetching /blog/catalog.json fails.
+ * Catalog artwork is authoritative; this renderer never reassigns images.
+ */
 (() => {
   'use strict';
-  const root = document.body;
-  if (!root || !root.classList.contains('zzx-blog')) return;
-  const view = root.dataset.blogView || 'home';
-  const search = document.getElementById('search');
-  if (!search) return;  // Article pages need only shared CSS and site chrome.
-  const category = document.getElementById('category-filter');
-  const tag = document.getElementById('tag-filter');
-  const sort = document.getElementById('sort-order');
-  const shuffle = document.getElementById('shuffle');
-  const status = document.getElementById('blog-status');
-  const count = document.getElementById('post-count');
-  let all = [];
-  let shuffled = false;
-  let shuffledOrder = [];
-  const elt = (name, cls, text) => {
-    const node = document.createElement(name);
-    if (cls) node.className = cls;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
-  const clear = node => { if (node) node.replaceChildren(); };
-  const dateValue = p => Number.isFinite(Date.parse(p.date)) ? Date.parse(p.date) : 0;
-  const day = p => (p.date || '').slice(0, 10);
-  const normalize = raw => ({
-    title: String(raw.title || 'Untitled'), url: String(raw.url || ''),
-    description: String(raw.description || ''), date: String(raw.date || ''),
-    category: String(raw.category || 'Research'),
-    thumb: String(raw.thumb || ''), hero_alt: String(raw.hero_alt || raw.title || ''),
-    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-    status: String(raw.status || '')
-  });
-  function imageBlock(post) {
-    const a = elt('a', 'blog-card-art');
-    a.href = post.url;
-    if (post.thumb.startsWith('/assets/hero/') && post.thumb.endsWith('.png')) {
-      const img = elt('img');
-      img.src = post.thumb;
-      img.alt = post.hero_alt;
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.addEventListener('error', () => { img.hidden = true; a.classList.add('image-unavailable'); }, {once:true});
-      a.append(img);
-    } else a.classList.add('image-unavailable');
-    return a;
-  }
-  function card(post) {
-    const item = elt('article', 'blog-card');
-    item.dataset.url = post.url;
-    const body = elt('div', 'blog-card-body');
-    const meta = elt('div', 'blog-meta');
-    meta.append(elt('span','',post.category), elt('span','',`${day(post)} (archive date)`));
-    const h = elt('h3'); const link = elt('a','',post.title); link.href = post.url; h.append(link);
-    body.append(meta, h, elt('p','',post.description));
-    if (post.status === 'source-missing') body.append(elt('span','archive-flag','Source text unavailable'));
-    const tags = elt('div', 'blog-tags');
-    post.tags.slice(0,4).forEach(x => tags.append(elt('span','blog-tag',x)));
-    const read = elt('a','blog-read','Read article'); read.href = post.url;
-    body.append(tags,read);
-    item.append(imageBlock(post),body);
-    return item;
-  }
-  function optionsFor(select, values, name) {
-    if (!select) return;
-    const current = select.value;
-    clear(select);
-    const first = elt('option','',`All ${name}`); first.value = ''; select.append(first);
-    [...new Set(values)].filter(Boolean).sort((a,b) => a.localeCompare(b)).forEach(value => {
-      const option = elt('option','',value); option.value = value; select.append(option);
-    });
-    if ([...select.options].some(o => o.value === current)) select.value = current;
-  }
-  function shuffleArray(xs) {
-    for (let i = xs.length-1; i>0; i--) {
-      const j = Math.floor(Math.random() * (i+1));
-      [xs[i],xs[j]] = [xs[j],xs[i]];
+
+  function boot() {
+    const root = document.body;
+    if (!root || !root.classList.contains('zzx-blog')) return;
+
+    const view = root.dataset.blogView || 'home';
+    const containers = {
+      featured: document.getElementById('featured-list'),
+      recent: document.getElementById('recent-list'),
+      archive: document.getElementById('archives'),
+      rss: document.getElementById('rss-previews'),
+      month: document.getElementById('month-posts')
+    };
+    const search = document.getElementById('search');
+    const category = document.getElementById('category-filter');
+    const tag = document.getElementById('tag-filter');
+    const sort = document.getElementById('sort-order');
+    const shuffle = document.getElementById('shuffle');
+    const publication = document.getElementById('publication-status');
+    const status = document.getElementById('blog-status');
+    const count = document.getElementById('post-count');
+
+    // The shared site script handles the global header, ticker, and footer.
+    // Do not mutate article pages or a legacy page with different containers.
+    const destination = view === 'archive' ? containers.archive
+      : view === 'rss' ? containers.rss
+      : view === 'month' ? containers.month : containers.recent;
+    if (!search || !destination) return;
+
+    const monthKey = /^\d{4}-\d{2}$/.test(root.dataset.blogMonth || '')
+      ? root.dataset.blogMonth : '';
+    let records = [];
+    let randomRanks = null;
+
+    const make = (tagName, className = '', text) => {
+      const node = document.createElement(tagName);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = String(text);
+      return node;
+    };
+    const clean = element => { if (element) element.replaceChildren(); };
+    const dateMs = post => {
+      const number = Date.parse(post.date);
+      return Number.isFinite(number) ? number : -Infinity;
+    };
+    const displayDate = post => /^\d{4}-\d{2}-\d{2}/.test(post.date)
+      ? post.date.substring(0, 10) : 'Undated';
+    const validArticleURL = value => typeof value === 'string' &&
+      /^\/blog\/blog-posts\/\d{4}-\d{2}-[a-z]+\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(value);
+    const validImageURL = value => typeof value === 'string' &&
+      /^\/assets\/hero\/[a-z0-9][a-z0-9_-]*\.png$/.test(value);
+
+    function normalize(raw) {
+      if (!raw || typeof raw !== 'object' || !validArticleURL(raw.url)) return null;
+      const tags = Array.isArray(raw.tags) ? raw.tags.filter(x => typeof x === 'string') : [];
+      const editorialStatus = typeof raw.status === 'string' ? raw.status : '';
+      const isPublished = editorialStatus === 'published' ||
+        (!editorialStatus && raw.published === true);
+      return {
+        url: raw.url,
+        title: String(raw.title || 'Untitled'),
+        description: String(raw.description || ''),
+        date: typeof raw.date === 'string' ? raw.date : '',
+        category: String(raw.category || 'Research'),
+        tags,
+        thumb: validImageURL(raw.thumb) ? raw.thumb : '',
+        heroAlt: String(raw.hero_alt || raw.title || 'ZZX-Labs editorial artwork'),
+        status: editorialStatus,
+        published: isPublished
+      };
     }
-    return xs;
-  }
-  function filtered() {
-    const query = search.value.trim().toLocaleLowerCase();
-    let posts = all.filter(p => {
-      if (view === 'month' && !p.date.startsWith(root.dataset.blogMonth || '')) return false;
-      if (category.value && category.value !== p.category) return false;
-      if (tag.value && !p.tags.includes(tag.value)) return false;
-      return !query || [p.title,p.description,p.category,...p.tags].join(' ').toLocaleLowerCase().includes(query);
-    });
-    if (shuffled) {
-      const ranks = new Map(shuffledOrder.map((key,i) => [key,i]));
-      posts.sort((a,b) => (ranks.get(a.url) ?? 1e9)-(ranks.get(b.url) ?? 1e9));
-    } else if (sort.value === 'title') posts.sort((a,b) => a.title.localeCompare(b.title));
-    else posts.sort((a,b) => sort.value === 'oldest' ? dateValue(a)-dateValue(b) : dateValue(b)-dateValue(a));
-    return posts;
-  }
-  function showCards(target, posts) {
-    if (!target) return;
-    clear(target);
-    const fragment = document.createDocumentFragment();
-    posts.forEach(p => fragment.append(card(p)));
-    target.append(fragment);
-  }
-  function archive(target, posts) {
-    if (!target) return;
-    clear(target);
-    const groups = new Map();
-    posts.forEach(p => {
-      const key = p.date.slice(0,7) || 'Undated';
-      if (!groups.has(key)) groups.set(key,[]);
-      groups.get(key).push(p);
-    });
-    for (const [month, entries] of groups) {
-      const section = elt('section','month-group');
-      const heading = elt('div','blog-section-head');
-      let label = month;
-      if (/^\d{4}-\d{2}$/.test(month)) {
-        const dt = new Date(month+'-01T00:00:00Z');
-        if (!Number.isNaN(+dt)) label = dt.toLocaleDateString('en-US',{timeZone:'UTC',month:'long',year:'numeric'});
+
+    function imageBlock(post) {
+      const link = make('a', 'blog-card-art');
+      link.href = post.url;
+      if (!post.thumb) {
+        link.classList.add('image-unavailable');
+        return link;
       }
-      heading.append(elt('h2','',label), elt('p','',`${entries.length} entries`));
-      const grid = elt('div','blog-grid'); entries.forEach(p => grid.append(card(p)));
-      section.append(heading,grid); target.append(section);
+      const image = make('img');
+      image.src = post.thumb;
+      image.alt = post.heroAlt;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.addEventListener('error', () => {
+        image.hidden = true;
+        link.classList.add('image-unavailable');
+      }, {once: true});
+      link.append(image);
+      return link;
     }
-  }
-  function render() {
-    const posts = filtered();
-    if (count) count.textContent = String(all.length);
-    if (status) status.textContent = `Showing ${posts.length} of ${view === 'month' ? all.filter(p=>p.date.startsWith(root.dataset.blogMonth||'')).length : all.length} articles`;
-    if (view === 'home' || view === 'journal') {
-      const feat = document.getElementById('featured-list');
-      const recent = document.getElementById('recent-list');
-      showCards(feat,posts.slice(0,4)); showCards(recent,posts.slice(4));
-    } else if (view === 'archive') archive(document.getElementById('archives'),posts);
-    else if (view === 'rss') showCards(document.getElementById('rss-previews'),posts);
-    else if (view === 'month') showCards(document.getElementById('month-posts'),posts);
-    if (!posts.length) {
-      const dest = document.getElementById(view === 'archive' ? 'archives' : view === 'rss' ? 'rss-previews' : view === 'month' ? 'month-posts' : 'recent-list');
-      if (dest) dest.append(elt('p','empty-message','No articles match these filters.'));
+
+    function card(post) {
+      const article = make('article', 'blog-card');
+      article.dataset.url = post.url;
+      const body = make('div', 'blog-card-body');
+      const meta = make('div', 'blog-meta');
+      meta.append(
+        make('span', '', post.category),
+        make('span', '', `${displayDate(post)} (${post.published ? 'published' : 'archive date'})`)
+      );
+      const heading = make('h3');
+      const titleLink = make('a', '', post.title);
+      titleLink.href = post.url;
+      heading.append(titleLink);
+      body.append(meta, heading, make('p', '', post.description));
+      if (post.status === 'source-missing') {
+        body.append(make('span', 'archive-flag', 'Original source text unavailable'));
+      }
+      const tagBox = make('div', 'blog-tags');
+      post.tags.slice(0, 4).forEach(value => tagBox.append(make('span', 'blog-tag', value)));
+      const read = make('a', 'blog-read', 'Read article');
+      read.href = post.url;
+      body.append(tagBox, read);
+      article.append(imageBlock(post), body);
+      return article;
     }
-  }
-  async function init() {
-    let data;
-    try {
-      const response = await fetch('/blog/catalog.json', {cache:'no-cache'});
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      data = await response.json();
-      if (!data || !Array.isArray(data.posts)) throw new Error('Invalid catalog schema');
-    } catch (err) {
-      // Static HTML has all posts pre-rendered; never erase them on fetch failure.
-      if (status) status.textContent = 'Showing the static article index (live filtering unavailable).';
-      console.warn('ZZX Blog: catalog unavailable; static posts retained.',err);
-      return;
+
+    function populateSelect(select, values, title) {
+      if (!select) return;
+      const prior = select.value;
+      const empty = make('option', '', `All ${title}`);
+      empty.value = '';
+      select.replaceChildren(empty);
+      const distinct = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      for (const value of distinct) {
+        const option = make('option', '', value);
+        option.value = value;
+        select.append(option);
+      }
+      if (distinct.includes(prior)) select.value = prior;
     }
-    const urls = new Set(); const thumbs = new Set();
-    all = data.posts.map(normalize).filter(p => {
-      if (!p.url.startsWith('/blog/blog-posts/') || urls.has(p.url)) return false;
-      urls.add(p.url);
-      if (p.thumb && thumbs.has(p.thumb)) console.warn('Duplicate artwork assigned:',p.thumb);
-      thumbs.add(p.thumb);
-      return true;
-    });
-    optionsFor(category,all.map(p=>p.category),'categories');
-    optionsFor(tag,all.flatMap(p=>p.tags),'topics');
-    [search,category,tag,sort].forEach(control => {
-      if (control) control.addEventListener(control === search ? 'input' : 'change', () => {shuffled=false;render();});
-    });
-    if (shuffle) shuffle.addEventListener('click', () => {
-      shuffled = true;
-      shuffledOrder = shuffleArray(all.map(p=>p.url));
+
+    function monthScope() {
+      if (view !== 'month' || !monthKey) return records;
+      return records.filter(post => post.date.startsWith(monthKey));
+    }
+
+    function selectRecords() {
+      const query = search.value.trim().toLocaleLowerCase();
+      const categoryValue = category ? category.value : '';
+      const tagValue = tag ? tag.value : '';
+      const publicationValue = publication ? publication.value : 'all';
+      const selected = monthScope().filter(post => {
+        if (categoryValue && post.category !== categoryValue) return false;
+        if (tagValue && !post.tags.includes(tagValue)) return false;
+        if (publicationValue === 'published' && !post.published) return false;
+        if (publicationValue === 'pending' && post.published) return false;
+        if (!query) return true;
+        return [post.title, post.description, post.category, ...post.tags]
+          .join(' ').toLocaleLowerCase().includes(query);
+      });
+
+      if (randomRanks) {
+        selected.sort((a, b) => (randomRanks.get(a.url) ?? Infinity) -
+          (randomRanks.get(b.url) ?? Infinity));
+      } else if (sort && sort.value === 'title') {
+        selected.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sort && sort.value === 'oldest') {
+        selected.sort((a, b) => dateMs(a) - dateMs(b) || a.title.localeCompare(b.title));
+      } else {
+        selected.sort((a, b) => dateMs(b) - dateMs(a) || a.title.localeCompare(b.title));
+      }
+      return selected;
+    }
+
+    function fillCards(element, posts) {
+      if (!element) return;
+      const fragment = document.createDocumentFragment();
+      posts.forEach(post => fragment.append(card(post)));
+      element.replaceChildren(fragment);
+    }
+
+    function fillArchive(element, posts) {
+      if (!element) return;
+      const groups = new Map();
+      posts.forEach(post => {
+        const month = /^\d{4}-\d{2}/.test(post.date) ? post.date.slice(0, 7) : 'undated';
+        if (!groups.has(month)) groups.set(month, []);
+        groups.get(month).push(post);
+      });
+      const fragment = document.createDocumentFragment();
+      for (const [key, group] of groups) {
+        let title = 'Undated';
+        if (key !== 'undated') {
+          const date = new Date(`${key}-01T00:00:00Z`);
+          if (!Number.isNaN(date.getTime())) {
+            title = date.toLocaleDateString('en-US', {timeZone: 'UTC', month: 'long', year: 'numeric'});
+          }
+        }
+        const section = make('section', 'month-group');
+        const heading = make('div', 'blog-section-head');
+        heading.append(make('h2', '', title), make('p', '', `${group.length} entries`));
+        const grid = make('div', 'blog-grid');
+        group.forEach(post => grid.append(card(post)));
+        section.append(heading, grid);
+        fragment.append(section);
+      }
+      element.replaceChildren(fragment);
+    }
+
+    function render() {
+      const scoped = monthScope();
+      const posts = selectRecords();
+      if (count) count.textContent = String(scoped.length);
+      if (status) status.textContent = `Showing ${posts.length} of ${scoped.length} articles`;
+      if (view === 'home' || view === 'journal') {
+        fillCards(containers.featured, posts.slice(0, 4));
+        fillCards(containers.recent, posts.slice(4));
+      } else if (view === 'archive') {
+        fillArchive(containers.archive, posts);
+      } else if (view === 'rss') {
+        fillCards(containers.rss, posts);
+      } else if (view === 'month') {
+        fillCards(containers.month, posts);
+      }
+      if (posts.length === 0) {
+        destination.append(make('p', 'empty-message', 'No articles match these filters.'));
+      }
+    }
+
+    function shuffleRecords() {
+      const urls = records.map(post => post.url);
+      for (let i = urls.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [urls[i], urls[j]] = [urls[j], urls[i]];
+      }
+      randomRanks = new Map(urls.map((value, index) => [value, index]));
+      if (shuffle) shuffle.setAttribute('aria-pressed', 'true');
       render();
-    });
-    render();
+    }
+
+    async function initialize() {
+      try {
+        const response = await fetch('/blog/catalog.json', {cache: 'no-cache'});
+        if (!response.ok) throw new Error(`Catalog HTTP ${response.status}`);
+        const catalog = await response.json();
+        if (!catalog || !Array.isArray(catalog.posts)) throw new Error('Invalid catalog structure');
+        const seen = new Set();
+        const next = [];
+        for (const entry of catalog.posts) {
+          const post = normalize(entry);
+          if (!post || seen.has(post.url)) continue;
+          seen.add(post.url);
+          next.push(post);
+        }
+        if (catalog.posts.length && next.length === 0) {
+          throw new Error('No valid article URLs in catalog');
+        }
+        records = next;
+      } catch (error) {
+        // Do not replace already-rendered article cards if the network fails.
+        if (status) status.textContent = 'Showing the static article index (filters unavailable).';
+        console.warn('ZZX-BLOG: catalog unavailable; preserving static HTML.', error);
+        return;
+      }
+      const scoped = monthScope();
+      populateSelect(category, scoped.map(post => post.category), 'categories');
+      populateSelect(tag, scoped.flatMap(post => post.tags), 'topics');
+      for (const control of [search, category, tag, sort, publication]) {
+        if (!control) continue;
+        control.addEventListener(control === search ? 'input' : 'change', () => {
+          randomRanks = null;
+          if (shuffle) shuffle.setAttribute('aria-pressed', 'false');
+          render();
+        });
+      }
+      if (shuffle) shuffle.addEventListener('click', shuffleRecords);
+      render();
+    }
+
+    initialize();
   }
-  init();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, {once: true});
+  } else {
+    boot();
+  }
 })();
