@@ -1,84 +1,99 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Blog API | ZZX-Labs R&D</title>
-    <link rel="stylesheet" href="../../static/styles.css">
-    <script src="../../static/script.js" defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="index,follow">
+    <meta name="description" content="ZZX-Labs R&D public blog API: read-only JSON article metadata, tags, search and RSS syndication.">
+    <title>Blog API | ZZX-Labs R&amp;D</title>
+    <link rel="canonical" href="https://zzx-labs.io/api/blog/">
+    <link rel="alternate" type="application/rss+xml" title="ZZX-Labs R&amp;D RSS" href="/blog/rss.xml">
+    <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="/static/icons/favicon-16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/blog/style.css">
+    <link rel="stylesheet" href="/api/blog/style.css">
+    <script src="/static/script.js" defer></script>
+    <script src="/api/blog/script.js" defer></script>
 </head>
-<body>
-<header>
-    <div id="zzx-header"></div>
-</header>
-<main>
-    <br>
-    <!-- Bitcoin Ticker Widget -->
-    <div id="ticker-container"></div>
-    <br>
-
-    <section class="container">
-        <h2>Blog API</h2>
-        <p>
-            The Blog API suite powers the publishing, syndication, and secure administration of all ZZX-Labs blog content. It supports public access via RSS, developer access via JSON feeds, and encrypted backend post submission for approved authors.
-        </p>
-        <p>
-            Blog posts are written in plaintext `.txt` format, parsed and converted to semantic HTML on-the-fly. Metadata including tags, timestamps, and categories are embedded and published with each entry.
-        </p>
-    </section>
-
-    <section class="features">
-        <div class="feature">
-            <h3>RSS Feed Endpoint</h3>
-            <p>Publicly accessible RSS/Atom XML feed. Used to syndicate ZZX-Labs blog posts to readers, bots, and aggregators.</p>
-            <li style="list-style-type: none;"><a href="./rss">/api/blog/rss</a></li>
-        </div>
-
-        <div class="feature">
-            <h3>Public Blog Feed API</h3>
-            <p>Returns a JSON feed of published blog content for integration with dashboards, custom frontends, or CLI-based readers.</p>
-            <li style="list-style-type: none;"><a href="./feed">/api/blog/feed</a></li>
-        </div>
-
-        <div class="feature">
-            <h3>Blog Post Submission API</h3>
-            <p>Private admin-only API allowing authorized team members to upload blog posts as `.txt` files. Automatically timestamped, parsed, converted to HTML, and indexed.</p>
-            <li style="list-style-type: none;"><a href="./submit">/api/blog/submit</a></li>
-        </div>
-
-        <div class="feature">
-            <h3>Tagging & Metadata API</h3>
-            <p>Retrieve metadata, tags, category lists, author details, and post frequency stats. Useful for analytics dashboards and topic-based sorting.</p>
-            <li style="list-style-type: none;"><a href="./tags">/api/blog/tags</a></li>
-        </div>
-
-        <div class="feature">
-            <h3>Post Search API</h3>
-            <p>Search all blog posts by title, tag, content, or metadata field. Returns matched post excerpts and full content on demand.</p>
-            <li style="list-style-type: none;"><a href="./search">/api/blog/search</a></li>
-        </div>
-    </section>
-
-    <section class="container cta">
-        <h2>Want to Publish on Our Blog?</h2>
-        <p>
-            Contributors, guest writers, and community members are invited to submit blog content through our admin-controlled API. GPG-signed identity and approval required.
-        </p>
-        <a href="../../contact" class="btn">Contact Editorial Team</a>
-    </section>
-
-    <br><br>
-    <section class="hero">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <p>Our blog is a knowledge repository, development log, and R&D communications channel. All signal. No noise.</p>
-            <a href="../../blog" class="btn btn-primary">Read the Blog</a>
-        </div>
-    </section><br><br>
-</main>
-<footer>
-	<div id="zzx-footer"></div>
-</footer>
+<body class="zzx-blog zzx-blog-api">
+    <a class="skip-link" href="#content">Skip to content</a>
+    <header class="site-shell"><div id="zzx-header"></div></header>
+    <main id="content">
+        <nav class="blog-topbar" aria-label="Research journal navigation">
+            <div class="blog-wrap blog-api-nav">
+                <a class="blog-brand" href="/blog/">ZZX<span> / LABS</span> <small>R&amp;D</small></a>
+                <div class="blog-nav">
+                    <a href="/blog/">Blog</a>
+                    <a href="/blog/journal/">Journal</a>
+                    <a href="/blog/blog-posts/">Archive</a>
+                    <a href="/blog/rss/">RSS</a>
+                    <a href="/api/blog/" aria-current="page">API</a>
+                </div>
+            </div>
+        </nav>
+        <div id="ticker-container"></div>
+        <section class="blog-wrap blog-intro" aria-labelledby="api-title">
+            <p class="blog-overline">Developer services / Syndication / Public research metadata</p>
+            <h1 id="api-title">Blog API</h1>
+            <p class="blog-lede">Browse the ZZX-Labs R&amp;D article index and consume the same structured data used by the Journal, Archive and RSS pages. These public feeds work on a static website without a Python server.</p>
+            <p class="api-notice">Article listings may include historical or pending editorial records. An entry's presence in the catalog does not mean its content, original publication date or claims have been independently verified.</p>
+        </section>
+        <section class="blog-wrap blog-section" aria-labelledby="api-endpoints-title">
+            <div class="blog-section-head"><h2 id="api-endpoints-title">Public, read-only endpoints</h2><p>HTTP GET · No API key required</p></div>
+            <div class="api-grid">
+                <article class="api-endpoint">
+                    <p class="api-method">GET · application/json</p>
+                    <h3>Canonical article catalog</h3>
+                    <p>Titles, dates, article paths, descriptions, subjects, cover-image paths and editorial status.</p>
+                    <a class="api-url" href="/blog/catalog.json">/blog/catalog.json</a>
+                </article>
+                <article class="api-endpoint">
+                    <p class="api-method">GET · application/json</p>
+                    <h3>Blog posts JSON</h3>
+                    <p>Normalized article records for CLI tools, external clients and third-party applications.</p>
+                    <a class="api-url" href="/blog/api/posts.json">/blog/api/posts.json</a>
+                </article>
+                <article class="api-endpoint">
+                    <p class="api-method">GET · application/json</p>
+                    <h3>Tags and categories</h3>
+                    <p>Tag and category counts generated from the same article records.</p>
+                    <a class="api-url" href="/blog/api/tags.json">/blog/api/tags.json</a>
+                </article>
+                <article class="api-endpoint">
+                    <p class="api-method">GET · application/rss+xml</p>
+                    <h3>RSS 2.0</h3>
+                    <p>XML syndication for RSS readers and integrations. Feed publication must be regenerated when articles change.</p>
+                    <a class="api-url" href="/blog/rss.xml">/blog/rss.xml</a>
+                </article>
+            </div>
+        </section>
+        <section class="blog-wrap blog-section" aria-labelledby="api-search-title">
+            <div class="blog-section-head"><h2 id="api-search-title">Explore the catalog</h2><p id="api-count" aria-live="polite">Loading article index…</p></div>
+            <form id="api-search-form" class="blog-controls" role="search" autocomplete="off">
+                <label class="search-wrap" for="api-search"><span class="sr-only">Search blog titles, descriptions and tags</span><input id="api-search" type="search" placeholder="Search article titles, subjects, tags…"></label>
+                <label for="api-category"><span class="sr-only">Category</span><select id="api-category"><option value="">Every category</option></select></label>
+                <label for="api-state"><span class="sr-only">Editorial status</span><select id="api-state"><option value="">All editorial states</option><option value="published">Published</option><option value="pending">Pending review</option></select></label>
+                <button class="blog-button alt" type="reset">Reset</button>
+            </form>
+            <p class="blog-tip">Search runs locally against public metadata. No private drafts, editing controls, authentication tokens or full-text authoring data are exposed by this page.</p>
+            <p id="api-status" class="blog-status" role="status">Loading public article metadata…</p>
+            <div id="api-results" class="api-results" aria-label="Article results"></div>
+            <noscript><p>JavaScript is required for interactive search. The <a href="/blog/catalog.json">complete JSON catalog</a> and <a href="/blog/rss.xml">RSS feed</a> remain available without it.</p></noscript>
+        </section>
+        <section class="blog-wrap blog-section" aria-labelledby="api-access-title">
+            <div class="blog-section-head"><h2 id="api-access-title">Integration and editorial access</h2></div>
+            <p>Retrieve the public catalog from Python, Go, or a terminal:</p>
+            <pre class="api-example"><code>curl -fsSL https://zzx-labs.io/blog/catalog.json</code></pre>
+            <p>Records include <code>title</code>, <code>url</code>, <code>date</code>, <code>description</code>, <code>category</code>, <code>tags</code>, <code>thumb</code>, and editorial publication fields.</p>
+            <h3>Creating, modifying and deleting articles</h3>
+            <p>The public GitHub Pages directory is <strong>read-only</strong>. Authoring actions require the separate authenticated ZZX-BLOG publisher service. An HTML page cannot provide secure post submission or update repository contents by itself.</p>
+            <p>For contributor access, <a href="/contact/">contact the ZZX-Labs editorial team</a>. Browse the <a href="/blog/">Blog</a>, <a href="/blog/blog-posts/">Archive</a> or <a href="/blog/rss/">RSS directory</a>.</p>
+        </section>
+    </main>
+    <footer class="blog-footer"><div class="blog-wrap"><div id="zzx-footer"></div><p>ZZX-Labs R&amp;D · Public blog API · <a href="/blog/rss.xml">RSS 2.0</a></p></div></footer>
 </body>
 </html>
