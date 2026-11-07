@@ -1,8 +1,182 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-11-07T09:40:28.406730Z",
+  "generated_at": "2026-11-07T20:31:22.369664Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "node_id": "C_kwDOABII59oAKDQ5YzNjN2ZlMDlhYzMxMWVhOWNlMzc1OTlhMGRmM2U0MDY1NjU3Zjk",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T14:01:12Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T14:01:12Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36252: ci, iwyu: skip subtrees in compilation database\n\n01e3eca2d8ee755eed4488a44093759f0eddcb34 ci, iwyu: skip subtrees in compilation database (Ryan Ofsky)\n\nPull request description:\n\n  **Problem:** The IWYU CI job analyzes `src/ipc/libmultiprocess/` even though its results are thrown away. Every run prints IWYU suggestions for 14 libmultiprocess files in the non-enforced pass, applies them, and then reverts them with the `git restore` from #36112. The suggestions also disagree with what libmultiprocess's own IWYU CI reports (it runs with `-Xiwyu --error` and passes), because the two jobs use different IWYU versions and mapping files. libmultiprocess is the only subtree in this situation; leveldb, crc32c, minisketch and secp256k1 are already excluded from `compile_commands.json` with `EXPORT_COMPILE_COMMANDS OFF`. #35361 reported this output and said IWYU shouldn't be running on subtrees.\n\n  **Solution:** Filter `SHARED_EXCLUDED_SUBTREES` (from `test/lint/lint_ignore_dirs.py`) out of `compile_commands.json` at the start of the IWYU section of `ci/test/03_test_script.sh`, so subtree sources are neither analyzed nor edited. This is done in the CI script rather than in cmake so that only IWYU is affected: clang-tidy keeps running on libmultiprocess, and no list of subtree targets has to be maintained in `cmake/libmultiprocess.cmake` (that approach broke `-DBUILD_TESTS=OFF` in #35418 and was reverted in #35523). The change is three lines in `ci/test/03_test_script.sh`; the rest of the diff is comments.\n\n  **Testing note:** You can confirm this works by checking the IWYU CI logs and confirming that output like `/home/runner/work/_temp/src/ipc/libmultiprocess/src/mp/gen.cpp should add these lines:` no longer appears.\n\nACKs for top commit:\n  David-Uka:\n    Code-review ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34\n  hebasto:\n    ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34.\n\nTree-SHA512: dcec5bce3e26aad0bbc52d6f91aa1cadb3fc92e241cc6f31e938b9facd66c1f8d1c9f3cc1b6360fc1fa1e4beba180c1244a229e997bee764630e80d49b97fd50",
+        "tree": {
+          "sha": "ae3ad3ebf8a5e4aafdec0b417e65ec864838f643",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ae3ad3ebf8a5e4aafdec0b417e65ec864838f643"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmrvLygACgkQQQEIES5+\nqB+0dw//ZdjeO5x3uDB1VeetIMefSkZVEwytBjjoneix3z6cMUywtMSZ7Pi0X5Nl\nFnMYXYR5ZClhn2rOAZ0MvjL0/kkpsPMgqtnfS9+9BaoruzhH9enbahvM2yZ3fkcE\ntMcD46wPiuYPh3KxL89L7SRei5plw4qYJaveKns5QudC0WdBx/MD3B0q0TfreSy+\njbsZYpWoceFUsEiyV5Lm+hEsrRD+7QrouihUb3aQY9pa0ja+9hxkM++jMkFNDXqM\nBUHZ6+PMmzN7LNu8x5fz8+MZ9JXPv0OBh0RwymKD0KMOZ6ACiLIR6iRVjsEkhNTr\ndieM/jrluEA3E7XuIw4DxIrER346OgDTJHLFHH5oVQHtYRGARuAnNIUXyTmAYq/G\n/EEcVlmSIY+IH9sq3/KZUWBugLJjYiUNiR0eiwXflEGgZgbeQfXAdwoYyMhiNqMS\njBYs0PINAXnrnCb3bQIF2OfHhMINZyqRSd0JCgX92LJz7tsFMxW4jC43RNJI71CO\nhSv835Gv2hiZNoEeyNbp8HurnIbVpp7/844AAILvqcwyTo0bLdsbj09m86u2DRbA\nV8lk3cxMjTKKtlExltG3+wHKLiNcSZtD0ouFrpES/jrpwtHaGrGFhvKw/SJelBuv\nuc2NzGZpCSVV5gkb9TFIanAhmJ+FMF2quD9yxEX7YI9hFSjgVYU=\n=sRR/\n-----END PGP SIGNATURE-----",
+          "payload": "tree ae3ad3ebf8a5e4aafdec0b417e65ec864838f643\nparent c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa\nparent 01e3eca2d8ee755eed4488a44093759f0eddcb34\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794060072 +0000\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794060072 +0000\n\nMerge bitcoin/bitcoin#36252: ci, iwyu: skip subtrees in compilation database\n\n01e3eca2d8ee755eed4488a44093759f0eddcb34 ci, iwyu: skip subtrees in compilation database (Ryan Ofsky)\n\nPull request description:\n\n  **Problem:** The IWYU CI job analyzes `src/ipc/libmultiprocess/` even though its results are thrown away. Every run prints IWYU suggestions for 14 libmultiprocess files in the non-enforced pass, applies them, and then reverts them with the `git restore` from #36112. The suggestions also disagree with what libmultiprocess's own IWYU CI reports (it runs with `-Xiwyu --error` and passes), because the two jobs use different IWYU versions and mapping files. libmultiprocess is the only subtree in this situation; leveldb, crc32c, minisketch and secp256k1 are already excluded from `compile_commands.json` with `EXPORT_COMPILE_COMMANDS OFF`. #35361 reported this output and said IWYU shouldn't be running on subtrees.\n\n  **Solution:** Filter `SHARED_EXCLUDED_SUBTREES` (from `test/lint/lint_ignore_dirs.py`) out of `compile_commands.json` at the start of the IWYU section of `ci/test/03_test_script.sh`, so subtree sources are neither analyzed nor edited. This is done in the CI script rather than in cmake so that only IWYU is affected: clang-tidy keeps running on libmultiprocess, and no list of subtree targets has to be maintained in `cmake/libmultiprocess.cmake` (that approach broke `-DBUILD_TESTS=OFF` in #35418 and was reverted in #35523). The change is three lines in `ci/test/03_test_script.sh`; the rest of the diff is comments.\n\n  **Testing note:** You can confirm this works by checking the IWYU CI logs and confirming that output like `/home/runner/work/_temp/src/ipc/libmultiprocess/src/mp/gen.cpp should add these lines:` no longer appears.\n\nACKs for top commit:\n  David-Uka:\n    Code-review ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34\n  hebasto:\n    ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34.\n\nTree-SHA512: dcec5bce3e26aad0bbc52d6f91aa1cadb3fc92e241cc6f31e938b9facd66c1f8d1c9f3cc1b6360fc1fa1e4beba180c1244a229e997bee764630e80d49b97fd50\n",
+          "verified_at": "2026-11-07T14:01:28Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa"
+        },
+        {
+          "sha": "01e3eca2d8ee755eed4488a44093759f0eddcb34",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/01e3eca2d8ee755eed4488a44093759f0eddcb34",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/01e3eca2d8ee755eed4488a44093759f0eddcb34"
+        }
+      ]
+    },
+    {
+      "sha": "c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "node_id": "C_kwDOABII59oAKGM2ZGNkYTMzYjBmMDI1NGJkMmYwN2UxZDU1ODRmZmNjM2RhNzE3ZmE",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T12:56:11Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T12:56:11Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36744: refactor: fix mismatched and undefined declarations\n\n5f972485ffd139852d5d64a38079ab500f8a4c7c http: use MockableSteadyClock::time_point in ShouldDisconnect declaration (fanquake)\nbad11ff68ec276c8c1415331e4b0d67ec84766a4 qt: remove undefined BanTableModel::{start,stop}AutoRefresh (fanquake)\n0ae65892445d00e9cbaebf220cc70f63140a52fb rpc: remove undefined RPCResult::ToStringObj and ToDescriptionString (fanquake)\n3fa42941d16fc76e346152d690cdf96fa031d60d common: make FeeModeInfo static, remove mismatched declaration (fanquake)\n410843a684d8258c57aa55d7bc2b4e53a67de9ca rpc: make AddInputs static, remove mismatched declaration (fanquake)\n\nPull request description:\n\n  Remove or fix function declarations that don't match any definition.\n\n  Split out of #36743. Ideally we can have the compiler enforce/flag this in future.\n\nACKs for top commit:\n  maflcko:\n    review ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c 🏈\n  sedited:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c\n  hebasto:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c, I have reviewed the code and it looks OK.\n\nTree-SHA512: aaab43a8c79834b8a55a3c40e3f6a1f07a7454dcac9e00c3a09e3d95ab26dfd93290a3f62e2f84e79ccb917b0b1bedd2f9fd04bc9c736f76430fee33174f4175",
+        "tree": {
+          "sha": "e411a0e2fff8b8a1853f3238384af1fc91b15626",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/e411a0e2fff8b8a1853f3238384af1fc91b15626"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmrvH+sACgkQQQEIES5+\nqB+UIhAAs4dIycgFt0Rz562Ly2hceq6uU9Ot13jyQHckPWBSJIU4M2ZW1p679/8A\nwnpsSaERW0LTCXTFH8yO7jewCZ/iJ6yTkpTCk6DTjqOVAzXUgHe/tCVx76E7aOFz\n/7K8sNU2CIxOBlXBH6KCyIRY8fbgjXXCd4dZCrIOc/1FIoCEMUrUFB/XhSgCy67K\nQVkQYzvxRuu08/XKe94deYTJM24jGwGi8x14gRPkV011mqmpM6hTDalx2+/+aQVr\n8tuWtI8rOSR4E+rAs3DiTJ52v5gr3ut6MXYlHAnzLuVHtE9SSD0LSWHws6vPNCCG\nvMR1HjOS/ZF9GN3bXGnGopB8US/2Hu9RUY/RxZcWwvMu76AwdegIfChjBpJH8WXO\nLbI5ypKmlirW9i9bbO9jPHpQcKc90p0MvO+jU/loEf0/aQf9y+2VCtXlJJFR44ub\nQbQB+l05u29BWb4QETBLlWxhWmRN8UGBA96iR1A8jpKNIFA0jBYZrj/rXpsIF5KN\nIcNMayFLZlNCyhJFdQmskROfalNXlrWmi9qs8Vfl3tgg5ayG0ZDJ5PEjYs/8PNN5\noerAOXFRYYvUZxZEVbW0+r1BDIF0KGQ61TM6zfDBR91sFpkFSnH6qmc4Si7XVMuk\nV3UZumj/+mPjOpY3PUdfLbCs9BqoJXPZzPThXt4uG98nXfNBoYA=\n=eTtE\n-----END PGP SIGNATURE-----",
+          "payload": "tree e411a0e2fff8b8a1853f3238384af1fc91b15626\nparent 5bf3bc5e263407a252c14a17afe04fc3bf24a889\nparent 5f972485ffd139852d5d64a38079ab500f8a4c7c\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794056171 +0000\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794056171 +0000\n\nMerge bitcoin/bitcoin#36744: refactor: fix mismatched and undefined declarations\n\n5f972485ffd139852d5d64a38079ab500f8a4c7c http: use MockableSteadyClock::time_point in ShouldDisconnect declaration (fanquake)\nbad11ff68ec276c8c1415331e4b0d67ec84766a4 qt: remove undefined BanTableModel::{start,stop}AutoRefresh (fanquake)\n0ae65892445d00e9cbaebf220cc70f63140a52fb rpc: remove undefined RPCResult::ToStringObj and ToDescriptionString (fanquake)\n3fa42941d16fc76e346152d690cdf96fa031d60d common: make FeeModeInfo static, remove mismatched declaration (fanquake)\n410843a684d8258c57aa55d7bc2b4e53a67de9ca rpc: make AddInputs static, remove mismatched declaration (fanquake)\n\nPull request description:\n\n  Remove or fix function declarations that don't match any definition.\n\n  Split out of #36743. Ideally we can have the compiler enforce/flag this in future.\n\nACKs for top commit:\n  maflcko:\n    review ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c 🏈\n  sedited:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c\n  hebasto:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c, I have reviewed the code and it looks OK.\n\nTree-SHA512: aaab43a8c79834b8a55a3c40e3f6a1f07a7454dcac9e00c3a09e3d95ab26dfd93290a3f62e2f84e79ccb917b0b1bedd2f9fd04bc9c736f76430fee33174f4175\n",
+          "verified_at": "2026-11-07T12:56:22Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "5bf3bc5e263407a252c14a17afe04fc3bf24a889",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5bf3bc5e263407a252c14a17afe04fc3bf24a889",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/5bf3bc5e263407a252c14a17afe04fc3bf24a889"
+        },
+        {
+          "sha": "5f972485ffd139852d5d64a38079ab500f8a4c7c",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f972485ffd139852d5d64a38079ab500f8a4c7c",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/5f972485ffd139852d5d64a38079ab500f8a4c7c"
+        }
+      ]
+    },
     {
       "sha": "5bf3bc5e263407a252c14a17afe04fc3bf24a889",
       "node_id": "C_kwDOABII59oAKDViZjNiYzVlMjYzNDA3YTI1MmMxNGExN2FmZTA0ZmMzYmYyNGE4ODk",
@@ -1551,180 +1725,6 @@
           "sha": "ec7f64d02e370e04354e64fa745fca240bcb3cbe",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ec7f64d02e370e04354e64fa745fca240bcb3cbe",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/ec7f64d02e370e04354e64fa745fca240bcb3cbe"
-        }
-      ]
-    },
-    {
-      "sha": "6996cf7abadd491b8636608787f8b5212cd14623",
-      "node_id": "C_kwDOABII59oAKDY5OTZjZjdhYmFkZDQ5MWI4NjM2NjA4Nzg3ZjhiNTIxMmNkMTQ2MjM",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-05T22:17:18Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-05T22:17:18Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36725: refactor: Use u64 consistently for flatfile sizes\n\nfa2c8df1810f23e1c510e310eb246fd5abd3a066 Add test coverage for varint overflow (MarcoFalke)\nfaed02f6d0aba80e1f99842fcd575625d9e89fc1 refactor: Use LARGE_INTEGER QuadPart on Windows (MarcoFalke)\nfaf8d0e33ad000f72539aeedf4ab47c2e25b97ba refactor: Use u64 consistently for flatfile sizes (MarcoFalke)\n\nPull request description:\n\n  `unsigned` is a 32-bit integer (even on 64-bit platforms). File sizes are generally measured in 64-bit integers and using 32-bit integers or architecture-dependent integers is brittle and confusing.\n\n  So use u64 consistently for flatfile sizes in this refactor.\n\n  Also, use `LARGE_INTEGER`'s `QuadPart` on Windows, which is recommended since C++11.\n\n  Also, unit test VarInt overflow errors.\n\nACKs for top commit:\n  darosior:\n    utACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n  frankomosh:\n    ACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n  sedited:\n    ACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n\nTree-SHA512: f79593a6d01296177e432a25d9ce2af0fb8a2cbcea3a2ba8160f6ac03c16ea6a26ba97341475bf9a22c3bc4a28f7fce741bc544b82d604fe209c43786508966d",
-        "tree": {
-          "sha": "4681014b407d3d8d4c067836d2e9255a56ab72e3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/4681014b407d3d8d4c067836d2e9255a56ab72e3"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/6996cf7abadd491b8636608787f8b5212cd14623",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrtAG4ACgkQm3m0VpHb\nQXOpvA/9Hx1xsz4bOaJumYo/alvE6Rr4k/TT2C34j/B5quShhtirE+hg9NS5rUb8\nez5uvAPMst52tfkNbRAV3GZkxPGH8jH25PZxQqDh4S0AqIh/5Zy+nP3BbAKxSBUc\n7sdKndRsnoCi42zGnH3BNToGRcIUIueDftExdwuxRSWLwU/1zYoj1wAiUYNVHb4Y\ndtlCsBF6cblIrlKjNdjPHbB9WPkNtdTlei4Gu82EPzbfkZwUdHclWBLRWIoaqHBL\nLk+DxmE615Bya5Lrr9urTR6YsTo8486uKhmZ01FoC66x6s1cuYev8uwrgMqpBSsG\n3tBkkYfIbx/dffFkWZDWKZbLC09pTg4CoddG5llth9TPYe48YwMXbRBu5P9IG115\ng9zqygQ7VJkHyl9V3CIMF5YKTIKiZa2qHJibN+X0U4L7g/iQvBpPiaJaffVNheNx\nVefYIr+U3MaC4VrUQyESZjatMRPcH3wMXgbLcczWmJFWk92nLqjQlbEmogoCamY5\nqi07HKQ9CEJbR2HqqMlT9lnVNfrE/EXVWqzbpzhaiUzzZxj3UHoOHH5KDNWN5xbs\nvAGgSOk2cDJhCIwPwzBgpkbpx7nJnJ4w0YollEI8IMGaH9WH17CqTP/faTssn4mF\nm5VNcmgxOzYmWzuiqZJ1LvVesQe11wNXtBKEni00R3RviaY5r0o=\n=00JI\n-----END PGP SIGNATURE-----",
-          "payload": "tree 4681014b407d3d8d4c067836d2e9255a56ab72e3\nparent 46a004d01236961eaabb825794116c74ab55722f\nparent fa2c8df1810f23e1c510e310eb246fd5abd3a066\nauthor merge-script <seb.kung@gmail.com> 1793917038 +0100\ncommitter merge-script <seb.kung@gmail.com> 1793917038 +0100\n\nMerge bitcoin/bitcoin#36725: refactor: Use u64 consistently for flatfile sizes\n\nfa2c8df1810f23e1c510e310eb246fd5abd3a066 Add test coverage for varint overflow (MarcoFalke)\nfaed02f6d0aba80e1f99842fcd575625d9e89fc1 refactor: Use LARGE_INTEGER QuadPart on Windows (MarcoFalke)\nfaf8d0e33ad000f72539aeedf4ab47c2e25b97ba refactor: Use u64 consistently for flatfile sizes (MarcoFalke)\n\nPull request description:\n\n  `unsigned` is a 32-bit integer (even on 64-bit platforms). File sizes are generally measured in 64-bit integers and using 32-bit integers or architecture-dependent integers is brittle and confusing.\n\n  So use u64 consistently for flatfile sizes in this refactor.\n\n  Also, use `LARGE_INTEGER`'s `QuadPart` on Windows, which is recommended since C++11.\n\n  Also, unit test VarInt overflow errors.\n\nACKs for top commit:\n  darosior:\n    utACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n  frankomosh:\n    ACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n  sedited:\n    ACK fa2c8df1810f23e1c510e310eb246fd5abd3a066\n\nTree-SHA512: f79593a6d01296177e432a25d9ce2af0fb8a2cbcea3a2ba8160f6ac03c16ea6a26ba97341475bf9a22c3bc4a28f7fce741bc544b82d604fe209c43786508966d\n",
-          "verified_at": "2026-11-05T22:19:01Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6996cf7abadd491b8636608787f8b5212cd14623",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/6996cf7abadd491b8636608787f8b5212cd14623",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/6996cf7abadd491b8636608787f8b5212cd14623/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "46a004d01236961eaabb825794116c74ab55722f",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/46a004d01236961eaabb825794116c74ab55722f",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/46a004d01236961eaabb825794116c74ab55722f"
-        },
-        {
-          "sha": "fa2c8df1810f23e1c510e310eb246fd5abd3a066",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa2c8df1810f23e1c510e310eb246fd5abd3a066",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa2c8df1810f23e1c510e310eb246fd5abd3a066"
-        }
-      ]
-    },
-    {
-      "sha": "46a004d01236961eaabb825794116c74ab55722f",
-      "node_id": "C_kwDOABII59oAKDQ2YTAwNGQwMTIzNjk2MWVhYWJiODI1Nzk0MTE2Yzc0YWI1NTcyMmY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-05T21:50:10Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-05T21:50:10Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36741: policy: Document rounding behavior of feerate fee getters\n\nfa3d4f099282a79099e59427180dffce4012a2b6 policy: Document rounding behavior of feerate fee getters (MarcoFalke)\n\nPull request description:\n\n  Now that the impl moved into the C++ file in 38ece2a9c853ae3db9afb5215611c3e23e40461f, it could make sense to document the rounding behavior in the header file doxygen comment.\n\n  Also, drop the \"special case\", which seems more confusing than helpful. (It is only a special case for negative feerates, which are mostly irrelevant and only possible with manual fee prioritization deltas)\n\nACKs for top commit:\n  pablomartin4btc:\n    re-ACK fa3d4f099282a79099e59427180dffce4012a2b6\n  polespinasa:\n    ACK fa3d4f099282a79099e59427180dffce4012a2b6\n  sedited:\n    ACK fa3d4f099282a79099e59427180dffce4012a2b6\n\nTree-SHA512: da230551e8ccb0c01ce1789c8b2ac6e523a48e0944338cb1596767feb81af3261ba8c9977b8c18c84c3b38f9aaec3f8c7c3d10c79940a5bd49405989af8c9aff",
-        "tree": {
-          "sha": "b6200a3d4e86a9174b1d5294a41a3454d177bb3b",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/b6200a3d4e86a9174b1d5294a41a3454d177bb3b"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/46a004d01236961eaabb825794116c74ab55722f",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrs+hIACgkQm3m0VpHb\nQXPJgg//RajX/ZcNrMO+N03H6BwglT1bwbdRHPr5q7yBeNDM4cDPnwAUo/3NZn4t\n+3zAztYgEhaibKKjLdA9miZap5t2BIZAdH35MI6J/vB1za55qPcAnpCSQ6gQOSMN\nR741wNYGWIGzaYGTlvE9Q4eDDjh/d36rZKlolL6x+APxHdpU7aFoMeZEi0CUldaX\nK5ymrPuzvtYXDkmZehGajzx2/jKZmiU6LK6ve8usJy5K3jHUgMs0njJJcrxSrMAO\nhFuO0oYGnTIgUUZWZ9pe1BST/4/AbjNJ0hKvl3g5lNvvhEwLUZP9EXkb13BTQ6I/\nd1Z2OmNO1dBcEtsLsNm6/Z6d1JFRtBLvUH5Ad9CQ+jnu3jCnjdWYzOs9XkvgLwlY\no32JIBoGtr0rr7tZCrj7gy5xcBc48XVkKJigvzwTJgkBdLfAzyn4ZEmB4kUHgo9m\nylLg5h7XdynFFuuts6gL/Rif+B2hKWTZ13J9vMNKUlvg+xqjn2PZqpt60s/qXI/0\nnbzbw5uhcN0iaqyslaAKn51teVxCOOIBXKjneYMTXh/35ILdesjBxQkTL/C7juGb\nBkMCSq5zQJgTasbxjpZhOv5J0HzRuTNxKpNL+GmauMk/ZaMTQGZhCPxO6gHr1/3T\nCAoYRPDEciWuQg++SDdQZ/JLTYpqS1vj5EFn+30rCO7YY1z5PMg=\n=GeYB\n-----END PGP SIGNATURE-----",
-          "payload": "tree b6200a3d4e86a9174b1d5294a41a3454d177bb3b\nparent 80d1da3c074f6e14e7417eb3dee2c003e06c254a\nparent fa3d4f099282a79099e59427180dffce4012a2b6\nauthor merge-script <seb.kung@gmail.com> 1793915410 +0100\ncommitter merge-script <seb.kung@gmail.com> 1793915410 +0100\n\nMerge bitcoin/bitcoin#36741: policy: Document rounding behavior of feerate fee getters\n\nfa3d4f099282a79099e59427180dffce4012a2b6 policy: Document rounding behavior of feerate fee getters (MarcoFalke)\n\nPull request description:\n\n  Now that the impl moved into the C++ file in 38ece2a9c853ae3db9afb5215611c3e23e40461f, it could make sense to document the rounding behavior in the header file doxygen comment.\n\n  Also, drop the \"special case\", which seems more confusing than helpful. (It is only a special case for negative feerates, which are mostly irrelevant and only possible with manual fee prioritization deltas)\n\nACKs for top commit:\n  pablomartin4btc:\n    re-ACK fa3d4f099282a79099e59427180dffce4012a2b6\n  polespinasa:\n    ACK fa3d4f099282a79099e59427180dffce4012a2b6\n  sedited:\n    ACK fa3d4f099282a79099e59427180dffce4012a2b6\n\nTree-SHA512: da230551e8ccb0c01ce1789c8b2ac6e523a48e0944338cb1596767feb81af3261ba8c9977b8c18c84c3b38f9aaec3f8c7c3d10c79940a5bd49405989af8c9aff\n",
-          "verified_at": "2026-11-05T21:50:42Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/46a004d01236961eaabb825794116c74ab55722f",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/46a004d01236961eaabb825794116c74ab55722f",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/46a004d01236961eaabb825794116c74ab55722f/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "80d1da3c074f6e14e7417eb3dee2c003e06c254a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/80d1da3c074f6e14e7417eb3dee2c003e06c254a",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/80d1da3c074f6e14e7417eb3dee2c003e06c254a"
-        },
-        {
-          "sha": "fa3d4f099282a79099e59427180dffce4012a2b6",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa3d4f099282a79099e59427180dffce4012a2b6",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa3d4f099282a79099e59427180dffce4012a2b6"
         }
       ]
     }
