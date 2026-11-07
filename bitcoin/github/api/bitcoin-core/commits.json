@@ -1,8 +1,182 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-11-07T09:55:09.927858Z",
+  "generated_at": "2026-11-07T16:12:11.350691Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "node_id": "C_kwDOABII59oAKDQ5YzNjN2ZlMDlhYzMxMWVhOWNlMzc1OTlhMGRmM2U0MDY1NjU3Zjk",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T14:01:12Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T14:01:12Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36252: ci, iwyu: skip subtrees in compilation database\n\n01e3eca2d8ee755eed4488a44093759f0eddcb34 ci, iwyu: skip subtrees in compilation database (Ryan Ofsky)\n\nPull request description:\n\n  **Problem:** The IWYU CI job analyzes `src/ipc/libmultiprocess/` even though its results are thrown away. Every run prints IWYU suggestions for 14 libmultiprocess files in the non-enforced pass, applies them, and then reverts them with the `git restore` from #36112. The suggestions also disagree with what libmultiprocess's own IWYU CI reports (it runs with `-Xiwyu --error` and passes), because the two jobs use different IWYU versions and mapping files. libmultiprocess is the only subtree in this situation; leveldb, crc32c, minisketch and secp256k1 are already excluded from `compile_commands.json` with `EXPORT_COMPILE_COMMANDS OFF`. #35361 reported this output and said IWYU shouldn't be running on subtrees.\n\n  **Solution:** Filter `SHARED_EXCLUDED_SUBTREES` (from `test/lint/lint_ignore_dirs.py`) out of `compile_commands.json` at the start of the IWYU section of `ci/test/03_test_script.sh`, so subtree sources are neither analyzed nor edited. This is done in the CI script rather than in cmake so that only IWYU is affected: clang-tidy keeps running on libmultiprocess, and no list of subtree targets has to be maintained in `cmake/libmultiprocess.cmake` (that approach broke `-DBUILD_TESTS=OFF` in #35418 and was reverted in #35523). The change is three lines in `ci/test/03_test_script.sh`; the rest of the diff is comments.\n\n  **Testing note:** You can confirm this works by checking the IWYU CI logs and confirming that output like `/home/runner/work/_temp/src/ipc/libmultiprocess/src/mp/gen.cpp should add these lines:` no longer appears.\n\nACKs for top commit:\n  David-Uka:\n    Code-review ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34\n  hebasto:\n    ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34.\n\nTree-SHA512: dcec5bce3e26aad0bbc52d6f91aa1cadb3fc92e241cc6f31e938b9facd66c1f8d1c9f3cc1b6360fc1fa1e4beba180c1244a229e997bee764630e80d49b97fd50",
+        "tree": {
+          "sha": "ae3ad3ebf8a5e4aafdec0b417e65ec864838f643",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/ae3ad3ebf8a5e4aafdec0b417e65ec864838f643"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmrvLygACgkQQQEIES5+\nqB+0dw//ZdjeO5x3uDB1VeetIMefSkZVEwytBjjoneix3z6cMUywtMSZ7Pi0X5Nl\nFnMYXYR5ZClhn2rOAZ0MvjL0/kkpsPMgqtnfS9+9BaoruzhH9enbahvM2yZ3fkcE\ntMcD46wPiuYPh3KxL89L7SRei5plw4qYJaveKns5QudC0WdBx/MD3B0q0TfreSy+\njbsZYpWoceFUsEiyV5Lm+hEsrRD+7QrouihUb3aQY9pa0ja+9hxkM++jMkFNDXqM\nBUHZ6+PMmzN7LNu8x5fz8+MZ9JXPv0OBh0RwymKD0KMOZ6ACiLIR6iRVjsEkhNTr\ndieM/jrluEA3E7XuIw4DxIrER346OgDTJHLFHH5oVQHtYRGARuAnNIUXyTmAYq/G\n/EEcVlmSIY+IH9sq3/KZUWBugLJjYiUNiR0eiwXflEGgZgbeQfXAdwoYyMhiNqMS\njBYs0PINAXnrnCb3bQIF2OfHhMINZyqRSd0JCgX92LJz7tsFMxW4jC43RNJI71CO\nhSv835Gv2hiZNoEeyNbp8HurnIbVpp7/844AAILvqcwyTo0bLdsbj09m86u2DRbA\nV8lk3cxMjTKKtlExltG3+wHKLiNcSZtD0ouFrpES/jrpwtHaGrGFhvKw/SJelBuv\nuc2NzGZpCSVV5gkb9TFIanAhmJ+FMF2quD9yxEX7YI9hFSjgVYU=\n=sRR/\n-----END PGP SIGNATURE-----",
+          "payload": "tree ae3ad3ebf8a5e4aafdec0b417e65ec864838f643\nparent c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa\nparent 01e3eca2d8ee755eed4488a44093759f0eddcb34\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794060072 +0000\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794060072 +0000\n\nMerge bitcoin/bitcoin#36252: ci, iwyu: skip subtrees in compilation database\n\n01e3eca2d8ee755eed4488a44093759f0eddcb34 ci, iwyu: skip subtrees in compilation database (Ryan Ofsky)\n\nPull request description:\n\n  **Problem:** The IWYU CI job analyzes `src/ipc/libmultiprocess/` even though its results are thrown away. Every run prints IWYU suggestions for 14 libmultiprocess files in the non-enforced pass, applies them, and then reverts them with the `git restore` from #36112. The suggestions also disagree with what libmultiprocess's own IWYU CI reports (it runs with `-Xiwyu --error` and passes), because the two jobs use different IWYU versions and mapping files. libmultiprocess is the only subtree in this situation; leveldb, crc32c, minisketch and secp256k1 are already excluded from `compile_commands.json` with `EXPORT_COMPILE_COMMANDS OFF`. #35361 reported this output and said IWYU shouldn't be running on subtrees.\n\n  **Solution:** Filter `SHARED_EXCLUDED_SUBTREES` (from `test/lint/lint_ignore_dirs.py`) out of `compile_commands.json` at the start of the IWYU section of `ci/test/03_test_script.sh`, so subtree sources are neither analyzed nor edited. This is done in the CI script rather than in cmake so that only IWYU is affected: clang-tidy keeps running on libmultiprocess, and no list of subtree targets has to be maintained in `cmake/libmultiprocess.cmake` (that approach broke `-DBUILD_TESTS=OFF` in #35418 and was reverted in #35523). The change is three lines in `ci/test/03_test_script.sh`; the rest of the diff is comments.\n\n  **Testing note:** You can confirm this works by checking the IWYU CI logs and confirming that output like `/home/runner/work/_temp/src/ipc/libmultiprocess/src/mp/gen.cpp should add these lines:` no longer appears.\n\nACKs for top commit:\n  David-Uka:\n    Code-review ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34\n  hebasto:\n    ACK 01e3eca2d8ee755eed4488a44093759f0eddcb34.\n\nTree-SHA512: dcec5bce3e26aad0bbc52d6f91aa1cadb3fc92e241cc6f31e938b9facd66c1f8d1c9f3cc1b6360fc1fa1e4beba180c1244a229e997bee764630e80d49b97fd50\n",
+          "verified_at": "2026-11-07T14:01:28Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/49c3c7fe09ac311ea9ce37599a0df3e4065657f9",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/49c3c7fe09ac311ea9ce37599a0df3e4065657f9/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa"
+        },
+        {
+          "sha": "01e3eca2d8ee755eed4488a44093759f0eddcb34",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/01e3eca2d8ee755eed4488a44093759f0eddcb34",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/01e3eca2d8ee755eed4488a44093759f0eddcb34"
+        }
+      ]
+    },
+    {
+      "sha": "c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "node_id": "C_kwDOABII59oAKGM2ZGNkYTMzYjBmMDI1NGJkMmYwN2UxZDU1ODRmZmNjM2RhNzE3ZmE",
+      "commit": {
+        "author": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T12:56:11Z"
+        },
+        "committer": {
+          "name": "Hennadii Stepanov",
+          "email": "32963518+hebasto@users.noreply.github.com",
+          "date": "2026-11-07T12:56:11Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36744: refactor: fix mismatched and undefined declarations\n\n5f972485ffd139852d5d64a38079ab500f8a4c7c http: use MockableSteadyClock::time_point in ShouldDisconnect declaration (fanquake)\nbad11ff68ec276c8c1415331e4b0d67ec84766a4 qt: remove undefined BanTableModel::{start,stop}AutoRefresh (fanquake)\n0ae65892445d00e9cbaebf220cc70f63140a52fb rpc: remove undefined RPCResult::ToStringObj and ToDescriptionString (fanquake)\n3fa42941d16fc76e346152d690cdf96fa031d60d common: make FeeModeInfo static, remove mismatched declaration (fanquake)\n410843a684d8258c57aa55d7bc2b4e53a67de9ca rpc: make AddInputs static, remove mismatched declaration (fanquake)\n\nPull request description:\n\n  Remove or fix function declarations that don't match any definition.\n\n  Split out of #36743. Ideally we can have the compiler enforce/flag this in future.\n\nACKs for top commit:\n  maflcko:\n    review ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c \ud83c\udfc8\n  sedited:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c\n  hebasto:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c, I have reviewed the code and it looks OK.\n\nTree-SHA512: aaab43a8c79834b8a55a3c40e3f6a1f07a7454dcac9e00c3a09e3d95ab26dfd93290a3f62e2f84e79ccb917b0b1bedd2f9fd04bc9c736f76430fee33174f4175",
+        "tree": {
+          "sha": "e411a0e2fff8b8a1853f3238384af1fc91b15626",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/e411a0e2fff8b8a1853f3238384af1fc91b15626"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE0dvyxLlvLev0wWZUQQEIES5+qB8FAmrvH+sACgkQQQEIES5+\nqB+UIhAAs4dIycgFt0Rz562Ly2hceq6uU9Ot13jyQHckPWBSJIU4M2ZW1p679/8A\nwnpsSaERW0LTCXTFH8yO7jewCZ/iJ6yTkpTCk6DTjqOVAzXUgHe/tCVx76E7aOFz\n/7K8sNU2CIxOBlXBH6KCyIRY8fbgjXXCd4dZCrIOc/1FIoCEMUrUFB/XhSgCy67K\nQVkQYzvxRuu08/XKe94deYTJM24jGwGi8x14gRPkV011mqmpM6hTDalx2+/+aQVr\n8tuWtI8rOSR4E+rAs3DiTJ52v5gr3ut6MXYlHAnzLuVHtE9SSD0LSWHws6vPNCCG\nvMR1HjOS/ZF9GN3bXGnGopB8US/2Hu9RUY/RxZcWwvMu76AwdegIfChjBpJH8WXO\nLbI5ypKmlirW9i9bbO9jPHpQcKc90p0MvO+jU/loEf0/aQf9y+2VCtXlJJFR44ub\nQbQB+l05u29BWb4QETBLlWxhWmRN8UGBA96iR1A8jpKNIFA0jBYZrj/rXpsIF5KN\nIcNMayFLZlNCyhJFdQmskROfalNXlrWmi9qs8Vfl3tgg5ayG0ZDJ5PEjYs/8PNN5\noerAOXFRYYvUZxZEVbW0+r1BDIF0KGQ61TM6zfDBR91sFpkFSnH6qmc4Si7XVMuk\nV3UZumj/+mPjOpY3PUdfLbCs9BqoJXPZzPThXt4uG98nXfNBoYA=\n=eTtE\n-----END PGP SIGNATURE-----",
+          "payload": "tree e411a0e2fff8b8a1853f3238384af1fc91b15626\nparent 5bf3bc5e263407a252c14a17afe04fc3bf24a889\nparent 5f972485ffd139852d5d64a38079ab500f8a4c7c\nauthor Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794056171 +0000\ncommitter Hennadii Stepanov <32963518+hebasto@users.noreply.github.com> 1794056171 +0000\n\nMerge bitcoin/bitcoin#36744: refactor: fix mismatched and undefined declarations\n\n5f972485ffd139852d5d64a38079ab500f8a4c7c http: use MockableSteadyClock::time_point in ShouldDisconnect declaration (fanquake)\nbad11ff68ec276c8c1415331e4b0d67ec84766a4 qt: remove undefined BanTableModel::{start,stop}AutoRefresh (fanquake)\n0ae65892445d00e9cbaebf220cc70f63140a52fb rpc: remove undefined RPCResult::ToStringObj and ToDescriptionString (fanquake)\n3fa42941d16fc76e346152d690cdf96fa031d60d common: make FeeModeInfo static, remove mismatched declaration (fanquake)\n410843a684d8258c57aa55d7bc2b4e53a67de9ca rpc: make AddInputs static, remove mismatched declaration (fanquake)\n\nPull request description:\n\n  Remove or fix function declarations that don't match any definition.\n\n  Split out of #36743. Ideally we can have the compiler enforce/flag this in future.\n\nACKs for top commit:\n  maflcko:\n    review ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c \ud83c\udfc8\n  sedited:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c\n  hebasto:\n    ACK 5f972485ffd139852d5d64a38079ab500f8a4c7c, I have reviewed the code and it looks OK.\n\nTree-SHA512: aaab43a8c79834b8a55a3c40e3f6a1f07a7454dcac9e00c3a09e3d95ab26dfd93290a3f62e2f84e79ccb917b0b1bedd2f9fd04bc9c736f76430fee33174f4175\n",
+          "verified_at": "2026-11-07T12:56:22Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/c6dcda33b0f0254bd2f07e1d5584ffcc3da717fa/comments",
+      "author": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "hebasto",
+        "id": 32963518,
+        "node_id": "MDQ6VXNlcjMyOTYzNTE4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/32963518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/hebasto",
+        "html_url": "https://github.com/hebasto",
+        "followers_url": "https://api.github.com/users/hebasto/followers",
+        "following_url": "https://api.github.com/users/hebasto/following{/other_user}",
+        "gists_url": "https://api.github.com/users/hebasto/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/hebasto/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/hebasto/subscriptions",
+        "organizations_url": "https://api.github.com/users/hebasto/orgs",
+        "repos_url": "https://api.github.com/users/hebasto/repos",
+        "events_url": "https://api.github.com/users/hebasto/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/hebasto/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "5bf3bc5e263407a252c14a17afe04fc3bf24a889",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5bf3bc5e263407a252c14a17afe04fc3bf24a889",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/5bf3bc5e263407a252c14a17afe04fc3bf24a889"
+        },
+        {
+          "sha": "5f972485ffd139852d5d64a38079ab500f8a4c7c",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f972485ffd139852d5d64a38079ab500f8a4c7c",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/5f972485ffd139852d5d64a38079ab500f8a4c7c"
+        }
+      ]
+    },
     {
       "sha": "5bf3bc5e263407a252c14a17afe04fc3bf24a889",
       "node_id": "C_kwDOABII59oAKDViZjNiYzVlMjYzNDA3YTI1MmMxNGExN2FmZTA0ZmMzYmYyNGE4ODk",
@@ -7571,180 +7745,6 @@
           "sha": "331902f1dda63b5b8e5e9296f9871c358bf5d2b3",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/331902f1dda63b5b8e5e9296f9871c358bf5d2b3",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/331902f1dda63b5b8e5e9296f9871c358bf5d2b3"
-        }
-      ]
-    },
-    {
-      "sha": "002b119ce6626fc8397e8a1ff3439eb3ffe7be1f",
-      "node_id": "C_kwDOABII59oAKDAwMmIxMTljZTY2MjZmYzgzOTdlOGExZmYzNDM5ZWIzZmZlN2JlMWY",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-04T11:45:29Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-04T11:45:29Z"
-        },
-        "message": "Merge bitcoin/bitcoin#35041: descriptor: speed-up `Parse` (xpub/xpriv) in ~30%\n\n61cb3d966a855a551307889daea9c45c2c1db203 descriptor: replace O(n) INPUT_CHARSET.find() with precomputed lookup table (brunoerg)\n75fd00099ccfa1039df044ca373131e384af1a9d descriptor, key_io: avoid redundant work when parsing keys (brunoerg)\n\nPull request description:\n\n  This PR speeds up descriptor parsing, for basically descriptors that use xpub/xpriv, through some targeted improvements (I've been working on fuzz targets for wallet stuff for a while. I've noticed that some of them are slow so I started to work on understanding why and improve what can be improved. The finding came from it):\n\n  - Avoid redundant base58 decoding when parsing extended keys (this is the major improvement)\n\n    ParsePubkeyInner unconditionally called both DecodeExtKey() and DecodeExtPubKey(), each running a full DecodeBase58Check (two SHA256 passes over ~111 bytes). A new DecodeExtKeyOrPubKey() function performs a single base58 decode and then checks the prefix, halving the cryptographic work per key. The interfaces of DecodeSecret, DecodeExtKey, and DecodeExtPubKey are also updated to accept string_view instead of const std::string&, eliminating unnecessary string copies in the descriptor parser and allowing DecodeBase58/DecodeBase58Check to use pointer-range iteration instead of strlen.\n\n  - Replace O(n) charset lookup with precomputed table\n\n    DescriptorChecksum previously called std::string::find() for every character in the descriptor string, doing up to 96 comparisons per character. This replaces it with a 256-entry precomputed lookup table for O(1) lookups. The benefit scales with descriptor length.\n\n  -----------\n\n  `Parse()` with the following descriptor:\n  ```sh\n  tr(xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,{{multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*),multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*)},{multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*),multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*)}})\n  ```\n\n  This PR:\n  ```sh\n  |               ns/op |                op/s |    err% |     total | benchmark\n  |--------------------:|--------------------:|--------:|----------:|:----------\n  |           90,253.50 |           11,079.90 |    0.2% |      0.01 | `ParseDescriptor`\n  ```\n\n  Master:\n  ```sh\n  |               ns/op |                op/s |    err% |     total | benchmark\n  |--------------------:|--------------------:|--------:|----------:|:----------\n  |          127,812.50 |            7,823.96 |    0.5% |      0.01 | `ParseDescriptor`\n  ```\n\n  I didn't put the benchmark itself here but if reviewers think worth, I can do it.\n\n  --------\n\n  Joint work with claude \ud83d\ude05\n\nACKs for top commit:\n  hodlinator:\n    re-ACK 61cb3d966a855a551307889daea9c45c2c1db203\n  fametrano:\n    tACK 61cb3d966a855a551307889daea9c45c2c1db203\n  sedited:\n    ACK 61cb3d966a855a551307889daea9c45c2c1db203\n\nTree-SHA512: 19ea44eaa1b01bba05f2c974da6877019d9cde13251994c4ec5f543538de63496c05db4f26d646e7ec1d0d6fc65c959d6d17386a21043eb7e315ee1a8e086fd4",
-        "tree": {
-          "sha": "1c6ae4e7dd0a7f4894000458f93d4e638f21b65d",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/1c6ae4e7dd0a7f4894000458f93d4e638f21b65d"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/002b119ce6626fc8397e8a1ff3439eb3ffe7be1f",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrrGtkACgkQm3m0VpHb\nQXPo+BAAkZ6Pn2JXfSFOl7JVXDpZNLI5lV9AdJxw9r4tRHPjZlPDcBf01He/4b5e\nC4sBPWmTXA1yFjYP+PbFTfTn3MfydVP1rlgcfYAtins0dSlnZLNrL5BXT+OerToO\nqFURJ5J6RcVCeQ47IoJVRfgdrmnyppv8aQq+VeLzX65NdUAdsEIi2WOvvY75utYS\ng6DkaMOQO1HQdUDl9tnYNm/J3NaUh9UtXv516fL3YuGtFYNndwhDhiyoxbyL4vFl\n5Z1exut4bjve57+FZ3TLo1MK0Myxc+8JZsG+Z6MGhd2WDhfc7tbMMjMfjK1ralm6\njNFj3zi6P33dJYGc1lO7Nb7PjTyzDGjnswgEBzfP+KaoA0MT/smlICWOyghLSmrr\n4bjQcc3oCDvbo811R8PXgRkB2dX7BphLtFZFlFRQKkMhqJfXwxRlQRUlIVQNrfjl\nH5fUy0ijsNfmX8nX4KU82cRH8Py1LI1osI69axhaKuMSiOzHV3/3W6mver7Glr+i\nz0abKCDnv33SFt1wfLedcnnK8ZmIYAstcUibRJXeC7T5WyHgIWtV3+XLM4SgPRzv\n7RG3d1Tin9AWFMnimDFqka56GxLcoGumVIssrFbD1gLB66Q6gK275ND5C1j6i2pn\nba9XZApXT6iRTAy5cyn51LnRWDNmFGFJIaESszGin7HthI9IHgI=\n=6DDG\n-----END PGP SIGNATURE-----",
-          "payload": "tree 1c6ae4e7dd0a7f4894000458f93d4e638f21b65d\nparent 3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9\nparent 61cb3d966a855a551307889daea9c45c2c1db203\nauthor merge-script <seb.kung@gmail.com> 1793792729 +0100\ncommitter merge-script <seb.kung@gmail.com> 1793792729 +0100\n\nMerge bitcoin/bitcoin#35041: descriptor: speed-up `Parse` (xpub/xpriv) in ~30%\n\n61cb3d966a855a551307889daea9c45c2c1db203 descriptor: replace O(n) INPUT_CHARSET.find() with precomputed lookup table (brunoerg)\n75fd00099ccfa1039df044ca373131e384af1a9d descriptor, key_io: avoid redundant work when parsing keys (brunoerg)\n\nPull request description:\n\n  This PR speeds up descriptor parsing, for basically descriptors that use xpub/xpriv, through some targeted improvements (I've been working on fuzz targets for wallet stuff for a while. I've noticed that some of them are slow so I started to work on understanding why and improve what can be improved. The finding came from it):\n\n  - Avoid redundant base58 decoding when parsing extended keys (this is the major improvement)\n\n    ParsePubkeyInner unconditionally called both DecodeExtKey() and DecodeExtPubKey(), each running a full DecodeBase58Check (two SHA256 passes over ~111 bytes). A new DecodeExtKeyOrPubKey() function performs a single base58 decode and then checks the prefix, halving the cryptographic work per key. The interfaces of DecodeSecret, DecodeExtKey, and DecodeExtPubKey are also updated to accept string_view instead of const std::string&, eliminating unnecessary string copies in the descriptor parser and allowing DecodeBase58/DecodeBase58Check to use pointer-range iteration instead of strlen.\n\n  - Replace O(n) charset lookup with precomputed table\n\n    DescriptorChecksum previously called std::string::find() for every character in the descriptor string, doing up to 96 comparisons per character. This replaces it with a 256-entry precomputed lookup table for O(1) lookups. The benefit scales with descriptor length.\n\n  -----------\n\n  `Parse()` with the following descriptor:\n  ```sh\n  tr(xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,{{multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*),multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*)},{multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*),multi_a(20,xpub6CGCzpvrZVssNNXuP1Awcz8GoakYyJHra2WHASXfCzsD9szbQFoT1pLMdQopyqaSqXUprH7fkk8NG2pUbQa5HpNzpWmEsdNZDHxXvSLPTrn/*,xpub6C5MW95EE8hAmxm96LdAFYkweaAktQoojCf2MwJmNL9Fi6oUPeBnpFdEzhs9zHwr4HQEeF1r1yAUR8MqDJqk4YPteh75rNoCKCtud7shDDk/*,xpub6DNEUJP1zLAZ1P6gYRba9FyxuppmkrPmSKz3FLM7msRwn2LEr4LnKfAnNoSoAbnbW2orTfsitdfWTxLbJCZ6LizqV7cFUavSAjWzNjqdfCP/*,xpub6Cm5sAgCZQvYtnatYPdFuLhsD9VtgY3Rtt48TrdgqXm4DttXfM6nFmFTko8KcyGhPswTvPcTzfpMUvqV3F9tgLPvzfzoKwjmU668vBmGXEX/*,xpub6DN66R61Luv95HLvznR2ZWsbYuGBoK9LDR6XiNm1pvp5zRJ2vFhLQ4PBe2pDn59sKmRnEFbdLtBVZFN3QAujcGZ5PomGCvrnisxkP2fcgHg/*,xpub6D2GtAtYodmjwEoAzorKUta44NDvAB4JjafYXxsQ5hTWvCAK55nnkyNHfdjrsx3umfgGe1nnHut13mLuFqqi2fs7VVyv6rht76ddrDGhrTY/*,xpub6Bfi8jsDMuu2XHQ1TGRB6ehjdHKKmTwRFQYU6QcgHoZswqbzKsXs9Qd87nAxevjZwuQ37jaVnQoPF6wY34BJoeLxXkEYMpKz2CBHLcEmJVF/*,xpub6CYiNdQesStiBwZkWjPBxwxxf6oPMH9meBMujCwBX74X8nCpMF9zRZUbDrU9raQah1LQcnzLQrHC6Kr6LNCmsBpaMkYD3U6FyhHZfTHQGUB/*,xpub6CddszJHLa3VisZ6ufU4hiFcGsuuPHo7hYa24o3kPuPfAbMED4ajuDa6svuqxxBxYgUQhN8LK7MtTMetquNo7YsWhiV8hX2gBfjszJVXgkG/*,xpub6DAM262AxC4Um3rxBiP5FoA7SJJG3a7MjaJkEyXWyMA6iNuyqWueKZHSSNjKEWnn8Wi3PUQNTV1Z3a59C2Qaidha88GTWtAMhJBAWBBvuTN/*,xpub6ByZcsLsr8xTCJmYxvLpLrsFzuHNXRLR4xMyB9ZFLek1hDVh7zba2xAVTU8M6eonFFAAPYpTA76bDuopF5zyBkZqFc3rtJ3ziH1BUXkjC6j/*,xpub6Bx2LErujvR1noXrk7RHQB9htiDcPM5qYuV7Jg1nZh5jWeK8pYB4DnYQ73EX9sB9M6rnNsF8LDPUejHiXrBx2JJQSdVQ9i9FfEzJLuAnzEd/*,xpub6DSBog1uLngjBWVDUpLTQ19jGGKovgc3iTd1ijL4fjk9sgNqrnG5kGLjUWncay2jbqdgt6yrbYSHhfwsTMp7i8pUD1FMCQuFyqdsZpgUNH8/*,xpub6C53ov8LpuGp5MM4ghqUFJcdTnXJCRHyXaz1RVCys2uQErpdzUWHtm8Bsg8NJyaqfhGWvm9WPSE7jMneCRw1xs1CTajpToXyRqSCc41JiuY/*,xpub6CscWPNXdEybbJVvx7fJTrfHyTkKZtb97qcpQ9fH4k4xtm4nkckSpvy86heQsdyoF28CugwLHg5kLDwpGoPQAYXQ3RG9cJB2Na1FdeN1wt5/*,xpub6Cmrivt6w3kVAxw7NmcKSY19gSLmC2tVwx46cdigr9d1UEnttJCGZJ7NQu1MkugpZgF9rQ3j3NKUiZ2MoaC2QoZUfi4nwxbpH39SQZaBHut/*,xpub6D1Ey5JAYnBxFE8i2V2SUsEpJt7r3ykJKcShcpT2xN9CXtVQy5dKeYiZ9D1bdnkPrmgEajrSuA5nWqf94s6u7FwvXy3cU4BXUMgAt9C8wGT/*,xpub6CwJ2vicnoSJNFDzhonucHNVHDwyb1vyiu2VF6zmjQrzGb4qoAma1i2QJ7qRNe1qmpvvWwzSuQDgMnCECFQhZaPKuPFjcMo33r2xenBauxf/*,xpub6CiLNz8mFB4fB51x6gMNu44Up9PyVhq7fSxQb8UzYQermvMShwWyqzQe99Uiyxpfy1ow42xUGpPGBHf8ErxDbQojBf7Uy7hKFgYk8KpgMm2/*,xpub6DQ2qVMZ2o2QGGpYDsw5hpAcygNVEycAkkCib2Lexwm8gYWMCSecZ256AbAV93Rgze6h8yEoTcqUnvnz7L69WUqp7cXd85X8HoeKWjPHRRZ/*)}})\n  ```\n\n  This PR:\n  ```sh\n  |               ns/op |                op/s |    err% |     total | benchmark\n  |--------------------:|--------------------:|--------:|----------:|:----------\n  |           90,253.50 |           11,079.90 |    0.2% |      0.01 | `ParseDescriptor`\n  ```\n\n  Master:\n  ```sh\n  |               ns/op |                op/s |    err% |     total | benchmark\n  |--------------------:|--------------------:|--------:|----------:|:----------\n  |          127,812.50 |            7,823.96 |    0.5% |      0.01 | `ParseDescriptor`\n  ```\n\n  I didn't put the benchmark itself here but if reviewers think worth, I can do it.\n\n  --------\n\n  Joint work with claude \ud83d\ude05\n\nACKs for top commit:\n  hodlinator:\n    re-ACK 61cb3d966a855a551307889daea9c45c2c1db203\n  fametrano:\n    tACK 61cb3d966a855a551307889daea9c45c2c1db203\n  sedited:\n    ACK 61cb3d966a855a551307889daea9c45c2c1db203\n\nTree-SHA512: 19ea44eaa1b01bba05f2c974da6877019d9cde13251994c4ec5f543538de63496c05db4f26d646e7ec1d0d6fc65c959d6d17386a21043eb7e315ee1a8e086fd4\n",
-          "verified_at": "2026-11-04T11:47:27Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/002b119ce6626fc8397e8a1ff3439eb3ffe7be1f",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/002b119ce6626fc8397e8a1ff3439eb3ffe7be1f",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/002b119ce6626fc8397e8a1ff3439eb3ffe7be1f/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9"
-        },
-        {
-          "sha": "61cb3d966a855a551307889daea9c45c2c1db203",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/61cb3d966a855a551307889daea9c45c2c1db203",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/61cb3d966a855a551307889daea9c45c2c1db203"
-        }
-      ]
-    },
-    {
-      "sha": "3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-      "node_id": "C_kwDOABII59oAKDNiNWJhNWQzNzZhYzE2NWIyN2QzYWE1YmZkN2M0NmFjZjYxY2U0Yjk",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-04T11:33:38Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-04T11:33:38Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36748: test: Small test sync fixups\n\nfa6f1c00c5fb1c8e51595f387b7c62c7253e89fa test: Use send_self_transfer_chain (MarcoFalke)\nfa2986921cd53146fb8a1fc9585714a064a137d9 test: Use generateblock with submit=False over manual create_block from tmpl (MarcoFalke)\nfacf4a0ea98ef52f505e4f72eab1b6183df3832f test: Remove redundant sync_blocks (MarcoFalke)\n\nPull request description:\n\n  Just a few random sync style-only test-only fixups. See the commit msgs for the rationales.\n\nACKs for top commit:\n  musaHaruna:\n    ACK [fa6f1c0](https://github.com/bitcoin/bitcoin/pull/36748/changes/fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa)\n  sedited:\n    ACK fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa\n\nTree-SHA512: 3f411f8221f7804ca4f2e17963e165560b7fee7e9576e1a1d849e5a9c527a3de272b7b739bd9ba958adfcb487b3b1a43ce5c399b5c2f5234f4760dc201123fa5",
-        "tree": {
-          "sha": "f685014c3d45d92f961125de51ef9bab96f4931a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/f685014c3d45d92f961125de51ef9bab96f4931a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrrGBIACgkQm3m0VpHb\nQXOyBg/9Hhe2NJUkmOQI/SuI6HzGOMkKbwkX9FQxlZ34jQ61VYIyS7xoBRt4XKSv\n30vGTXU3HzSTFfr6VKuLKQUILjJLlTRbjYYvK5WjI1BTXNRDq50xNR/i1WCvz7Mj\n/NRL1MjXOUK7AZUgFJCr10VCGl392RLf0BRGH/jmWQqV3F2KSrWHxjw2oZo2U/Ml\nPmH3qSPcxGO0d3z5EyJjFGWkp6cDKwfyKvFz9MqMk0xWt7xHT/eBdMpXaVvEE2DT\n7Ln6iSqZwQfsBfUCYvORuCspqbTE04Z+iv7zkGNp8pSJP7+unfFl8lcL+VID3Xvl\na/q9K+wPmaBiOr6IIKWhf9N1EONpUfNBmgWRAQxf6N4WkT/9SR9kr20TAaseerAd\nuiJtl/idoa99DU4lurIUidK517HyjzUDqbNvv3OsuQSHxE5vI/8eFaYOsaKnUfI4\nXg4ihIzbdkwWOKmb3bN0/qmulqsylg3jfITCjI6oiPIudoD06+lMyJBhm3hFAFnT\ntL79Eq3T9u6ewlen5Gj/8qRmTGY3NM8A73kGdT/6tkQMXrQRqcqIr7oLYaool8Tz\n72XDxi2qDVLsHXCuVJJ7j4jUjV9/A60rTPUaBCBjEPJeBcEbxaEKjIZna9/RLQB6\nGK/OPGYs2qnhXd+C8dMuejz0yWlUnzvAKwRiC8GQ4TpdNYx/fZo=\n=jgyi\n-----END PGP SIGNATURE-----",
-          "payload": "tree f685014c3d45d92f961125de51ef9bab96f4931a\nparent ed3d34ba0c0b28bb281b265eaca62222aae3a796\nparent fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa\nauthor merge-script <seb.kung@gmail.com> 1793792018 +0100\ncommitter merge-script <seb.kung@gmail.com> 1793792018 +0100\n\nMerge bitcoin/bitcoin#36748: test: Small test sync fixups\n\nfa6f1c00c5fb1c8e51595f387b7c62c7253e89fa test: Use send_self_transfer_chain (MarcoFalke)\nfa2986921cd53146fb8a1fc9585714a064a137d9 test: Use generateblock with submit=False over manual create_block from tmpl (MarcoFalke)\nfacf4a0ea98ef52f505e4f72eab1b6183df3832f test: Remove redundant sync_blocks (MarcoFalke)\n\nPull request description:\n\n  Just a few random sync style-only test-only fixups. See the commit msgs for the rationales.\n\nACKs for top commit:\n  musaHaruna:\n    ACK [fa6f1c0](https://github.com/bitcoin/bitcoin/pull/36748/changes/fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa)\n  sedited:\n    ACK fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa\n\nTree-SHA512: 3f411f8221f7804ca4f2e17963e165560b7fee7e9576e1a1d849e5a9c527a3de272b7b739bd9ba958adfcb487b3b1a43ce5c399b5c2f5234f4760dc201123fa5\n",
-          "verified_at": "2026-11-04T11:34:14Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/3b5ba5d376ac165b27d3aa5bfd7c46acf61ce4b9/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "ed3d34ba0c0b28bb281b265eaca62222aae3a796",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ed3d34ba0c0b28bb281b265eaca62222aae3a796",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/ed3d34ba0c0b28bb281b265eaca62222aae3a796"
-        },
-        {
-          "sha": "fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa6f1c00c5fb1c8e51595f387b7c62c7253e89fa"
         }
       ]
     }
