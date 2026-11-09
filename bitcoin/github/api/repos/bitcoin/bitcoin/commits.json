@@ -1,8 +1,95 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-11-09T08:32:52.919416Z",
+  "generated_at": "2026-11-09T19:05:01.394182Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "44901d8f64cb617714707bd025ecd83f108353c2",
+      "node_id": "C_kwDOABII59oAKDQ0OTAxZDhmNjRjYjYxNzcxNDcwN2JkMDI1ZWNkODNmMTA4MzUzYzI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-11-09T11:55:31Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-11-09T11:55:31Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36798: test: spend an existing output in `TestBasicMining` double spend case\n\nb2c7f2545e9a902cb820311e4ff401091a9d620e test: spend an existing output in TestBasicMining double spend case (yuvicc)\n\nPull request description:\n\n  The double spend case in `TestBasicMining` is meant to check that block template creation fails when two mempool transactions spend the same coin. It reuses the transaction from the preceding coinbase case, whose prevout was cleared with `SetNull()`, and only overwrites the prevout hash. The output index therefore stays `COutPoint::NULL_INDEX`, so both transactions spend an output of `txFirst[0]` that does not exist.\n\n  Set the output index to 0, so the first transaction is a valid spend and only the second one makes template creation fail.\n\n  Found while working on #36692 and https://github.com/yuvicc/bitcoin/pull/19.\n\nACKs for top commit:\n  jpk68:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  alexanderwiederin:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  maflcko:\n    lgtm ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n\nTree-SHA512: 3cf6f42f57a076cae340fb418296e815458251366a1b914015b779cafb063bb78db86efddafa704cc26e58efacdff37f424301214de662569500256da5918991",
+        "tree": {
+          "sha": "daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/44901d8f64cb617714707bd025ecd83f108353c2",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrxtLMbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBtisP/jpKkdlQsBg6B6gzT/sy\nQZLgHm3Cs+RGvmBuxO7xP1kmdjm596+lJpFmlAv5Dtzc4If5zXkqxxzAuCzyFhpa\nFmUAzNNfyaDHrLDabqKR4itBYiqdrWf+gT7+X4pgdAarxmEJMCnzpYlnxKkr12BX\ng9tazS8ANUVbdW9caOvhVnxhJSsr88thP6V69gKxYeEwT0GBu3XVpjIu5HlbURUm\nZHwTeB5SnQm6rYw8cUCvo91JLCgpZDb6X4EP+wu5RAynZr2wkz59sB9K/Az1uX2a\nii7CVBXRVg02HBmRA+erFedoyFUUEtLSVz0Ydu5zwnWix7HrZB3n5FG+A216rpFg\nwVb0hRoI3gtwDxBPVpcAN28u7Xmz6SoQaInBR04yG1GQq1Dun+GB+bKUNGHi6kTe\nIlZjHW5RjUiVq7zgrt7Ix+sgOzcIhCSb3oSYQG5m2VF5JhdJ2bdGxiQXbor6Ep7R\nPRL9teNu1HbeajeKrgNFlXMJEVFbKaGszLndg6DOZJPVB/wxH+AEs3rR1Pc1SUDZ\ncxk1HZM7uqycB5iRsQFp4f/uIMYmFoa+OdDRPlZBpCL2tGfxnggdlUqWKG0Iw+Be\niSgOTNxg9n7U6SDs3m5vXD8em8mnZzKLMT/XgwlgwSX8bWgX3ZRnHyNaq+8XkT/5\nKLE9pu3lkv3q1JuytcaYL6w6\n=oawH\n-----END PGP SIGNATURE-----",
+          "payload": "tree daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad\nparent 4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9\nparent b2c7f2545e9a902cb820311e4ff401091a9d620e\nauthor merge-script <fanquake@gmail.com> 1794225331 +0000\ncommitter merge-script <fanquake@gmail.com> 1794225331 +0000\n\nMerge bitcoin/bitcoin#36798: test: spend an existing output in `TestBasicMining` double spend case\n\nb2c7f2545e9a902cb820311e4ff401091a9d620e test: spend an existing output in TestBasicMining double spend case (yuvicc)\n\nPull request description:\n\n  The double spend case in `TestBasicMining` is meant to check that block template creation fails when two mempool transactions spend the same coin. It reuses the transaction from the preceding coinbase case, whose prevout was cleared with `SetNull()`, and only overwrites the prevout hash. The output index therefore stays `COutPoint::NULL_INDEX`, so both transactions spend an output of `txFirst[0]` that does not exist.\n\n  Set the output index to 0, so the first transaction is a valid spend and only the second one makes template creation fail.\n\n  Found while working on #36692 and https://github.com/yuvicc/bitcoin/pull/19.\n\nACKs for top commit:\n  jpk68:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  alexanderwiederin:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  maflcko:\n    lgtm ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n\nTree-SHA512: 3cf6f42f57a076cae340fb418296e815458251366a1b914015b779cafb063bb78db86efddafa704cc26e58efacdff37f424301214de662569500256da5918991\n",
+          "verified_at": "2026-11-09T11:55:35Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44901d8f64cb617714707bd025ecd83f108353c2",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/44901d8f64cb617714707bd025ecd83f108353c2",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44901d8f64cb617714707bd025ecd83f108353c2/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9"
+        },
+        {
+          "sha": "b2c7f2545e9a902cb820311e4ff401091a9d620e",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b2c7f2545e9a902cb820311e4ff401091a9d620e"
+        }
+      ]
+    },
     {
       "sha": "4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
       "node_id": "C_kwDOABII59oAKDRlZjc5MDRjMzlmYTJjOWVlZGM2NmQxYTc1Y2FhZjM0YzBjNTMxYjk",
@@ -261,6 +348,88 @@
           "sha": "5f972485ffd139852d5d64a38079ab500f8a4c7c",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f972485ffd139852d5d64a38079ab500f8a4c7c",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/5f972485ffd139852d5d64a38079ab500f8a4c7c"
+        }
+      ]
+    },
+    {
+      "sha": "b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "node_id": "C_kwDOABII59oAKGIyYzdmMjU0NWU5YTkwMmNiODIwMzExZTRmZjQwMTA5MWE5ZDYyMGU",
+      "commit": {
+        "author": {
+          "name": "yuvicc",
+          "email": "yuvichh01@gmail.com",
+          "date": "2026-11-07T11:33:53Z"
+        },
+        "committer": {
+          "name": "yuvicc",
+          "email": "yuvichh01@gmail.com",
+          "date": "2026-11-07T11:33:53Z"
+        },
+        "message": "test: spend an existing output in TestBasicMining double spend case\n\nThe double spend pair reuses the transaction of the preceding coinbase\ncase, whose prevout was cleared with SetNull(). Only the prevout hash\nwas overwritten, so both transactions spent output index\nCOutPoint::NULL_INDEX, which does not exist. Template creation\ntherefore failed on a missing input even without a second spend.\n\nSet the output index to 0 so the first transaction is valid and only\nthe double spend makes template creation fail.",
+        "tree": {
+          "sha": "018588cddae451e5436c5232bcbad614de8472bf",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/018588cddae451e5436c5232bcbad614de8472bf"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQRxIqfV4fHauqeDZkLHO83HCSJ4EQUCau8MoRsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQxzvNxwkieBG8rAEAnf55uw6o7tfp51xtWbLP\nAyLeYI956Q/g7lvSQOtrsW0BAOj/y0GF1OFqEMgX1ScKiBG9+hBzva8GE13Oh7yX\nhzkF\n=g7gU\n-----END PGP SIGNATURE-----",
+          "payload": "tree 018588cddae451e5436c5232bcbad614de8472bf\nparent 411c971e75ba8ef16855a41dfe2d31d574ebf507\nauthor yuvicc <yuvichh01@gmail.com> 1794051233 +0530\ncommitter yuvicc <yuvichh01@gmail.com> 1794051233 +0530\n\ntest: spend an existing output in TestBasicMining double spend case\n\nThe double spend pair reuses the transaction of the preceding coinbase\ncase, whose prevout was cleared with SetNull(). Only the prevout hash\nwas overwritten, so both transactions spent output index\nCOutPoint::NULL_INDEX, which does not exist. Template creation\ntherefore failed on a missing input even without a second spend.\n\nSet the output index to 0 so the first transaction is valid and only\nthe double spend makes template creation fail.\n",
+          "verified_at": "2026-11-07T11:37:56Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e/comments",
+      "author": {
+        "login": "yuvicc",
+        "id": 92994932,
+        "node_id": "U_kgDOBYr9dA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/92994932?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yuvicc",
+        "html_url": "https://github.com/yuvicc",
+        "followers_url": "https://api.github.com/users/yuvicc/followers",
+        "following_url": "https://api.github.com/users/yuvicc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yuvicc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yuvicc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yuvicc/subscriptions",
+        "organizations_url": "https://api.github.com/users/yuvicc/orgs",
+        "repos_url": "https://api.github.com/users/yuvicc/repos",
+        "events_url": "https://api.github.com/users/yuvicc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yuvicc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "yuvicc",
+        "id": 92994932,
+        "node_id": "U_kgDOBYr9dA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/92994932?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yuvicc",
+        "html_url": "https://github.com/yuvicc",
+        "followers_url": "https://api.github.com/users/yuvicc/followers",
+        "following_url": "https://api.github.com/users/yuvicc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yuvicc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yuvicc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yuvicc/subscriptions",
+        "organizations_url": "https://api.github.com/users/yuvicc/orgs",
+        "repos_url": "https://api.github.com/users/yuvicc/repos",
+        "events_url": "https://api.github.com/users/yuvicc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yuvicc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "411c971e75ba8ef16855a41dfe2d31d574ebf507",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/411c971e75ba8ef16855a41dfe2d31d574ebf507",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/411c971e75ba8ef16855a41dfe2d31d574ebf507"
         }
       ]
     },
@@ -1546,180 +1715,6 @@
           "sha": "87310779af88aec0233c704350df875284d40f34",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/87310779af88aec0233c704350df875284d40f34",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/87310779af88aec0233c704350df875284d40f34"
-        }
-      ]
-    },
-    {
-      "sha": "4e3b0a441ec7bc9db6e020793609231c97469804",
-      "node_id": "C_kwDOABII59oAKDRlM2IwYTQ0MWVjN2JjOWRiNmUwMjA3OTM2MDkyMzFjOTc0Njk4MDQ",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-11-06T10:15:42Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "fanquake@gmail.com",
-          "date": "2026-11-06T10:15:42Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36765: fuzz: push messages to one of m_nodes in connman target\n\nad51e87ecfd8f4b27e703b5c6116e6d75dcb9787 fuzz: push a message to an actually connected node in connman target (Antoine Poinsot)\n\nPull request description:\n\n  The connman fuzz target never exercised `m_nodes` peers with queued messages, as their message queue is always empty. The most they ever had to send was handshake bytes in the case of v2 peers, so the socket handler only ever waited for SendEvent, and sent data, during a v2 handshake.\n\n  Fix this by pushing messages to one of the `m_nodes` peers instead of `random_node`, which is never added to connman.\n\nACKs for top commit:\n  marcofleon:\n    ACK ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787\n\nTree-SHA512: 4239b2eb8a12c0f58fce76fb9477abd37082af6ab2b1331ee627e166fb4ab3f0271f3e2f546bb281603900f67558bf5e1e3b8cc21063d256f262007ce2d2ff0b",
-        "tree": {
-          "sha": "7ea3c1648394fd558dd2b3d1ca8a1404ef98d4b3",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/7ea3c1648394fd558dd2b3d1ca8a1404ef98d4b3"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/4e3b0a441ec7bc9db6e020793609231c97469804",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrtqM4bFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBEHsQAICon8Vbj8l+HeTGJDme\nbVVfGLUUM9muwkRL6XEHYz5q4IkDcJZkmtgViZIK5/3q0102mlL+86Vcyue3AQd2\n9jfNE6YKxRSyYV6F+JMU3tFUPHb+YBeEGjF4VhStY/7YPYBpsQ0HgeRQXvJ04T2S\na0oRGFGsbEOofbFqixl6QAp8Bm8Huta0Z+MTwspgnqgb9Mp/iuRHSMwYmnysupu2\nxTdnlzEb0yzzBkf36u8jTqeyF3pD0laODQHVj29RgwvXCbjTyjlCYwNZh0Y8Gc3U\nSh+PZLnb0Bq6XRJrvCEt8dOt2wI+crtLHIFraMt5lokvjCIAEcEFqhp6msz+wp0O\nWfZd7ejhMIX/A+pg0crsTTrrQD0yuZXe/sXdOjN6wxqQMyPSRerbQbbn50+r98OE\nsxeZlLzaTdbK5rP+IXXrk6FABGwkRq5TcFyv2kXMRdBWELxCxvZvoQt9ndOuEYG1\nqlpLj8WBmXq48Y+E0/gEf+z47JaCqOPQpGgQ3c8x3G01f5mxk6kBfkeN8j00OiuA\nAST3FTTp4NwN6ro1RORrZlyhHxBr4byS5/vzC0QB0jj77Hb6ffhrUYRUBuWfvSjl\nQgWwCLq8MUqvgLXZwiTREKlNAnaKS+u+MusqllAE8P2kQM7AHTyYRH/RiOtGBr68\n2kF1M571Yx3aFddR527rzrJE\n=XD7c\n-----END PGP SIGNATURE-----",
-          "payload": "tree 7ea3c1648394fd558dd2b3d1ca8a1404ef98d4b3\nparent 521bbaf40939280b37a155db5f72f9ecd6c08d6c\nparent ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787\nauthor merge-script <fanquake@gmail.com> 1793960142 +0000\ncommitter merge-script <fanquake@gmail.com> 1793960142 +0000\n\nMerge bitcoin/bitcoin#36765: fuzz: push messages to one of m_nodes in connman target\n\nad51e87ecfd8f4b27e703b5c6116e6d75dcb9787 fuzz: push a message to an actually connected node in connman target (Antoine Poinsot)\n\nPull request description:\n\n  The connman fuzz target never exercised `m_nodes` peers with queued messages, as their message queue is always empty. The most they ever had to send was handshake bytes in the case of v2 peers, so the socket handler only ever waited for SendEvent, and sent data, during a v2 handshake.\n\n  Fix this by pushing messages to one of the `m_nodes` peers instead of `random_node`, which is never added to connman.\n\nACKs for top commit:\n  marcofleon:\n    ACK ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787\n\nTree-SHA512: 4239b2eb8a12c0f58fce76fb9477abd37082af6ab2b1331ee627e166fb4ab3f0271f3e2f546bb281603900f67558bf5e1e3b8cc21063d256f262007ce2d2ff0b\n",
-          "verified_at": "2026-11-06T10:15:46Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4e3b0a441ec7bc9db6e020793609231c97469804",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/4e3b0a441ec7bc9db6e020793609231c97469804",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4e3b0a441ec7bc9db6e020793609231c97469804/comments",
-      "author": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "fanquake",
-        "id": 863730,
-        "node_id": "MDQ6VXNlcjg2MzczMA==",
-        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/fanquake",
-        "html_url": "https://github.com/fanquake",
-        "followers_url": "https://api.github.com/users/fanquake/followers",
-        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
-        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
-        "organizations_url": "https://api.github.com/users/fanquake/orgs",
-        "repos_url": "https://api.github.com/users/fanquake/repos",
-        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/fanquake/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/521bbaf40939280b37a155db5f72f9ecd6c08d6c"
-        },
-        {
-          "sha": "ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/ad51e87ecfd8f4b27e703b5c6116e6d75dcb9787"
-        }
-      ]
-    },
-    {
-      "sha": "521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-      "node_id": "C_kwDOABII59oAKDUyMWJiYWY0MDkzOTI4MGIzN2ExNTVkYjVmNzJmOWVjZDZjMDhkNmM",
-      "commit": {
-        "author": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-06T10:12:27Z"
-        },
-        "committer": {
-          "name": "merge-script",
-          "email": "seb.kung@gmail.com",
-          "date": "2026-11-06T10:12:27Z"
-        },
-        "message": "Merge bitcoin/bitcoin#36731: test: use monotonic clock for durations in test framework and http_interface\n\na7d3a4297321274ced64294e0bbd3252167e8879 test: use monotonic clock in interface_http (ViniciusCestarii)\neccca10e6460507e553e61a1cdaf664fa7738375 test: use monotonic clock for durations in test framework (ViniciusCestarii)\n\nPull request description:\n\n  Replace `time.time()` used to measure durations by `time.monotonic()` in test framework and http_interface.\n\n  This helps preventing future clock jump flakiness (same class of bug as #36529) on tests and fix:\n\n  ```\n  faketime --exclude-monotonic -f \"+0 x0.5\" build/test/functional/feature_torcontrol.py\n  faketime --exclude-monotonic -f \"+0 x0.1\" build/test/functional/interface_http.py\n  ```\n\nACKs for top commit:\n  nervana21:\n    tACK a7d3a4297321274ced64294e0bbd3252167e8879\n  maflcko:\n    review ACK a7d3a4297321274ced64294e0bbd3252167e8879 🕐\n  sedited:\n    ACK a7d3a4297321274ced64294e0bbd3252167e8879\n\nTree-SHA512: d1c6b98ceab4c4bf5b97a44b4a4577b0868292d2aaa359aa67a807be469700737f0d330da83e8b6f85403635db6809c41dcd4041a84f3ab6dad9ef16e50a44d1",
-        "tree": {
-          "sha": "9d16b1490ae8ff84a6b39aaee3e1e1b4291ba570",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/9d16b1490ae8ff84a6b39aaee3e1e1b4291ba570"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8s/Eq9C5nYN+67fQm3m0VpHbQXMFAmrtqAsACgkQm3m0VpHb\nQXMehQ//TOVkbMx6vKBW+7T4/nRYNPRMBFsxvq5kKvvcUiPB1AMryREL2LJYOefc\nUrbS2mUSME3iiEMBQNkjn5JBkSkZgDtXi5K33JCRB54eqwcOfGi84Rc62FwxBbzs\ncskhh5Meoacsvvki1LVqm+otmMC0iPKWu2P0m0K7AcR1iBuSsFLaD4qS3LIeK/1L\n1sSJufY2iAluwtvDw2codUgECCX50LHCmTxUZurDjqU+U1Hj4JDwgD847qqDGT/h\noKJeFqz3A8zgV1g3mkvcETo6ehRitudCf7zyRpkVylMtkAUGEnfTf+a4AATofsUU\nHzT65qc8m3sDN2EPIR4WoWhH37OVcypvywzO/rhFGvxReEdelQ0UKraSYeMjVekT\nTXddeSnjcA4ckPft7rBCmzWF8CyuMIUiAOeMIWmOgjJvzmGM1zMqu6xmsty6XZDl\nH1MYkc1aj1NpeB2U3Gfw7sAH9/je5QQyHR7K2Ykb/qAarIAikfaC4+PY50ppTRaV\nISjxnkeTUkU8F4uCnFS5qElIcvN68mZe3y+wyEb8ws0FM51/fF/3AqwhmOyif9zs\nI43y96xdYP4rLgaOLJyCOWmviZUZ7yIcAoIbN3dTAatmO0GjTLSbJiQchygmwDXm\nIG9o9bDGvVJzEEUg8nKXmendaOfNWLwtitOqzn065K7bqVGsdtc=\n=Rk2C\n-----END PGP SIGNATURE-----",
-          "payload": "tree 9d16b1490ae8ff84a6b39aaee3e1e1b4291ba570\nparent f22abab451b6c2327308df832246b2cba9c35658\nparent a7d3a4297321274ced64294e0bbd3252167e8879\nauthor merge-script <seb.kung@gmail.com> 1793959947 +0100\ncommitter merge-script <seb.kung@gmail.com> 1793959947 +0100\n\nMerge bitcoin/bitcoin#36731: test: use monotonic clock for durations in test framework and http_interface\n\na7d3a4297321274ced64294e0bbd3252167e8879 test: use monotonic clock in interface_http (ViniciusCestarii)\neccca10e6460507e553e61a1cdaf664fa7738375 test: use monotonic clock for durations in test framework (ViniciusCestarii)\n\nPull request description:\n\n  Replace `time.time()` used to measure durations by `time.monotonic()` in test framework and http_interface.\n\n  This helps preventing future clock jump flakiness (same class of bug as #36529) on tests and fix:\n\n  ```\n  faketime --exclude-monotonic -f \"+0 x0.5\" build/test/functional/feature_torcontrol.py\n  faketime --exclude-monotonic -f \"+0 x0.1\" build/test/functional/interface_http.py\n  ```\n\nACKs for top commit:\n  nervana21:\n    tACK a7d3a4297321274ced64294e0bbd3252167e8879\n  maflcko:\n    review ACK a7d3a4297321274ced64294e0bbd3252167e8879 🕐\n  sedited:\n    ACK a7d3a4297321274ced64294e0bbd3252167e8879\n\nTree-SHA512: d1c6b98ceab4c4bf5b97a44b4a4577b0868292d2aaa359aa67a807be469700737f0d330da83e8b6f85403635db6809c41dcd4041a84f3ab6dad9ef16e50a44d1\n",
-          "verified_at": "2026-11-06T10:13:03Z"
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/521bbaf40939280b37a155db5f72f9ecd6c08d6c",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/521bbaf40939280b37a155db5f72f9ecd6c08d6c/comments",
-      "author": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "sedited",
-        "id": 8421793,
-        "node_id": "MDQ6VXNlcjg0MjE3OTM=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/8421793?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/sedited",
-        "html_url": "https://github.com/sedited",
-        "followers_url": "https://api.github.com/users/sedited/followers",
-        "following_url": "https://api.github.com/users/sedited/following{/other_user}",
-        "gists_url": "https://api.github.com/users/sedited/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/sedited/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/sedited/subscriptions",
-        "organizations_url": "https://api.github.com/users/sedited/orgs",
-        "repos_url": "https://api.github.com/users/sedited/repos",
-        "events_url": "https://api.github.com/users/sedited/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/sedited/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "f22abab451b6c2327308df832246b2cba9c35658",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f22abab451b6c2327308df832246b2cba9c35658",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f22abab451b6c2327308df832246b2cba9c35658"
-        },
-        {
-          "sha": "a7d3a4297321274ced64294e0bbd3252167e8879",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/a7d3a4297321274ced64294e0bbd3252167e8879",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/a7d3a4297321274ced64294e0bbd3252167e8879"
         }
       ]
     }
