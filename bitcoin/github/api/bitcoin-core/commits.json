@@ -1,8 +1,95 @@
 {
   "schema": "zzx-bitcoin-core-commit-mirror-v1",
-  "generated_at": "2026-11-09T07:40:50.227834Z",
+  "generated_at": "2026-11-09T18:13:37.032427Z",
   "repository": "bitcoin/bitcoin",
   "commits": [
+    {
+      "sha": "44901d8f64cb617714707bd025ecd83f108353c2",
+      "node_id": "C_kwDOABII59oAKDQ0OTAxZDhmNjRjYjYxNzcxNDcwN2JkMDI1ZWNkODNmMTA4MzUzYzI",
+      "commit": {
+        "author": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-11-09T11:55:31Z"
+        },
+        "committer": {
+          "name": "merge-script",
+          "email": "fanquake@gmail.com",
+          "date": "2026-11-09T11:55:31Z"
+        },
+        "message": "Merge bitcoin/bitcoin#36798: test: spend an existing output in `TestBasicMining` double spend case\n\nb2c7f2545e9a902cb820311e4ff401091a9d620e test: spend an existing output in TestBasicMining double spend case (yuvicc)\n\nPull request description:\n\n  The double spend case in `TestBasicMining` is meant to check that block template creation fails when two mempool transactions spend the same coin. It reuses the transaction from the preceding coinbase case, whose prevout was cleared with `SetNull()`, and only overwrites the prevout hash. The output index therefore stays `COutPoint::NULL_INDEX`, so both transactions spend an output of `txFirst[0]` that does not exist.\n\n  Set the output index to 0, so the first transaction is a valid spend and only the second one makes template creation fail.\n\n  Found while working on #36692 and https://github.com/yuvicc/bitcoin/pull/19.\n\nACKs for top commit:\n  jpk68:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  alexanderwiederin:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  maflcko:\n    lgtm ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n\nTree-SHA512: 3cf6f42f57a076cae340fb418296e815458251366a1b914015b779cafb063bb78db86efddafa704cc26e58efacdff37f424301214de662569500256da5918991",
+        "tree": {
+          "sha": "daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/44901d8f64cb617714707bd025ecd83f108353c2",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEEz7FuIclQ9n+pXlWPLuufXMCVJsEFAmrxtLMbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEC7rn1zAlSbBtisP/jpKkdlQsBg6B6gzT/sy\nQZLgHm3Cs+RGvmBuxO7xP1kmdjm596+lJpFmlAv5Dtzc4If5zXkqxxzAuCzyFhpa\nFmUAzNNfyaDHrLDabqKR4itBYiqdrWf+gT7+X4pgdAarxmEJMCnzpYlnxKkr12BX\ng9tazS8ANUVbdW9caOvhVnxhJSsr88thP6V69gKxYeEwT0GBu3XVpjIu5HlbURUm\nZHwTeB5SnQm6rYw8cUCvo91JLCgpZDb6X4EP+wu5RAynZr2wkz59sB9K/Az1uX2a\nii7CVBXRVg02HBmRA+erFedoyFUUEtLSVz0Ydu5zwnWix7HrZB3n5FG+A216rpFg\nwVb0hRoI3gtwDxBPVpcAN28u7Xmz6SoQaInBR04yG1GQq1Dun+GB+bKUNGHi6kTe\nIlZjHW5RjUiVq7zgrt7Ix+sgOzcIhCSb3oSYQG5m2VF5JhdJ2bdGxiQXbor6Ep7R\nPRL9teNu1HbeajeKrgNFlXMJEVFbKaGszLndg6DOZJPVB/wxH+AEs3rR1Pc1SUDZ\ncxk1HZM7uqycB5iRsQFp4f/uIMYmFoa+OdDRPlZBpCL2tGfxnggdlUqWKG0Iw+Be\niSgOTNxg9n7U6SDs3m5vXD8em8mnZzKLMT/XgwlgwSX8bWgX3ZRnHyNaq+8XkT/5\nKLE9pu3lkv3q1JuytcaYL6w6\n=oawH\n-----END PGP SIGNATURE-----",
+          "payload": "tree daa96669fbf4a35f2a2c010ab04ea3d2ecce5cad\nparent 4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9\nparent b2c7f2545e9a902cb820311e4ff401091a9d620e\nauthor merge-script <fanquake@gmail.com> 1794225331 +0000\ncommitter merge-script <fanquake@gmail.com> 1794225331 +0000\n\nMerge bitcoin/bitcoin#36798: test: spend an existing output in `TestBasicMining` double spend case\n\nb2c7f2545e9a902cb820311e4ff401091a9d620e test: spend an existing output in TestBasicMining double spend case (yuvicc)\n\nPull request description:\n\n  The double spend case in `TestBasicMining` is meant to check that block template creation fails when two mempool transactions spend the same coin. It reuses the transaction from the preceding coinbase case, whose prevout was cleared with `SetNull()`, and only overwrites the prevout hash. The output index therefore stays `COutPoint::NULL_INDEX`, so both transactions spend an output of `txFirst[0]` that does not exist.\n\n  Set the output index to 0, so the first transaction is a valid spend and only the second one makes template creation fail.\n\n  Found while working on #36692 and https://github.com/yuvicc/bitcoin/pull/19.\n\nACKs for top commit:\n  jpk68:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  alexanderwiederin:\n    ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n  maflcko:\n    lgtm ACK b2c7f2545e9a902cb820311e4ff401091a9d620e\n\nTree-SHA512: 3cf6f42f57a076cae340fb418296e815458251366a1b914015b779cafb063bb78db86efddafa704cc26e58efacdff37f424301214de662569500256da5918991\n",
+          "verified_at": "2026-11-09T11:55:35Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44901d8f64cb617714707bd025ecd83f108353c2",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/44901d8f64cb617714707bd025ecd83f108353c2",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/44901d8f64cb617714707bd025ecd83f108353c2/comments",
+      "author": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "fanquake",
+        "id": 863730,
+        "node_id": "MDQ6VXNlcjg2MzczMA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/863730?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/fanquake",
+        "html_url": "https://github.com/fanquake",
+        "followers_url": "https://api.github.com/users/fanquake/followers",
+        "following_url": "https://api.github.com/users/fanquake/following{/other_user}",
+        "gists_url": "https://api.github.com/users/fanquake/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/fanquake/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/fanquake/subscriptions",
+        "organizations_url": "https://api.github.com/users/fanquake/orgs",
+        "repos_url": "https://api.github.com/users/fanquake/repos",
+        "events_url": "https://api.github.com/users/fanquake/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/fanquake/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9"
+        },
+        {
+          "sha": "b2c7f2545e9a902cb820311e4ff401091a9d620e",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/b2c7f2545e9a902cb820311e4ff401091a9d620e"
+        }
+      ]
+    },
     {
       "sha": "4ef7904c39fa2c9eedc66d1a75caaf34c0c531b9",
       "node_id": "C_kwDOABII59oAKDRlZjc5MDRjMzlmYTJjOWVlZGM2NmQxYTc1Y2FhZjM0YzBjNTMxYjk",
@@ -261,6 +348,88 @@
           "sha": "5f972485ffd139852d5d64a38079ab500f8a4c7c",
           "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/5f972485ffd139852d5d64a38079ab500f8a4c7c",
           "html_url": "https://github.com/bitcoin/bitcoin/commit/5f972485ffd139852d5d64a38079ab500f8a4c7c"
+        }
+      ]
+    },
+    {
+      "sha": "b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "node_id": "C_kwDOABII59oAKGIyYzdmMjU0NWU5YTkwMmNiODIwMzExZTRmZjQwMTA5MWE5ZDYyMGU",
+      "commit": {
+        "author": {
+          "name": "yuvicc",
+          "email": "yuvichh01@gmail.com",
+          "date": "2026-11-07T11:33:53Z"
+        },
+        "committer": {
+          "name": "yuvicc",
+          "email": "yuvichh01@gmail.com",
+          "date": "2026-11-07T11:33:53Z"
+        },
+        "message": "test: spend an existing output in TestBasicMining double spend case\n\nThe double spend pair reuses the transaction of the preceding coinbase\ncase, whose prevout was cleared with SetNull(). Only the prevout hash\nwas overwritten, so both transactions spent output index\nCOutPoint::NULL_INDEX, which does not exist. Template creation\ntherefore failed on a missing input even without a second spend.\n\nSet the output index to 0 so the first transaction is valid and only\nthe double spend makes template creation fail.",
+        "tree": {
+          "sha": "018588cddae451e5436c5232bcbad614de8472bf",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/018588cddae451e5436c5232bcbad614de8472bf"
+        },
+        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\niJEEABYKADkWIQRxIqfV4fHauqeDZkLHO83HCSJ4EQUCau8MoRsUgAAAAAAEAA5t\nYW51MiwyLjUrMS4xMiwwLDMACgkQxzvNxwkieBG8rAEAnf55uw6o7tfp51xtWbLP\nAyLeYI956Q/g7lvSQOtrsW0BAOj/y0GF1OFqEMgX1ScKiBG9+hBzva8GE13Oh7yX\nhzkF\n=g7gU\n-----END PGP SIGNATURE-----",
+          "payload": "tree 018588cddae451e5436c5232bcbad614de8472bf\nparent 411c971e75ba8ef16855a41dfe2d31d574ebf507\nauthor yuvicc <yuvichh01@gmail.com> 1794051233 +0530\ncommitter yuvicc <yuvichh01@gmail.com> 1794051233 +0530\n\ntest: spend an existing output in TestBasicMining double spend case\n\nThe double spend pair reuses the transaction of the preceding coinbase\ncase, whose prevout was cleared with SetNull(). Only the prevout hash\nwas overwritten, so both transactions spent output index\nCOutPoint::NULL_INDEX, which does not exist. Template creation\ntherefore failed on a missing input even without a second spend.\n\nSet the output index to 0 so the first transaction is valid and only\nthe double spend makes template creation fail.\n",
+          "verified_at": "2026-11-07T11:37:56Z"
+        }
+      },
+      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "html_url": "https://github.com/bitcoin/bitcoin/commit/b2c7f2545e9a902cb820311e4ff401091a9d620e",
+      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/b2c7f2545e9a902cb820311e4ff401091a9d620e/comments",
+      "author": {
+        "login": "yuvicc",
+        "id": 92994932,
+        "node_id": "U_kgDOBYr9dA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/92994932?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yuvicc",
+        "html_url": "https://github.com/yuvicc",
+        "followers_url": "https://api.github.com/users/yuvicc/followers",
+        "following_url": "https://api.github.com/users/yuvicc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yuvicc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yuvicc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yuvicc/subscriptions",
+        "organizations_url": "https://api.github.com/users/yuvicc/orgs",
+        "repos_url": "https://api.github.com/users/yuvicc/repos",
+        "events_url": "https://api.github.com/users/yuvicc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yuvicc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "yuvicc",
+        "id": 92994932,
+        "node_id": "U_kgDOBYr9dA",
+        "avatar_url": "https://avatars.githubusercontent.com/u/92994932?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/yuvicc",
+        "html_url": "https://github.com/yuvicc",
+        "followers_url": "https://api.github.com/users/yuvicc/followers",
+        "following_url": "https://api.github.com/users/yuvicc/following{/other_user}",
+        "gists_url": "https://api.github.com/users/yuvicc/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/yuvicc/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/yuvicc/subscriptions",
+        "organizations_url": "https://api.github.com/users/yuvicc/orgs",
+        "repos_url": "https://api.github.com/users/yuvicc/repos",
+        "events_url": "https://api.github.com/users/yuvicc/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/yuvicc/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "411c971e75ba8ef16855a41dfe2d31d574ebf507",
+          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/411c971e75ba8ef16855a41dfe2d31d574ebf507",
+          "html_url": "https://github.com/bitcoin/bitcoin/commit/411c971e75ba8ef16855a41dfe2d31d574ebf507"
         }
       ]
     },
@@ -7641,90 +7810,6 @@
         "user_view_type": "public",
         "site_admin": false
       },
-      "parents": [
-        {
-          "sha": "f103de70de0662a1395dca2e536cf5872d86eaa2",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/f103de70de0662a1395dca2e536cf5872d86eaa2",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/f103de70de0662a1395dca2e536cf5872d86eaa2"
-        }
-      ]
-    },
-    {
-      "sha": "fa1b829b234a82fb842676af4c94054c5a460253",
-      "node_id": "C_kwDOABII59oAKGZhMWI4MjliMjM0YTgyZmI4NDI2NzZhZjRjOTQwNTRjNWE0NjAyNTM",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-22T17:49:14Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-11-04T13:40:09Z"
-        },
-        "message": "doc: Merge all BSD build docs back into build-unix.md\n\nExcept for the list of packages, the mostly duplicate the cmake commands\nand dependency descriptions redundantly.",
-        "tree": {
-          "sha": "85edf2aca64d3e122a68464104ed806d23084368",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/85edf2aca64d3e122a68464104ed806d23084368"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa1b829b234a82fb842676af4c94054c5a460253",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQC60FSjwCiBlzBYFyEB/wyU3zqGliRrE0rYXqlIkJPKyAQIzEV7i+P1k3dn8T5ayB9\nn2zRgei4BaQLF/EKoiCQc=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 85edf2aca64d3e122a68464104ed806d23084368\nparent fa0cad21858a128f650fab8b988107439df77fee\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792691354 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793799609 +0100\n\ndoc: Merge all BSD build docs back into build-unix.md\n\nExcept for the list of packages, the mostly duplicate the cmake commands\nand dependency descriptions redundantly.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa1b829b234a82fb842676af4c94054c5a460253",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa1b829b234a82fb842676af4c94054c5a460253",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa1b829b234a82fb842676af4c94054c5a460253/comments",
-      "author": null,
-      "committer": null,
-      "parents": [
-        {
-          "sha": "fa0cad21858a128f650fab8b988107439df77fee",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0cad21858a128f650fab8b988107439df77fee",
-          "html_url": "https://github.com/bitcoin/bitcoin/commit/fa0cad21858a128f650fab8b988107439df77fee"
-        }
-      ]
-    },
-    {
-      "sha": "fa0cad21858a128f650fab8b988107439df77fee",
-      "node_id": "C_kwDOABII59oAKGZhMGNhZDIxODU4YTEyOGY2NTBmYWI4Yjk4ODEwNzQzOWRmNzdmZWU",
-      "commit": {
-        "author": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-10-22T16:49:43Z"
-        },
-        "committer": {
-          "name": "MarcoFalke",
-          "email": "*~=`'#}+{/-|&$^_@721217.xyz",
-          "date": "2026-11-04T13:39:17Z"
-        },
-        "message": "doc: Rework build-unix.md memory limits notes\n\n* Move the OpenBSD ulimit -d note to the general section on memory\n  limits, because Linux may be affected as well.\n* Move the memory limits section to the end, because it should be the\n  least frequently needed one. (Review with --color-moved=dimmed-zebra)\n\nAlso, add dependency sub-sections and remove the duplicate\ndisable-wallet one.",
-        "tree": {
-          "sha": "3c0f9c89d796b7d8652e9eb05428a4e4e31dc74a",
-          "url": "https://api.github.com/repos/bitcoin/bitcoin/git/trees/3c0f9c89d796b7d8652e9eb05428a4e4e31dc74a"
-        },
-        "url": "https://api.github.com/repos/bitcoin/bitcoin/git/commits/fa0cad21858a128f650fab8b988107439df77fee",
-        "comment_count": 0,
-        "verification": {
-          "verified": false,
-          "reason": "no_user",
-          "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgqxY/aMPiuXoCFn6iAEyAhvUqFX\njanTudd31Jtt35ct0AAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5\nAAAAQHDT5mfZGG3QLfJ1HsSoVQiW4P0TqM/f1llGi+mGS96chLtLgCpBIS71ETAKB2xFx0\n5f6hvOMgfKMmIxHPW2Iw4=\n-----END SSH SIGNATURE-----",
-          "payload": "tree 3c0f9c89d796b7d8652e9eb05428a4e4e31dc74a\nparent f103de70de0662a1395dca2e536cf5872d86eaa2\nauthor MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1792687783 +0200\ncommitter MarcoFalke <*~=`'#}+{/-|&$^_@721217.xyz> 1793799557 +0100\n\ndoc: Rework build-unix.md memory limits notes\n\n* Move the OpenBSD ulimit -d note to the general section on memory\n  limits, because Linux may be affected as well.\n* Move the memory limits section to the end, because it should be the\n  least frequently needed one. (Review with --color-moved=dimmed-zebra)\n\nAlso, add dependency sub-sections and remove the duplicate\ndisable-wallet one.\n",
-          "verified_at": null
-        }
-      },
-      "url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0cad21858a128f650fab8b988107439df77fee",
-      "html_url": "https://github.com/bitcoin/bitcoin/commit/fa0cad21858a128f650fab8b988107439df77fee",
-      "comments_url": "https://api.github.com/repos/bitcoin/bitcoin/commits/fa0cad21858a128f650fab8b988107439df77fee/comments",
-      "author": null,
-      "committer": null,
       "parents": [
         {
           "sha": "f103de70de0662a1395dca2e536cf5872d86eaa2",
