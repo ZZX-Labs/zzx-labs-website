@@ -1,8 +1,177 @@
 {
   "schema": "zzx-github-commits-mirror-v1",
-  "generated_at": "2026-11-23T10:26:45.532922Z",
+  "generated_at": "2026-11-23T22:18:42.647487Z",
   "repository": "lightningnetwork/lnd",
   "commits": [
+    {
+      "sha": "9f5e2c7b4e707fb8338e43fda757aee969aac5ed",
+      "node_id": "C_kwDOAvdcaNoAKDlmNWUyYzdiNGU3MDdmYjgzMzhlNDNmZGE3NTdhZWU5NjlhYWM1ZWQ",
+      "commit": {
+        "author": {
+          "name": "Olaoluwa Osuntokun",
+          "email": "laolu32@gmail.com",
+          "date": "2026-11-23T21:33:50Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2026-11-23T21:33:50Z"
+        },
+        "message": "channeldb: persist local updates the peer acked before our first revoke (#11268)\n\n* channeldb: persist local updates the peer acked before our first revoke\n\nIn this commit, we fix AdvanceCommitChainTail so it always persists our\nupdates the peer acknowledged but hasn't signed for yet. It used to\nreturn early when no unsigned acked updates were stored, which skipped\nthat write. Nothing stores the unsigned acked updates until we first\nrevoke a commitment of our own, so every channel takes that path until\nthen, not only nodes that are upgrading, as the comment assumed.\n\nThe window matters for fee updates. If the initiator's first update is a\nfee update, the peer revokes, and the connection drops before the peer's\ncommitment_signed arrives, the initiator restores without the fee update.\nIt then rejects the peer's valid signature for a commitment that covers\nthe fee, and the link force closes the channel. The new test runs that\nsequence, and fails without the fix.\n\nSettles and fails can't hit this, since removing an HTLC needs it locked\nin, which means we already revoked once. The mirror test's restart step\nfound this.\n\n* docs: add release note for the unsigned acked updates fix",
+        "tree": {
+          "sha": "c67bc265a6ee86434d155091203549919631c829",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/c67bc265a6ee86434d155091203549919631c829"
+        },
+        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/9f5e2c7b4e707fb8338e43fda757aee969aac5ed",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJrBLE+CRC1aQ7uu5UhlAAAAcYQAGAuHlRQCVyNRt99kT/1ehv/\n3FqKv5NQJI3Bs8058yMgA7gG9MKLl9w8S1YyiiS/5Qay2K5H1NJw35gP37WsClxA\n8Ak42K7te7UaZR36p9pjVtEZNeQo+h5D6mj+IQTJz7wrtPncB8horkTqKV+DvQz6\nga8s8esGNOA98i5K0Z834r5st4Nr5lIzRZemi5aXUCunjDd1t6oKL2Hv+ryZ9PnS\nSUM3qLWPZ6+GkKLjMvA346HX+gb74rioLnyTuKmw1GaD1+e/9vq/bHgcAnwFAabD\nVR84JxXOlV0TzR7bB+02salnSJKpKXzfaS7qcNCh5ir7146tYgMsOUBC9S/TpSek\nfjMJHQCbIFmPUlgqpVQL5eK+elkOOYwnzJRfdw/w6ix6PeREPSkNVF34mbglnOHK\n6GRtNwzh/f7D2qHWdWhTOglj39ob95crFOXOVM1XkvtPdwihZRvWreLsK5JERok3\nMtf0xLhLuKLmh3baB5WBgSDta1cqAuvqmT65HIZ2Zpl8QsUSRs2J3d72VgLqzIiR\noatiw7po5YdvXQTJwD0qPQsfoAVzvBvN/CS9bkP4uHuL9rIGHvpWzbGAIoPbJiXE\neb+4ULf/rfjNswWDju9k8jT9vcUrkU8l+TvSDNjEgG8Jq3T9/D3G8By/3lZxOqFl\nT6pZAQ04Tmb+sJeQ6zJV\n=Q6QN\n-----END PGP SIGNATURE-----\n",
+          "payload": "tree c67bc265a6ee86434d155091203549919631c829\nparent 5597f6f7cfd95cbada4526f5c89150944a7fd766\nauthor Olaoluwa Osuntokun <laolu32@gmail.com> 1795469630 -0400\ncommitter GitHub <noreply@github.com> 1795469630 -0400\n\nchanneldb: persist local updates the peer acked before our first revoke (#11268)\n\n* channeldb: persist local updates the peer acked before our first revoke\n\nIn this commit, we fix AdvanceCommitChainTail so it always persists our\nupdates the peer acknowledged but hasn't signed for yet. It used to\nreturn early when no unsigned acked updates were stored, which skipped\nthat write. Nothing stores the unsigned acked updates until we first\nrevoke a commitment of our own, so every channel takes that path until\nthen, not only nodes that are upgrading, as the comment assumed.\n\nThe window matters for fee updates. If the initiator's first update is a\nfee update, the peer revokes, and the connection drops before the peer's\ncommitment_signed arrives, the initiator restores without the fee update.\nIt then rejects the peer's valid signature for a commitment that covers\nthe fee, and the link force closes the channel. The new test runs that\nsequence, and fails without the fix.\n\nSettles and fails can't hit this, since removing an HTLC needs it locked\nin, which means we already revoked once. The mirror test's restart step\nfound this.\n\n* docs: add release note for the unsigned acked updates fix",
+          "verified_at": "2026-11-23T21:33:50Z"
+        }
+      },
+      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/9f5e2c7b4e707fb8338e43fda757aee969aac5ed",
+      "html_url": "https://github.com/lightningnetwork/lnd/commit/9f5e2c7b4e707fb8338e43fda757aee969aac5ed",
+      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/9f5e2c7b4e707fb8338e43fda757aee969aac5ed/comments",
+      "author": {
+        "login": "Roasbeef",
+        "id": 998190,
+        "node_id": "MDQ6VXNlcjk5ODE5MA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/998190?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Roasbeef",
+        "html_url": "https://github.com/Roasbeef",
+        "followers_url": "https://api.github.com/users/Roasbeef/followers",
+        "following_url": "https://api.github.com/users/Roasbeef/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Roasbeef/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Roasbeef/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Roasbeef/subscriptions",
+        "organizations_url": "https://api.github.com/users/Roasbeef/orgs",
+        "repos_url": "https://api.github.com/users/Roasbeef/repos",
+        "events_url": "https://api.github.com/users/Roasbeef/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Roasbeef/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 19864447,
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/web-flow",
+        "html_url": "https://github.com/web-flow",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "5597f6f7cfd95cbada4526f5c89150944a7fd766",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/5597f6f7cfd95cbada4526f5c89150944a7fd766",
+          "html_url": "https://github.com/lightningnetwork/lnd/commit/5597f6f7cfd95cbada4526f5c89150944a7fd766"
+        }
+      ]
+    },
+    {
+      "sha": "5597f6f7cfd95cbada4526f5c89150944a7fd766",
+      "node_id": "C_kwDOAvdcaNoAKDU1OTdmNmY3Y2ZkOTVjYmFkYTQ1MjZmNWM4OTE1MDk0NGE3ZmQ3NjY",
+      "commit": {
+        "author": {
+          "name": "Olaoluwa Osuntokun",
+          "email": "laolu32@gmail.com",
+          "date": "2026-11-23T21:29:13Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2026-11-23T21:29:13Z"
+        },
+        "message": "Merge pull request #11575 from Roasbeef/rbf-coop-close-lifecycle\n\npeer+chancloser: buffer RBF close bumps in FSM and tear down on CloseFin",
+        "tree": {
+          "sha": "8c1e774a45065de796445a0d8b75893003cd5dac",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/8c1e774a45065de796445a0d8b75893003cd5dac"
+        },
+        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/5597f6f7cfd95cbada4526f5c89150944a7fd766",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJrBLApCRC1aQ7uu5UhlAAAIUEQAC0iLQ5h1bA9/VQFiTj+Hgl8\n37KwH9A9ZItC3ZFBEA4em5uw0oprfdo2sYqpYTAEW3PvRVDEinhGvhF7AvNIK+EL\nap+0J+QwHNddk1UShQoje+NJhL1BjfQvTvKwV8f/5JSg3J2GPdNwty2vnbDmh5mW\nNkQQA0KCtvwzFITpFr2UE6423uFfaVdCU45iiDMBWzFpEpqd261vh2dAkzMcdpnj\n7zTqQOgLqR/lU7O8vER/EHiOKtFwK8CiKF2TgHnx/6QBfQEOvLbKHiBbLbA5Vm1Y\ndHNLjwbPbfap3JPs2yPry6Dw1PH1xuiXtdhx3tiy6woj3oS0RgadLCZnVWC/KkWm\nMp4LLGePPc7oFljONSYxf973urZ1KqAdowuH6fufHS5amOmViIkimVlKcBtgV0cb\nKfhFmZYWMNbKYwCJBbGjoxDGreZcTeFRtZnio9BsWmI10kUTDB0NZs/UHD786/Q1\nn2N193AK4jPQ7RdTzaeTlihi1Q8DPbtJsU28nBHU7DO+mx3SJISRNhXHYtlPDNaT\nXrj1if/aq737/wfoo65X8LuWZAwMH6rrA5mPV1ltTFnFsMYX0V93zN8S7KzscK/C\nw9Va1vr2uBwelqjxofXZJdDwVSP2lYRY7O9JBtIujJ9KPw9py1UMDYD7Lanb30a8\nwD2WZ6WBjFY97G/hWz0D\n=ZYFd\n-----END PGP SIGNATURE-----\n",
+          "payload": "tree 8c1e774a45065de796445a0d8b75893003cd5dac\nparent 8cdbf85c0860caf252d1e3e4db508c87dec8c1f0\nparent ac26e71ab8993b4f5111a51409891d8e3512d03d\nauthor Olaoluwa Osuntokun <laolu32@gmail.com> 1795469353 -0400\ncommitter GitHub <noreply@github.com> 1795469353 -0400\n\nMerge pull request #11575 from Roasbeef/rbf-coop-close-lifecycle\n\npeer+chancloser: buffer RBF close bumps in FSM and tear down on CloseFin",
+          "verified_at": "2026-11-23T21:29:13Z"
+        }
+      },
+      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/5597f6f7cfd95cbada4526f5c89150944a7fd766",
+      "html_url": "https://github.com/lightningnetwork/lnd/commit/5597f6f7cfd95cbada4526f5c89150944a7fd766",
+      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/5597f6f7cfd95cbada4526f5c89150944a7fd766/comments",
+      "author": {
+        "login": "Roasbeef",
+        "id": 998190,
+        "node_id": "MDQ6VXNlcjk5ODE5MA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/998190?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Roasbeef",
+        "html_url": "https://github.com/Roasbeef",
+        "followers_url": "https://api.github.com/users/Roasbeef/followers",
+        "following_url": "https://api.github.com/users/Roasbeef/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Roasbeef/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Roasbeef/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Roasbeef/subscriptions",
+        "organizations_url": "https://api.github.com/users/Roasbeef/orgs",
+        "repos_url": "https://api.github.com/users/Roasbeef/repos",
+        "events_url": "https://api.github.com/users/Roasbeef/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Roasbeef/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 19864447,
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/web-flow",
+        "html_url": "https://github.com/web-flow",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "8cdbf85c0860caf252d1e3e4db508c87dec8c1f0",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/8cdbf85c0860caf252d1e3e4db508c87dec8c1f0",
+          "html_url": "https://github.com/lightningnetwork/lnd/commit/8cdbf85c0860caf252d1e3e4db508c87dec8c1f0"
+        },
+        {
+          "sha": "ac26e71ab8993b4f5111a51409891d8e3512d03d",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/ac26e71ab8993b4f5111a51409891d8e3512d03d",
+          "html_url": "https://github.com/lightningnetwork/lnd/commit/ac26e71ab8993b4f5111a51409891d8e3512d03d"
+        }
+      ]
+    },
     {
       "sha": "8cdbf85c0860caf252d1e3e4db508c87dec8c1f0",
       "node_id": "C_kwDOAvdcaNoAKDhjZGJmODVjMDg2MGNhZjI1MmQxZTNlNGRiNTA4Yzg3ZGVjOGMxZjA",
@@ -1356,119 +1525,37 @@
       ]
     },
     {
-      "sha": "f3508c5540aff08f890fa97be994e1cd951d26b8",
-      "node_id": "C_kwDOAvdcaNoAKGYzNTA4YzU1NDBhZmYwOGY4OTBmYTk3YmU5OTRlMWNkOTUxZDI2Yjg",
-      "commit": {
-        "author": {
-          "name": "litbot-9000",
-          "email": "58193817+litbot-9000@users.noreply.github.com",
-          "date": "2026-11-12T23:29:18Z"
-        },
-        "committer": {
-          "name": "ziggie",
-          "email": "ziggie1984@protonmail.com",
-          "date": "2026-11-12T23:46:35Z"
-        },
-        "message": "discovery: fix flaky TestGossipSyncerSyncTransitions\n\nThe test asserted an exact FirstTimestamp for the GossipTimestampRange\nmessage the syncer sends when (re)entering active sync. The syncer\nstamps the message with its own clock while processing the start or\ntransition request, and the test sampled time.Now() for its expectation\nonly afterwards. If a wall-clock second boundary was crossed in\nbetween, the expectation was one second ahead of the stamped value and\nthe test failed, as seen in CI [1]:\n\n    expected: FirstTimestamp 1794500870\n    got:      FirstTimestamp 1794500869\n\nSample the time before starting the syncer and assert that the stamped\nfirst timestamp falls within [startTime, now] instead of comparing\nexact values.\n\n[1]: https://github.com/lightningnetwork/lnd/actions/runs/42982273166/job/131243808607",
-        "tree": {
-          "sha": "fbf406b63c63eb8adc6234f55dd7a2134dc727e3",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/fbf406b63c63eb8adc6234f55dd7a2134dc727e3"
-        },
-        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/f3508c5540aff08f890fa97be994e1cd951d26b8",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niHUEABYKAB0WIQRfdUN+EWlfhtUMEbsa/5xNztbWZgUCavZP2wAKCRAa/5xNztbW\nZqOHAQD8Ck5LEIHJWV+iYV5j4+JGV8CeADm74Iiv3HV61QgsEwEArdxLjWo7TJI8\njrovMoojRIkgx2rGJDTQuUjBIJbnUwQ=\n=TQcw\n-----END PGP SIGNATURE-----",
-          "payload": "tree fbf406b63c63eb8adc6234f55dd7a2134dc727e3\nparent 895118ac4ec59e78b2c14f5b0d31ac6f862434bb\nauthor litbot-9000 <58193817+litbot-9000@users.noreply.github.com> 1794526158 +0000\ncommitter ziggie <ziggie1984@protonmail.com> 1794527195 -0300\n\ndiscovery: fix flaky TestGossipSyncerSyncTransitions\n\nThe test asserted an exact FirstTimestamp for the GossipTimestampRange\nmessage the syncer sends when (re)entering active sync. The syncer\nstamps the message with its own clock while processing the start or\ntransition request, and the test sampled time.Now() for its expectation\nonly afterwards. If a wall-clock second boundary was crossed in\nbetween, the expectation was one second ahead of the stamped value and\nthe test failed, as seen in CI [1]:\n\n    expected: FirstTimestamp 1794500870\n    got:      FirstTimestamp 1794500869\n\nSample the time before starting the syncer and assert that the stamped\nfirst timestamp falls within [startTime, now] instead of comparing\nexact values.\n\n[1]: https://github.com/lightningnetwork/lnd/actions/runs/42982273166/job/131243808607\n",
-          "verified_at": "2026-11-12T23:46:38Z"
-        }
-      },
-      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/f3508c5540aff08f890fa97be994e1cd951d26b8",
-      "html_url": "https://github.com/lightningnetwork/lnd/commit/f3508c5540aff08f890fa97be994e1cd951d26b8",
-      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/f3508c5540aff08f890fa97be994e1cd951d26b8/comments",
-      "author": {
-        "login": "litbot-9000",
-        "id": 58193817,
-        "node_id": "MDQ6VXNlcjU4MTkzODE3",
-        "avatar_url": "https://avatars.githubusercontent.com/u/58193817?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/litbot-9000",
-        "html_url": "https://github.com/litbot-9000",
-        "followers_url": "https://api.github.com/users/litbot-9000/followers",
-        "following_url": "https://api.github.com/users/litbot-9000/following{/other_user}",
-        "gists_url": "https://api.github.com/users/litbot-9000/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/litbot-9000/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/litbot-9000/subscriptions",
-        "organizations_url": "https://api.github.com/users/litbot-9000/orgs",
-        "repos_url": "https://api.github.com/users/litbot-9000/repos",
-        "events_url": "https://api.github.com/users/litbot-9000/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/litbot-9000/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "ziggie1984",
-        "id": 90319354,
-        "node_id": "MDQ6VXNlcjkwMzE5MzU0",
-        "avatar_url": "https://avatars.githubusercontent.com/u/90319354?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/ziggie1984",
-        "html_url": "https://github.com/ziggie1984",
-        "followers_url": "https://api.github.com/users/ziggie1984/followers",
-        "following_url": "https://api.github.com/users/ziggie1984/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ziggie1984/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ziggie1984/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ziggie1984/subscriptions",
-        "organizations_url": "https://api.github.com/users/ziggie1984/orgs",
-        "repos_url": "https://api.github.com/users/ziggie1984/repos",
-        "events_url": "https://api.github.com/users/ziggie1984/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ziggie1984/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
-          "html_url": "https://github.com/lightningnetwork/lnd/commit/895118ac4ec59e78b2c14f5b0d31ac6f862434bb"
-        }
-      ]
-    },
-    {
-      "sha": "895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
-      "node_id": "C_kwDOAvdcaNoAKDg5NTExOGFjNGVjNTllNzhiMmMxNGY1YjBkMzFhYzZmODYyNDM0YmI",
+      "sha": "ac26e71ab8993b4f5111a51409891d8e3512d03d",
+      "node_id": "C_kwDOAvdcaNoAKGFjMjZlNzFhYjg5OTNiNGY1MTExYTUxNDA5ODkxZDhlMzUxMmQwM2Q",
       "commit": {
         "author": {
           "name": "Olaoluwa Osuntokun",
           "email": "laolu32@gmail.com",
-          "date": "2026-11-12T22:16:58Z"
+          "date": "2026-11-13T03:15:41Z"
         },
         "committer": {
-          "name": "GitHub",
-          "email": "noreply@github.com",
-          "date": "2026-11-12T22:16:58Z"
+          "name": "Olaoluwa Osuntokun",
+          "email": "laolu32@gmail.com",
+          "date": "2026-11-13T03:15:41Z"
         },
-        "message": "Merge pull request #11555 from yyforyongyu/invoice-settlement-public\n\ninvoices: settle after complete HTLC collection",
+        "message": "docs: add release note for RBF close lifecycle fixes\n\nIn this commit, we add the release note fragment for PR #11575 covering the RBF cooperative close bump buffering and CloseFin teardown fixes.",
         "tree": {
-          "sha": "5340e151cd524c19480bbba71ac690446d214573",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/5340e151cd524c19480bbba71ac690446d214573"
+          "sha": "44e022b3d09ce1c0066bddce8899ba35c8579221",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/44e022b3d09ce1c0066bddce8899ba35c8579221"
         },
-        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
+        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/ac26e71ab8993b4f5111a51409891d8e3512d03d",
         "comment_count": 0,
         "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq9jraCRC1aQ7uu5UhlAAA/zwQAGhdNvyMNb5EUqxZVcyFatkT\nF1mGBxxKeKfrmAkGCXpMcv0Ee4Bk2OMvngUxBMzXhzHnkmKmHzHAj//3TqR3rlen\nATRmtfEB4D80ACEufByM3bmvYKSQ6dfiGcJEd6WncxGrJQ0TauUCsaBv2p3+Ly+G\nroBfyfRFbGFSy2/8zAgE4UYG4fkKD3nFqTf96tlybrXza/T/+NI9VdDuULTQXIY3\n/8tvEzKbWHDOf9teicIlKIq++oWd9OO6f+otIu6mi6iKE+wG97RPJXYhZ8jFLgQN\nxZEk2A/BZ/nuzvdYDG96VwIO9cxPELtOAg42/LgCE+upukbDHqJJOkCAuY5k6M82\nwjlKVa6RqTJ8OEnbst/YUOli8QlraozHSTzKdKjVoVvdSJh4PPUkmss29OZ5d2Pg\nveah6MzV7fe0Mmdao9SSED6pMtDXy2M0yDGdQbLmepKaL/ID2Y2cMkorQ8zzj1v1\nBh8l4RnwYnrNxTDa2aaWSRTmc5zGbPuN/uxTW/Rt5W3KPIygNt5/hOpKB07CPPZT\n/lvIRVhA0UZCxmfVxg2sL1kB6AGsqKp2Vp5BzKPJoGbCXtRJjhEyITdN/JcUrZj2\nsq7AGN1s0ymR9pSgUYYGUtO9mlIebnB8XO15Mzi3VJKjdUYEJh79hC4/wTbJfcrD\nBoNMdnsyNzyLIcLZwFqs\n=Jc2Q\n-----END PGP SIGNATURE-----\n",
-          "payload": "tree 5340e151cd524c19480bbba71ac690446d214573\nparent 69ab4e9acebe49890a20ae4531e89d5dcafbde72\nparent 9649d9f669358dfc628063c393a5fbd5ccd5f5d5\nauthor Olaoluwa Osuntokun <laolu32@gmail.com> 1794521818 -0800\ncommitter GitHub <noreply@github.com> 1794521818 -0800\n\nMerge pull request #11555 from yyforyongyu/invoice-settlement-public\n\ninvoices: settle after complete HTLC collection",
-          "verified_at": "2026-11-12T22:16:58Z"
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
         }
       },
-      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
-      "html_url": "https://github.com/lightningnetwork/lnd/commit/895118ac4ec59e78b2c14f5b0d31ac6f862434bb",
-      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/895118ac4ec59e78b2c14f5b0d31ac6f862434bb/comments",
+      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/ac26e71ab8993b4f5111a51409891d8e3512d03d",
+      "html_url": "https://github.com/lightningnetwork/lnd/commit/ac26e71ab8993b4f5111a51409891d8e3512d03d",
+      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/ac26e71ab8993b4f5111a51409891d8e3512d03d/comments",
       "author": {
         "login": "Roasbeef",
         "id": 998190,
@@ -1491,200 +1578,113 @@
         "site_admin": false
       },
       "committer": {
-        "login": "web-flow",
-        "id": 19864447,
-        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
-        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "login": "Roasbeef",
+        "id": 998190,
+        "node_id": "MDQ6VXNlcjk5ODE5MA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/998190?v=4",
         "gravatar_id": "",
-        "url": "https://api.github.com/users/web-flow",
-        "html_url": "https://github.com/web-flow",
-        "followers_url": "https://api.github.com/users/web-flow/followers",
-        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
-        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
-        "organizations_url": "https://api.github.com/users/web-flow/orgs",
-        "repos_url": "https://api.github.com/users/web-flow/repos",
-        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "url": "https://api.github.com/users/Roasbeef",
+        "html_url": "https://github.com/Roasbeef",
+        "followers_url": "https://api.github.com/users/Roasbeef/followers",
+        "following_url": "https://api.github.com/users/Roasbeef/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Roasbeef/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Roasbeef/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Roasbeef/subscriptions",
+        "organizations_url": "https://api.github.com/users/Roasbeef/orgs",
+        "repos_url": "https://api.github.com/users/Roasbeef/repos",
+        "events_url": "https://api.github.com/users/Roasbeef/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Roasbeef/received_events",
         "type": "User",
         "user_view_type": "public",
         "site_admin": false
       },
       "parents": [
         {
-          "sha": "69ab4e9acebe49890a20ae4531e89d5dcafbde72",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/69ab4e9acebe49890a20ae4531e89d5dcafbde72",
-          "html_url": "https://github.com/lightningnetwork/lnd/commit/69ab4e9acebe49890a20ae4531e89d5dcafbde72"
-        },
-        {
-          "sha": "9649d9f669358dfc628063c393a5fbd5ccd5f5d5",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/9649d9f669358dfc628063c393a5fbd5ccd5f5d5",
-          "html_url": "https://github.com/lightningnetwork/lnd/commit/9649d9f669358dfc628063c393a5fbd5ccd5f5d5"
+          "sha": "f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
+          "html_url": "https://github.com/lightningnetwork/lnd/commit/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42"
         }
       ]
     },
     {
-      "sha": "9c415d20a1ff008b76994f3a10fb9b6e6ec9be53",
-      "node_id": "C_kwDOAvdcaNoAKDljNDE1ZDIwYTFmZjAwOGI3Njk5NGYzYTEwZmI5YjZlNmVjOWJlNTM",
+      "sha": "f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
+      "node_id": "C_kwDOAvdcaNoAKGY2NjlhMzA3Y2RiM2FkOWZlMDgzYWRiMWMxZWE3YzRlNDQ3YjljNDI",
       "commit": {
         "author": {
-          "name": "yyforyongyu",
-          "email": "yong2452@gmail.com",
-          "date": "2026-11-12T12:57:35Z"
+          "name": "Olaoluwa Osuntokun",
+          "email": "laolu32@gmail.com",
+          "date": "2026-11-13T03:13:34Z"
         },
         "committer": {
-          "name": "yyforyongyu",
-          "email": "yong2452@gmail.com",
-          "date": "2026-11-12T14:04:34Z"
+          "name": "Olaoluwa Osuntokun",
+          "email": "laolu32@gmail.com",
+          "date": "2026-11-13T03:13:34Z"
         },
-        "message": "docs: describe automatic release drafts\n\nWait for the draft preparation run before signing and pushing the exact\ntested release commit. Route RC and patch releases through the same\nprocedure and explain cleanup before retrying stale draft preparation.",
+        "message": "peer: abort waiting callers in ReportError and guard closer identity\n\nIn this commit, we update chanErrorReporter.ReportError to retire the failed closer from activeChanCloses and abort any callers in activeCloseReqs with the FSM error before re-initializing a replacement closer, preventing waiting RPC callers from hanging when observeRbfCloseUpdatesWithSeq exits on Done(). We also check closer pointer identity and liveness in startRbfChanCloser's post-add recheck so a caller cannot bind to a stopped or replaced closer.",
         "tree": {
-          "sha": "3e3476cc4066f66de2c4fdbf40f33ebdfdad3731",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/3e3476cc4066f66de2c4fdbf40f33ebdfdad3731"
+          "sha": "99aa551e3ad7767cc00fc741d5fd74a1f07abb8b",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/99aa551e3ad7767cc00fc741d5fd74a1f07abb8b"
         },
-        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/9c415d20a1ff008b76994f3a10fb9b6e6ec9be53",
+        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
         "comment_count": 0,
         "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEE6FSX0tug65rbACQnm82VxP8paGgFAmr1x3IbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEJvNlcT/KWhoXPcQAOhJPh4y6iJRvSgd3OBb\ne1NTdA886g/4OWsObMLypUf69n682dreZgg9aFWdEhgYmUqdIoxxYVusIAJUti1Z\ns/fm8DFWpPdUq8eOscY5W3HLoiYSdPK2HuCjfEAbmE0of6H6bjvAw21GqaS7gJc0\nILXbWvB7skFupZ1ACciQDZYZhM7MjWm7we6gAgpfzFktZPyWgkm87LMNu5tiwzHW\nCtvOonH7H2LGvFiLH9lxqATGM9LmBgRzFCK0k2jcVgQI0F8vh4mxyHrp+TP23LJU\ncSUcht4zM62Dj2hQuIOPaOPKuAiGW60/iSGoR57oVW20xKUul9kMQ6Y8Lb8f0ERk\ndeM9znxoMJst1+iYpQPBtlqUn7NIJrVhc1yKX1FqBgtY3XPi9fmIVIj6spxdjGzF\n/32IXw0j9tJPj1mor3aRHd94j0ir8IhRt0mof5Q+Z5LKmeKl8Nm58lL2gXirhsrt\n52HZ/Kv5ASr0269OELVtpm0JNUtRrGKZHSxff5WSWjkSn+lq72q1Lddxdx2ejCck\nnYMrOUgu+pmguIeb41wjol0z5XspsvH1tIWYYX94tvVC/4G5GLcy59YnvuyaEKZ4\nyuCyyzNtJDhVZ/TtOa2plZ0jLwJWcnTbQc2XL87lgD53CrgTt/2pDnaK34lN+Pgf\nANijjmKUM47lkitMFNPqD2Aj\n=Tbsp\n-----END PGP SIGNATURE-----",
-          "payload": "tree 3e3476cc4066f66de2c4fdbf40f33ebdfdad3731\nparent bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2\nauthor yyforyongyu <yong2452@gmail.com> 1794488255 +0800\ncommitter yyforyongyu <yong2452@gmail.com> 1794492274 +0800\n\ndocs: describe automatic release drafts\n\nWait for the draft preparation run before signing and pushing the exact\ntested release commit. Route RC and patch releases through the same\nprocedure and explain cleanup before retrying stale draft preparation.\n",
-          "verified_at": "2026-11-12T14:05:03Z"
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
         }
       },
-      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/9c415d20a1ff008b76994f3a10fb9b6e6ec9be53",
-      "html_url": "https://github.com/lightningnetwork/lnd/commit/9c415d20a1ff008b76994f3a10fb9b6e6ec9be53",
-      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/9c415d20a1ff008b76994f3a10fb9b6e6ec9be53/comments",
+      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
+      "html_url": "https://github.com/lightningnetwork/lnd/commit/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42",
+      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/f669a307cdb3ad9fe083adb1c1ea7c4e447b9c42/comments",
       "author": {
-        "login": "yyforyongyu",
-        "id": 5845072,
-        "node_id": "MDQ6VXNlcjU4NDUwNzI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/5845072?v=4",
+        "login": "Roasbeef",
+        "id": 998190,
+        "node_id": "MDQ6VXNlcjk5ODE5MA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/998190?v=4",
         "gravatar_id": "",
-        "url": "https://api.github.com/users/yyforyongyu",
-        "html_url": "https://github.com/yyforyongyu",
-        "followers_url": "https://api.github.com/users/yyforyongyu/followers",
-        "following_url": "https://api.github.com/users/yyforyongyu/following{/other_user}",
-        "gists_url": "https://api.github.com/users/yyforyongyu/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/yyforyongyu/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/yyforyongyu/subscriptions",
-        "organizations_url": "https://api.github.com/users/yyforyongyu/orgs",
-        "repos_url": "https://api.github.com/users/yyforyongyu/repos",
-        "events_url": "https://api.github.com/users/yyforyongyu/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/yyforyongyu/received_events",
+        "url": "https://api.github.com/users/Roasbeef",
+        "html_url": "https://github.com/Roasbeef",
+        "followers_url": "https://api.github.com/users/Roasbeef/followers",
+        "following_url": "https://api.github.com/users/Roasbeef/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Roasbeef/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Roasbeef/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Roasbeef/subscriptions",
+        "organizations_url": "https://api.github.com/users/Roasbeef/orgs",
+        "repos_url": "https://api.github.com/users/Roasbeef/repos",
+        "events_url": "https://api.github.com/users/Roasbeef/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Roasbeef/received_events",
         "type": "User",
         "user_view_type": "public",
         "site_admin": false
       },
       "committer": {
-        "login": "yyforyongyu",
-        "id": 5845072,
-        "node_id": "MDQ6VXNlcjU4NDUwNzI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/5845072?v=4",
+        "login": "Roasbeef",
+        "id": 998190,
+        "node_id": "MDQ6VXNlcjk5ODE5MA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/998190?v=4",
         "gravatar_id": "",
-        "url": "https://api.github.com/users/yyforyongyu",
-        "html_url": "https://github.com/yyforyongyu",
-        "followers_url": "https://api.github.com/users/yyforyongyu/followers",
-        "following_url": "https://api.github.com/users/yyforyongyu/following{/other_user}",
-        "gists_url": "https://api.github.com/users/yyforyongyu/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/yyforyongyu/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/yyforyongyu/subscriptions",
-        "organizations_url": "https://api.github.com/users/yyforyongyu/orgs",
-        "repos_url": "https://api.github.com/users/yyforyongyu/repos",
-        "events_url": "https://api.github.com/users/yyforyongyu/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/yyforyongyu/received_events",
+        "url": "https://api.github.com/users/Roasbeef",
+        "html_url": "https://github.com/Roasbeef",
+        "followers_url": "https://api.github.com/users/Roasbeef/followers",
+        "following_url": "https://api.github.com/users/Roasbeef/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Roasbeef/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Roasbeef/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Roasbeef/subscriptions",
+        "organizations_url": "https://api.github.com/users/Roasbeef/orgs",
+        "repos_url": "https://api.github.com/users/Roasbeef/repos",
+        "events_url": "https://api.github.com/users/Roasbeef/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Roasbeef/received_events",
         "type": "User",
         "user_view_type": "public",
         "site_admin": false
       },
       "parents": [
         {
-          "sha": "bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-          "html_url": "https://github.com/lightningnetwork/lnd/commit/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2"
-        }
-      ]
-    },
-    {
-      "sha": "bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-      "node_id": "C_kwDOAvdcaNoAKGJmOGNmNGQzOTRjYjkwYjFjOGUzNzlmZTllNjg3YmNhY2YzNTgyZDI",
-      "commit": {
-        "author": {
-          "name": "yyforyongyu",
-          "email": "yong2452@gmail.com",
-          "date": "2026-11-12T12:56:01Z"
-        },
-        "committer": {
-          "name": "yyforyongyu",
-          "email": "yong2452@gmail.com",
-          "date": "2026-11-12T13:08:44Z"
-        },
-        "message": "ci: prepare release drafts before tagging\n\nBuild release-version commits before maintainers publish their signed\ntags. Stage the successful build as a draft and cover preparation and\nskipping behavior with focused local workflow tests.",
-        "tree": {
-          "sha": "4e5a4b32bcadd88f2f612deb00477c6de553c83f",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/git/trees/4e5a4b32bcadd88f2f612deb00477c6de553c83f"
-        },
-        "url": "https://api.github.com/repos/lightningnetwork/lnd/git/commits/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-        "comment_count": 0,
-        "verification": {
-          "verified": true,
-          "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\niQJPBAABCAA5FiEE6FSX0tug65rbACQnm82VxP8paGgFAmr1ulwbFIAAAAAABAAO\nbWFudTIsMi41KzEuMTIsMCwzAAoJEJvNlcT/KWhoYW0P/0ZoXRmVAHJG9xtVUiyP\nSYFUm/b9FDe8iZ+G6/Sk6zZ9QBVsLXJ5HzU04Wn58OFiYwLzD6U88JdhyyOTtD2M\nioiexJQf9uVymP9hp54uZueVOfxyLkYxkS7a7otSo64P7gTc3XH2JgbZGU5hQF9Z\n+wYtwJmtkrT+zC26xy5307/v7ep0iMkqQ1GI12rRtyS4VbD3iAjraapL2fiF1Wvz\n9cTCqzcH+13UfsS1UmvMoA+k+0pgdKZFimqkLsVuFxz2WN97sXEg3WyCrhpax+ha\nBD1wJQVuRBPAAukLoI6v535mpIYdxjm8FOKwVZBYsHjGaQlvqpg8/VIyM/Ds7KUB\n0P8RpN4WPhOPMpltdKkpmOqVIW37CJeBSWOmSNp4VVd2qC0FmrnUVKDVV7heYIuI\n3fXlfAPNfCIUhVGiprjWXHQhBJlAhV75UilLSq1LawO11fWxFHhFUKIPVqtDQoFx\n7Vyvpb4T3nYPuYXBpp3IJKkOK6i49KbjxHFuDoiuScLmqKJXz9lprCBC3BuQRnlw\noZQQDTY8GleUSY8Wx+GhaiBDduBVCNTEOCdIMT/Gmk/JE76vv98agCbpVV3HIjd2\nrcUuomt5kjxlq/agKrCMI2Q8qynEUOrWWX4mU8+8I9dGFMwZsRh6zgZked4Gg3Os\njFpQllRoMgCSHEdNvA0hafAo\n=7Vr3\n-----END PGP SIGNATURE-----",
-          "payload": "tree 4e5a4b32bcadd88f2f612deb00477c6de553c83f\nparent 69ab4e9acebe49890a20ae4531e89d5dcafbde72\nauthor yyforyongyu <yong2452@gmail.com> 1794488161 +0800\ncommitter yyforyongyu <yong2452@gmail.com> 1794488924 +0800\n\nci: prepare release drafts before tagging\n\nBuild release-version commits before maintainers publish their signed\ntags. Stage the successful build as a draft and cover preparation and\nskipping behavior with focused local workflow tests.\n",
-          "verified_at": "2026-11-12T13:12:41Z"
-        }
-      },
-      "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-      "html_url": "https://github.com/lightningnetwork/lnd/commit/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2",
-      "comments_url": "https://api.github.com/repos/lightningnetwork/lnd/commits/bf8cf4d394cb90b1c8e379fe9e687bcacf3582d2/comments",
-      "author": {
-        "login": "yyforyongyu",
-        "id": 5845072,
-        "node_id": "MDQ6VXNlcjU4NDUwNzI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/5845072?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/yyforyongyu",
-        "html_url": "https://github.com/yyforyongyu",
-        "followers_url": "https://api.github.com/users/yyforyongyu/followers",
-        "following_url": "https://api.github.com/users/yyforyongyu/following{/other_user}",
-        "gists_url": "https://api.github.com/users/yyforyongyu/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/yyforyongyu/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/yyforyongyu/subscriptions",
-        "organizations_url": "https://api.github.com/users/yyforyongyu/orgs",
-        "repos_url": "https://api.github.com/users/yyforyongyu/repos",
-        "events_url": "https://api.github.com/users/yyforyongyu/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/yyforyongyu/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "committer": {
-        "login": "yyforyongyu",
-        "id": 5845072,
-        "node_id": "MDQ6VXNlcjU4NDUwNzI=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/5845072?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/yyforyongyu",
-        "html_url": "https://github.com/yyforyongyu",
-        "followers_url": "https://api.github.com/users/yyforyongyu/followers",
-        "following_url": "https://api.github.com/users/yyforyongyu/following{/other_user}",
-        "gists_url": "https://api.github.com/users/yyforyongyu/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/yyforyongyu/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/yyforyongyu/subscriptions",
-        "organizations_url": "https://api.github.com/users/yyforyongyu/orgs",
-        "repos_url": "https://api.github.com/users/yyforyongyu/repos",
-        "events_url": "https://api.github.com/users/yyforyongyu/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/yyforyongyu/received_events",
-        "type": "User",
-        "user_view_type": "public",
-        "site_admin": false
-      },
-      "parents": [
-        {
-          "sha": "69ab4e9acebe49890a20ae4531e89d5dcafbde72",
-          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/69ab4e9acebe49890a20ae4531e89d5dcafbde72",
-          "html_url": "https://github.com/lightningnetwork/lnd/commit/69ab4e9acebe49890a20ae4531e89d5dcafbde72"
+          "sha": "c531f8a3a37cf135694bff92bf02c7ab6ce7eee2",
+          "url": "https://api.github.com/repos/lightningnetwork/lnd/commits/c531f8a3a37cf135694bff92bf02c7ab6ce7eee2",
+          "html_url": "https://github.com/lightningnetwork/lnd/commit/c531f8a3a37cf135694bff92bf02c7ab6ce7eee2"
         }
       ]
     }
